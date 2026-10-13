@@ -1,7 +1,8 @@
 # @kiri23/ontology-client
 
-El cliente HTTP del validador de fichas `proyecto.ttl` de ontologyLearning: manda una ficha Turtle a `POST /proyectos` y
-devuelve si conforma a las reglas, con el reporte de SHACL. Es tres cosas:
+El cliente HTTP de ontologyLearning. Valida fichas `proyecto.ttl` (manda una ficha Turtle a `POST /proyectos` y devuelve
+si conforma a las reglas, con el reporte de SHACL) y lee los puestos de trabajo (`GET /jobs`, tipados como `JobPost[]`).
+Es tres cosas:
 
 - una **librería** TypeScript en JSR (`jsr:@kiri23/ontology-client`),
 - un **CLI** que valida archivos y sale 0/1/2,
@@ -21,6 +22,10 @@ El cliente no describe el endpoint a mano. El servidor genera su contrato OpenAP
 servidor ──GET /openapi.json──▶ contrato/openapi.json ──openapi-typescript──▶ generado/api.ts ──▶ mod.ts
             deno task contrato                         deno task generar
 ```
+
+Un tipo nace en el servidor como shape SHACL y llega al editor sin que nadie lo escriba: `j:JobPostShape` (TTL) → el
+schema `JobPost` de `contrato/openapi.json` → `components["schemas"]["JobPost"]` en `generado/api.ts` → `JobPost` en
+`jobs.ts`.
 
 ```sh
 deno task contrato                  # baja el contrato (default https://ontology.kiri231.com/openapi.json)
@@ -66,6 +71,27 @@ else if (!r.conforma) console.log(r.reporte);
 | `{ ok: false, status: null, error }`     | no hubo respuesta: red caída, DNS, TLS o timeout                     |
 
 `fetch` acepta uno propio (tests, proxies); recibe un `Request`, como en openapi-fetch.
+
+### Puestos de trabajo: `jobs`
+
+Un módulo por clase de la ontología, no por endpoint: `jobs` es la clase `JobPost`, con sus métodos. Hoy tiene uno.
+
+```ts
+import { type JobPost, jobs } from "jsr:@kiri23/ontology-client";
+
+const lista: JobPost[] = await jobs.get({ tecnologia: "python" }); // o { fuente: "hn" }, o nada: todos
+lista[0].empresa; // string | undefined
+lista[0].pide[0].nombre; // string: cada tecnología es un Technology { link, nombre, sinonimos }
+```
+
+`jobs.get(filtros?, { url?, fetch?, timeoutMs? })` va a `GET /jobs` sin token y devuelve la lista, lo más nuevo primero.
+A diferencia de `validarProyecto`, **tira** cuando no hay lista: un `ErrorServidor` con `status` (503, 400, 200 fuera
+del contrato, o `null` si no hubo respuesta) y el `{"error"}` del servidor en el mensaje. El 503 es "datos viejos": el
+mensaje dice que `POST /jobs?kiri_jobs=--all` los rehace.
+
+Traer puestos nuevos no tiene método todavía: el 200 de `POST /jobs` no declara schema en el contrato, así que
+devolvería `unknown`. Va por el cliente tipado:
+`crearCliente().POST("/jobs", { params: { query: { kiri_jobs: "--all" } } })`.
 
 ### El cliente tipado, sin envoltorio
 
@@ -174,6 +200,7 @@ Deno 2.9.5 con `denoland/setup-deno` fijado por SHA y corre el `cli.ts` de la ve
 
 ```sh
 deno task test        # tests: fetch falso, anotaciones, workflow commands, timeout, exit codes del proceso
+ONTOLOGY_PRODUCCION=1 deno task test   # además, jobs.get() contra producción
 deno fmt --check && deno lint && deno task generar --check
 deno run --allow-net --allow-read tests/servidor-falso.ts --puerto 8787 --token prueba
 ```

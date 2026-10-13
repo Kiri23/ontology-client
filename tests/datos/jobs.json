@@ -1,0 +1,32 @@
+[
+  {
+    "link": "https://news.ycombinator.com/item?id=50063001",
+    "empresa": "Typify.dev (https://typify.dev)",
+    "fecha": "2026-10-13T21:03:57+00:00",
+    "fuente": "hn",
+    "pide": [{ "link": "https://kiri23.dev/tech#MCP", "nombre": "MCP", "sinonimos": ["Model Context Protocol"] }],
+    "titulo": "AI Application Engineer + Product Engineer | San Francisco (hybrid / remote available) | VISA | $80-120K USD (Negotiable) | galen@typify.dev"
+  },
+  {
+    "link": "https://remotive.com/remote-jobs/software-development/senior-net-full-stack-developer-2091130",
+    "empresa": "Lemon.io",
+    "fecha": "2026-10-13T21:03:57+00:00",
+    "fuente": "remotive",
+    "pide": [
+      { "link": "https://kiri23.dev/tech#CSharp", "nombre": "C#", "sinonimos": [".NET", "dotnet"] },
+      { "link": "https://kiri23.dev/tech#NodeJs", "nombre": "Node.js", "sinonimos": ["Node", "NodeJS"] },
+      { "link": "https://kiri23.dev/tech#Python", "nombre": "Python", "sinonimos": [] },
+      { "link": "https://kiri23.dev/tech#React", "nombre": "React", "sinonimos": ["React Native", "ReactJS"] },
+      { "link": "https://kiri23.dev/tech#TypeScript", "nombre": "TypeScript", "sinonimos": ["TS"] }
+    ],
+    "titulo": "Senior .NET Full-stack Developer"
+  },
+  {
+    "link": "https://news.ycombinator.com/item?id=49935083",
+    "empresa": "Tempus AI",
+    "fecha": "2026-10-13T21:03:57+00:00",
+    "fuente": "hn",
+    "pide": [],
+    "titulo": "AI Scientist (Staff, Senior) | REMOTE (US) | Full-time | https://www.tempus.com"
+  }
+]

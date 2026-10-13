@@ -9,7 +9,13 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get?: never;
+        /**
+         * Los puestos como JobPost[]: cada uno con la forma de j:JobPostShape, el schema JobPost del contrato.
+         * @description GET /jobs. Filtra por tecnologia como consultas/jobs.rq (prefLabel o altLabel, sin mayúsculas) y por
+         *     fuente contra el campo fuente del puesto (igual, sin mayúsculas: remotive, hn). El orden es el del
+         *     .rq: lo más nuevo primero. Para traer puestos nuevos, POST /jobs?kiri_jobs=--all.
+         */
+        get: operations["jobs_get"];
         put?: never;
         /** Trae puestos con kiri-jobs, los pasa a triples, los valida con SHACL y guarda datos/jobs.trig. */
         post: operations["jobs"];
@@ -68,6 +74,32 @@ export interface components {
         Error: {
             error: string;
         };
+        JobPost: {
+            /**
+             * Format: uri
+             * @description La URI del nodo: su identificador.
+             */
+            link: string;
+            empresa?: string;
+            /**
+             * Format: date-time
+             * @description Cuándo lo trajo kiri-jobs (no cuándo se publicó).
+             */
+            fecha: string;
+            /** @description De dónde salió el puesto: remotive, hn… */
+            fuente: string;
+            pide: components["schemas"]["Technology"][];
+            titulo: string;
+        };
+        Technology: {
+            /**
+             * Format: uri
+             * @description La URI del nodo: su identificador.
+             */
+            link: string;
+            nombre: string;
+            sinonimos: string[];
+        };
     };
     responses: never;
     parameters: never;
@@ -77,6 +109,49 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+    jobs_get: {
+        parameters: {
+            query?: {
+                /** @description prefLabel o altLabel, sin mayúsculas: python, ts, node */
+                tecnologia?: string;
+                /** @description de qué fuente, igual que el campo fuente: remotive o hn */
+                fuente?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description la respuesta del comando */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["JobPost"][];
+                };
+            };
+            /** @description el comando no pudo hacer su trabajo (parámetros, datos) */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description datos/jobs.trig es de una forma vieja: POST /jobs?kiri_jobs=--all lo rehace */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
     jobs: {
         parameters: {
             query?: {
