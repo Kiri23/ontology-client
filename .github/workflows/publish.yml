@@ -25,7 +25,7 @@ jobs:
   publish:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - uses: denoland/setup-deno@22d081ff2d3a40755e97629de92e3bcbfa7cf2ed # v2.0.5
         with:
@@ -54,7 +54,14 @@ jobs:
       - name: Publicar en JSR
         run: |
           set -o pipefail
-          deno publish 2>&1 | tee "$RUNNER_TEMP/publish.log"
+          if ! deno publish 2>&1 | tee "$RUNNER_TEMP/publish.log"; then
+            if grep -q "don't exist" "$RUNNER_TEMP/publish.log"; then
+              echo "::error title=@kiri23/ontology-client no existe en JSR::Crealo en https://jsr.io/new?scope=kiri23&package=ontology-client, vinculalo a Kiri23/ontology-client en su Settings (GitHub repository) y corré de nuevo este workflow."
+            elif grep -qi "link" "$RUNNER_TEMP/publish.log"; then
+              echo "::error title=Paquete sin vincular a este repo::En https://jsr.io/@kiri23/ontology-client/settings → GitHub repository → Kiri23/ontology-client, y corré de nuevo este workflow."
+            fi
+            exit 1
+          fi
           if grep -q "already published" "$RUNNER_TEMP/publish.log"; then
             version=$(jq -r .version deno.json)
             echo "::notice title=@kiri23/ontology-client@$version ya estaba publicado::No se subió nada. Para publicar, subí \"version\" en deno.json."
