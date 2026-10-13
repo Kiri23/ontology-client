@@ -1,0 +1,30 @@
+{
+  "name": "@kiri23/ontology-client",
+  "version": "0.1.0",
+  "license": "MIT",
+  "exports": {
+    ".": "./mod.ts",
+    "./cli": "./cli.ts"
+  },
+  "imports": {
+    "@std/assert": "jsr:@std/assert@^1.0.13",
+    "@std/cli": "jsr:@std/cli@^1.0.20",
+    "openapi-fetch": "npm:openapi-fetch@^0.17.0",
+    "openapi-typescript": "npm:openapi-typescript@7.13.0"
+  },
+  "tasks": {
+    "contrato": "deno run --allow-net --allow-env=ONTOLOGY_CONTRATO_URL --allow-write=contrato --allow-read --allow-run scripts/contrato.ts",
+    "generar": "deno run --allow-read --allow-write=generado --allow-env --allow-sys scripts/generar.ts",
+    "test": "deno test --allow-net --allow-read --allow-env --allow-run"
+  },
+  "fmt": {
+    "lineWidth": 120,
+    "exclude": ["generado/"]
+  },
+  "lint": {
+    "exclude": ["generado/"]
+  },
+  "publish": {
+    "include": ["mod.ts", "cli.ts", "generado/api.ts", "contrato/openapi.json", "README.md", "LICENSE"]
+  }
+}

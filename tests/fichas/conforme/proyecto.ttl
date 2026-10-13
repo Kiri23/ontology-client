@@ -1,0 +1,6 @@
+@prefix k: <https://kiri23.dev/catalogo#> .
+@prefix doap: <http://usefulinc.com/ns/doap#> .
+
+# Ficha de prueba para el servidor falso (tests/servidor-falso.ts): conforma.
+k:ficha-de-prueba a k:Proyecto ;
+    doap:shortdesc "Ficha de prueba del cliente." .

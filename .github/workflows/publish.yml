@@ -1,0 +1,61 @@
+name: Publish @kiri23/ontology-client
+
+# Publica en JSR con la versión de deno.json: al empujar un tag v* o cuando un push a main toca
+# deno.json (una versión ya publicada se salta con un aviso).
+#
+# Va por OIDC, sin token: el repo es público y JSR acepta el publish de un workflow de GitHub cuando el
+# paquete está vinculado a este repo (jsr.io/@kiri23/ontology-client → Settings → GitHub repository).
+# deno publish ve id-token: write y pide el token a GitHub; además firma provenance, que acá sí
+# queremos: el repo es público.
+#
+# Antes de la primera corrida, @kiri23/ontology-client tiene que existir en jsr.io y estar vinculado a
+# Kiri23/ontology-client; si no, deno publish falla con "doesn't exist yet" o "not linked".
+on:
+  push:
+    tags: ["v*"]
+    branches: [main]
+    paths: ["deno.json"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: denoland/setup-deno@22d081ff2d3a40755e97629de92e3bcbfa7cf2ed # v2.0.5
+        with:
+          deno-version: v2.9.5
+
+      # Un tag que no es la versión de deno.json publicaría otra cosa que la que dice el tag.
+      - name: El tag coincide con la versión
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: |
+          version=$(jq -r .version deno.json)
+          if [ "$GITHUB_REF_NAME" != "v$version" ] && [[ "$GITHUB_REF_NAME" =~ ^v[0-9]+\.[0-9]+\.[0-9]+ ]]; then
+            echo "::error::El tag $GITHUB_REF_NAME no es la versión de deno.json ($version)"
+            exit 1
+          fi
+
+      # Nada sale a JSR sin pasar lo mismo que CI.
+      - name: Revisar
+        run: |
+          deno fmt --check
+          deno lint
+          deno task test
+          deno task generar --check
+
+      # Una versión que ya está en JSR no es un error: deno publish la salta y sale 0. Pasa con el tag
+      # móvil v0 o al tocar deno.json sin subir la versión. El log va a RUNNER_TEMP, fuera del árbol.
+      - name: Publicar en JSR
+        run: |
+          set -o pipefail
+          deno publish 2>&1 | tee "$RUNNER_TEMP/publish.log"
+          if grep -q "already published" "$RUNNER_TEMP/publish.log"; then
+            version=$(jq -r .version deno.json)
+            echo "::notice title=@kiri23/ontology-client@$version ya estaba publicado::No se subió nada. Para publicar, subí \"version\" en deno.json."
+          fi

@@ -1,0 +1,90 @@
+// Tests de validarProyecto con un fetch falso: nunca tocan la red.
+
+import { assertEquals, assertStringIncludes } from "@std/assert";
+import { validarProyecto } from "../mod.ts";
+import { atenderFalso, MARCA_NO_CONFORMA } from "./servidor-falso.ts";
+
+const FICHA = '@prefix k: <https://kiri23.dev/catalogo#> .\nk:x a k:Proyecto ; k:nota "con \\"comillas\\"" .\n';
+
+// Un fetch que guarda el último pedido y responde con `atender`.
+function grabador(atender: (pedido: Request) => Promise<Response>) {
+  const visto: { pedido?: Request; cuerpo?: string } = {};
+  const fetch = async (pedido: Request) => {
+    visto.pedido = pedido;
+    visto.cuerpo = await pedido.clone().text();
+    return atender(pedido);
+  };
+  return { fetch, visto };
+}
+
+Deno.test("200 conforma: manda la ficha cruda como text/turtle con el Bearer", async () => {
+  const { fetch, visto } = grabador(atenderFalso("secreto"));
+  const r = await validarProyecto(FICHA, { token: "secreto", url: "http://falso/", fetch });
+  assertEquals(r, { ok: true, conforma: true, reporte: "Conforms: True" });
+  assertEquals(visto.pedido?.method, "POST");
+  assertEquals(visto.pedido?.url, "http://falso/proyectos");
+  assertEquals(visto.pedido?.headers.get("Content-Type"), "text/turtle; charset=utf-8");
+  assertEquals(visto.pedido?.headers.get("Authorization"), "Bearer secreto");
+  assertEquals(visto.cuerpo, FICHA); // sin JSON.stringify: el bug que evita bodySerializer
+});
+
+Deno.test("200 no conforma: es un resultado, no un error", async () => {
+  const { fetch } = grabador(atenderFalso("secreto"));
+  const r = await validarProyecto(FICHA + MARCA_NO_CONFORMA, { token: "secreto", url: "http://falso", fetch });
+  assertEquals(r.ok, true);
+  if (r.ok) {
+    assertEquals(r.conforma, false);
+    assertStringIncludes(r.reporte, "Conforms: False");
+  }
+});
+
+Deno.test("401: token malo", async () => {
+  const { fetch } = grabador(atenderFalso("secreto"));
+  const r = await validarProyecto(FICHA, { token: "otro", url: "http://falso", fetch });
+  assertEquals(r, { ok: false, status: 401, error: "falta el token o no es el correcto" });
+});
+
+Deno.test("503: servidor sin token configurado", async () => {
+  const { fetch } = grabador(atenderFalso(undefined));
+  const r = await validarProyecto(FICHA, { token: "x", url: "http://falso", fetch });
+  assertEquals(r, { ok: false, status: 503, error: "el servidor no tiene token configurado" });
+});
+
+Deno.test("400: ficha vacía", async () => {
+  const { fetch } = grabador(atenderFalso("secreto"));
+  const r = await validarProyecto("  \n", { token: "secreto", url: "http://falso", fetch });
+  assertEquals(r.ok, false);
+  if (!r.ok) assertEquals(r.status, 400);
+});
+
+Deno.test("red caída: status null y el motivo", async () => {
+  const fetch = () => Promise.reject(new TypeError("error sending request: connection refused"));
+  const r = await validarProyecto(FICHA, { token: "x", url: "http://falso", fetch });
+  assertEquals(r.ok, false);
+  if (!r.ok) {
+    assertEquals(r.status, null);
+    assertStringIncludes(r.error, "connection refused");
+  }
+});
+
+Deno.test("200 que no es JSON: fuera del contrato, con su status", async () => {
+  const fetch = () => Promise.resolve(new Response("<html>hola</html>", { status: 200 }));
+  const r = await validarProyecto(FICHA, { token: "x", url: "http://falso", fetch });
+  assertEquals(r.ok, false);
+  if (!r.ok) {
+    assertEquals(r.status, 200);
+    assertStringIncludes(r.error, "no es JSON");
+  }
+});
+
+Deno.test("200 JSON sin {conforma, reporte}: fuera del contrato", async () => {
+  const fetch = () => Promise.resolve(Response.json({ otra: "cosa" }));
+  const r = await validarProyecto(FICHA, { token: "x", url: "http://falso", fetch });
+  assertEquals(r, { ok: false, status: 200, error: "la respuesta no trae {conforma, reporte}: fuera del contrato" });
+});
+
+Deno.test("502 de un proxy con HTML: el texto, recortado", async () => {
+  const fetch = () => Promise.resolve(new Response("Bad Gateway", { status: 502 }));
+  const r = await validarProyecto(FICHA, { token: "x", url: "http://falso", fetch });
+  assertEquals(r, { ok: false, status: 502, error: "Bad Gateway" });
+});

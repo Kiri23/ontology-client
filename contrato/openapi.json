@@ -1,0 +1,132 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "ontologyLearning",
+    "version": "1",
+    "description": "Los comandos de ontologyLearning por HTTP (vistas/web.py)."
+  },
+  "servers": [{ "url": "https://ontology.kiri231.com" }],
+  "paths": {
+    "/jobs": {
+      "post": {
+        "operationId": "jobs",
+        "summary": "Trae puestos con kiri-jobs, los pasa a triples, los valida con SHACL y guarda datos/jobs.trig.",
+        "parameters": [
+          {
+            "name": "kiri_jobs",
+            "in": "query",
+            "description": "args para kiri-jobs: --all, --hn, react… (separados por espacios)",
+            "required": false,
+            "schema": { "type": "string" }
+          }
+        ],
+        "responses": {
+          "200": { "description": "la respuesta del comando" },
+          "400": {
+            "description": "el comando no pudo hacer su trabajo (parámetros, datos)",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } }
+          }
+        },
+        "security": []
+      }
+    },
+    "/preguntar": {
+      "get": {
+        "operationId": "preguntar",
+        "summary": "Corre consultas/<consulta>.rq y devuelve la respuesta en un formato (default: objetos, JSON).",
+        "description": "Los filtros llenan los parámetros del .rq (?_x requerido, ?__x opcional, como en grlc):\n/preguntar/jobs?tecnologia=python en HTTP, `preguntar jobs tecnologia=python` en la CLI.",
+        "parameters": [
+          {
+            "name": "consulta",
+            "in": "query",
+            "description": "nombre de un .rq de consultas/",
+            "required": true,
+            "schema": { "type": "string" }
+          },
+          {
+            "name": "formato",
+            "in": "query",
+            "description": "objetos, tsv, json, csv, xml, txt; turtle o json-ld para grafos",
+            "required": false,
+            "schema": { "type": "string" }
+          },
+          {
+            "name": "filtros",
+            "in": "query",
+            "description": "parámetros del .rq como nombre=valor: tecnologia=python",
+            "style": "form",
+            "explode": true,
+            "schema": { "type": "object", "additionalProperties": { "type": "string" } }
+          }
+        ],
+        "responses": {
+          "200": { "description": "la respuesta del comando" },
+          "400": {
+            "description": "el comando no pudo hacer su trabajo (parámetros, datos)",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } }
+          }
+        },
+        "security": []
+      }
+    },
+    "/proyectos": {
+      "post": {
+        "operationId": "proyectos",
+        "summary": "Valida fichas proyecto.ttl contra domain/proyecto-reglas.ttl. Responde {\"conforma\": bool, \"reporte\": str}.",
+        "description": "CLI: las fichas son archivos (default: proyectos/*/proyecto.ttl). Exit 0 si conforman; 1 si no; 2 si\nno hay fichas o una no parsea. HTTP: POST /proyectos con la ficha en el body (text/turtle), nunca una\nruta, y con token. No conformar es un resultado: 200 igual. El motor y las reglas se quedan en el\nservidor: sale sólo el reporte.",
+        "requestBody": {
+          "required": true,
+          "description": "fichas proyecto.ttl a validar (CLI sin archivos: proyectos/*/proyecto.ttl)",
+          "content": { "text/turtle": { "schema": { "type": "string" } } }
+        },
+        "responses": {
+          "200": {
+            "description": "la respuesta del comando",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "conforma": { "type": "boolean", "description": "true si todas las fichas pasan las reglas" },
+                    "reporte": {
+                      "type": "string",
+                      "description": "el reporte de SHACL, con los errores de carga primero"
+                    }
+                  },
+                  "required": ["conforma", "reporte"]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "el comando no pudo hacer su trabajo (parámetros, datos)",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } }
+          },
+          "413": {
+            "description": "el body pasa el tope de la vista",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } }
+          },
+          "415": {
+            "description": "el body no viene como text/turtle",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } }
+          },
+          "401": {
+            "description": "falta el token o no es el correcto",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } }
+          },
+          "503": {
+            "description": "el servidor no tiene token configurado: falla cerrado",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } }
+          }
+        },
+        "security": [{ "bearer": [] }]
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "Error": { "type": "object", "properties": { "error": { "type": "string" } }, "required": ["error"] }
+    },
+    "securitySchemes": { "bearer": { "type": "http", "scheme": "bearer" } }
+  }
+}

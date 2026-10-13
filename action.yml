@@ -1,0 +1,56 @@
+name: Validar fichas proyecto.ttl
+description: >
+  Valida las fichas proyecto.ttl del repo contra el servidor de ontologyLearning (POST /proyectos) y
+  anota en el PR las que no conforman. El motor y las reglas son privados: viaja la ficha, vuelve el reporte.
+author: Kiri23
+branding:
+  icon: check-circle
+  color: green
+
+inputs:
+  archivos:
+    description: >
+      Fichas a validar: rutas o globs separados por espacios o saltos de línea. Vacío: las que encuentre
+      `git ls-files '*proyecto.ttl'`; si no hay ninguna, sale 0 con un aviso.
+    required: false
+    default: ""
+  url:
+    description: La URL base del servidor.
+    required: false
+    default: https://ontology.kiri231.com
+  token:
+    description: El token del servidor (secreto ONTOLOGY_PROYECTOS_TOKEN). Sin token, el paso falla.
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - name: Set up Deno
+      uses: denoland/setup-deno@22d081ff2d3a40755e97629de92e3bcbfa7cf2ed # v2.0.5
+      with:
+        deno-version: v2.9.5
+
+    - name: Validar fichas
+      shell: bash
+      env:
+        # Los inputs van por env y nunca interpolados en el script: así no se puede inyectar shell.
+        ARCHIVOS: ${{ inputs.archivos }}
+        ONTOLOGY_URL: ${{ inputs.url }}
+        ONTOLOGY_PROYECTOS_TOKEN: ${{ inputs.token }}
+      run: |
+        set -euo pipefail
+        if [ -n "$ARCHIVOS" ]; then
+          # Sin comillas a propósito: separa por espacios y expande globs (** incluido). Un glob que no
+          # encuentra nada queda literal y el CLI falla al leerlo: mejor eso que validar cero fichas.
+          shopt -s globstar
+          fichas=($ARCHIVOS)
+        else
+          mapfile -t fichas < <(git ls-files -- '*proyecto.ttl' 2>/dev/null || true)
+        fi
+        if [ "${#fichas[@]}" -eq 0 ]; then
+          echo "::notice title=Sin fichas::No hay archivos proyecto.ttl en el repo: nada que validar."
+          exit 0
+        fi
+        # --config: el deno.json de la action, no el del repo que la usa (si tiene uno).
+        deno run --allow-net --allow-read --allow-env --config "$GITHUB_ACTION_PATH/deno.json" --frozen \
+          "$GITHUB_ACTION_PATH/cli.ts" "${fichas[@]}"

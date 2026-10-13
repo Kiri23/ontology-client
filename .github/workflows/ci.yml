@@ -1,0 +1,109 @@
+name: CI
+
+# Dos jobs: `calidad` revisa el código (formato, lint, tipos, tests, generado/ al día con el contrato,
+# publish en seco) y `action` prueba la action misma (`uses: ./`) contra el servidor falso de tests/.
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  calidad:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: denoland/setup-deno@22d081ff2d3a40755e97629de92e3bcbfa7cf2ed # v2.0.5
+        with:
+          deno-version: v2.9.5
+
+      - name: Formato
+        run: deno fmt --check
+
+      - name: Lint
+        run: deno lint
+
+      - name: Tipos
+        run: deno check mod.ts cli.ts scripts/*.ts tests/*.ts
+
+      - name: Tests
+        run: deno task test
+
+      # Lo commiteado en generado/ tiene que ser lo que sale del contrato commiteado.
+      - name: generado/ al día con contrato/
+        run: deno task generar --check
+
+      - name: Publish en seco
+        run: deno publish --dry-run
+
+  action:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: denoland/setup-deno@22d081ff2d3a40755e97629de92e3bcbfa7cf2ed # v2.0.5
+        with:
+          deno-version: v2.9.5
+
+      - name: Levantar el servidor falso
+        run: |
+          deno run --allow-net --allow-read tests/servidor-falso.ts --puerto 8787 --token prueba &
+          for _ in $(seq 1 30); do
+            curl -sf http://127.0.0.1:8787/openapi.json >/dev/null && exit 0
+            sleep 1
+          done
+          echo "::error::El servidor falso no levantó"
+          exit 1
+
+      - name: Ficha conforme (tiene que pasar)
+        uses: ./
+        with:
+          archivos: tests/fichas/conforme/proyecto.ttl
+          url: http://127.0.0.1:8787
+          token: prueba
+
+      - name: Ficha no conforme (tiene que fallar)
+        id: no_conforme
+        continue-on-error: true
+        uses: ./
+        with:
+          archivos: tests/fichas/no-conforme/proyecto.ttl
+          url: http://127.0.0.1:8787
+          token: prueba
+
+      - name: Token malo (tiene que fallar)
+        id: token_malo
+        continue-on-error: true
+        uses: ./
+        with:
+          archivos: tests/fichas/conforme/proyecto.ttl
+          url: http://127.0.0.1:8787
+          token: otro
+
+      # Sin `archivos`: busca con git ls-files y encuentra las dos fichas de tests/fichas, una no conforma.
+      - name: Descubrimiento por defecto (tiene que fallar)
+        id: por_defecto
+        continue-on-error: true
+        uses: ./
+        with:
+          url: http://127.0.0.1:8787
+          token: prueba
+
+      - name: Verificar los fallos esperados
+        env:
+          NO_CONFORME: ${{ steps.no_conforme.outcome }}
+          TOKEN_MALO: ${{ steps.token_malo.outcome }}
+          POR_DEFECTO: ${{ steps.por_defecto.outcome }}
+        run: |
+          fallo=0
+          for caso in NO_CONFORME TOKEN_MALO POR_DEFECTO; do
+            if [ "${!caso}" != "failure" ]; then
+              echo "::error::$caso terminó en ${!caso}, se esperaba failure"
+              fallo=1
+            fi
+          done
+          exit $fallo
