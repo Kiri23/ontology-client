@@ -1,6 +1,6 @@
 {
   "name": "@kiri23/ontology-client",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "license": "MIT",
   "exports": {
     ".": "./mod.ts",
@@ -16,6 +16,9 @@
     "contrato": "deno run --allow-net --allow-env=ONTOLOGY_CONTRATO_URL --allow-write=contrato --allow-read --allow-run scripts/contrato.ts",
     "generar": "deno run --allow-read --allow-write=generado --allow-env --allow-sys scripts/generar.ts",
     "test": "deno test --allow-net --allow-read --allow-env --allow-run"
+  },
+  "lock": {
+    "frozen": true
   },
   "fmt": {
     "lineWidth": 120,
