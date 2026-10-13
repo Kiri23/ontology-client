@@ -3,11 +3,49 @@
   "info": {
     "title": "ontologyLearning",
     "version": "1",
-    "description": "Los comandos de ontologyLearning por HTTP (vistas/web.py)."
+    "description": "Los comandos de ontologyLearning por HTTP (vistas/web/rutas.py)."
   },
   "servers": [{ "url": "https://ontology.kiri231.com" }],
   "paths": {
     "/jobs": {
+      "get": {
+        "operationId": "jobs_get",
+        "summary": "Los puestos como JobPost[]: cada uno con la forma de j:JobPostShape, el schema JobPost del contrato.",
+        "description": "GET /jobs. Filtra por tecnologia como consultas/jobs.rq (prefLabel o altLabel, sin mayúsculas) y por\nfuente contra el campo fuente del puesto (igual, sin mayúsculas: remotive, hn). El orden es el del\n.rq: lo más nuevo primero. Para traer puestos nuevos, POST /jobs?kiri_jobs=--all.",
+        "parameters": [
+          {
+            "name": "tecnologia",
+            "in": "query",
+            "description": "prefLabel o altLabel, sin mayúsculas: python, ts, node",
+            "required": false,
+            "schema": { "type": "string" }
+          },
+          {
+            "name": "fuente",
+            "in": "query",
+            "description": "de qué fuente, igual que el campo fuente: remotive o hn",
+            "required": false,
+            "schema": { "type": "string" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "la respuesta del comando",
+            "content": {
+              "application/json": { "schema": { "type": "array", "items": { "$ref": "#/components/schemas/JobPost" } } }
+            }
+          },
+          "400": {
+            "description": "el comando no pudo hacer su trabajo (parámetros, datos)",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } }
+          },
+          "503": {
+            "description": "datos/jobs.trig es de una forma vieja: POST /jobs?kiri_jobs=--all lo rehace",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } }
+          }
+        },
+        "security": []
+      },
       "post": {
         "operationId": "jobs",
         "summary": "Trae puestos con kiri-jobs, los pasa a triples, los valida con SHACL y guarda datos/jobs.trig.",
@@ -133,7 +171,34 @@
   },
   "components": {
     "schemas": {
-      "Error": { "type": "object", "properties": { "error": { "type": "string" } }, "required": ["error"] }
+      "Error": { "type": "object", "properties": { "error": { "type": "string" } }, "required": ["error"] },
+      "JobPost": {
+        "type": "object",
+        "properties": {
+          "link": { "type": "string", "format": "uri", "description": "La URI del nodo: su identificador." },
+          "empresa": { "type": "string" },
+          "fecha": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Cuándo lo trajo kiri-jobs (no cuándo se publicó)."
+          },
+          "fuente": { "type": "string", "description": "De dónde salió el puesto: remotive, hn…" },
+          "pide": { "type": "array", "items": { "$ref": "#/components/schemas/Technology" } },
+          "titulo": { "type": "string" }
+        },
+        "required": ["link", "fecha", "fuente", "pide", "titulo"],
+        "additionalProperties": false
+      },
+      "Technology": {
+        "type": "object",
+        "properties": {
+          "link": { "type": "string", "format": "uri", "description": "La URI del nodo: su identificador." },
+          "nombre": { "type": "string" },
+          "sinonimos": { "type": "array", "items": { "type": "string" } }
+        },
+        "required": ["link", "nombre", "sinonimos"],
+        "additionalProperties": false
+      }
     },
     "securitySchemes": { "bearer": { "type": "http", "scheme": "bearer" } }
   }
