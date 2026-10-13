@@ -57,6 +57,8 @@ else if (!r.conforma) console.log(r.reporte);
 | `{ ok: true, conforma: false, reporte }` | no las pasa: es un resultado, no un error (el servidor responde 200) |
 | `{ ok: false, status: 400, error }`      | body vacío o Turtle que no parsea                                    |
 | `{ ok: false, status: 401, error }`      | falta el token o no es el correcto                                   |
+| `{ ok: false, status: 408, error }`      | el body no llegó entero a tiempo                                     |
+| `{ ok: false, status: 411, error }`      | falta Content-Length (no pasa con este cliente: nunca va chunked)    |
 | `{ ok: false, status: 413, error }`      | la ficha pasa los 256 KiB                                            |
 | `{ ok: false, status: 415, error }`      | el body no va como `text/turtle` (no pasa con este cliente)          |
 | `{ ok: false, status: 503, error }`      | el servidor no tiene token configurado: falla cerrado                |
@@ -121,7 +123,7 @@ jobs:
   validar:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - uses: Kiri23/ontology-client@v0
         with:
           token: ${{ secrets.ONTOLOGY_PROYECTOS_TOKEN }}

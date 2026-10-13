@@ -51,10 +51,8 @@ export interface paths {
         put?: never;
         /**
          * Valida fichas proyecto.ttl contra domain/proyecto-reglas.ttl. Responde {"conforma": bool, "reporte": str}.
-         * @description CLI: las fichas son archivos (default: proyectos/*\/proyecto.ttl). Exit 0 si conforman; 1 si no; 2 si
-         *     no hay fichas o una no parsea. HTTP: POST /proyectos con la ficha en el body (text/turtle), nunca una
-         *     ruta, y con token. No conformar es un resultado: 200 igual. El motor y las reglas se quedan en el
-         *     servidor: sale sólo el reporte.
+         * @description POST /proyectos con la ficha en el body (text/turtle), nunca una ruta, y con token. No conformar es un
+         *     resultado: 200 igual. El motor y las reglas se quedan en el servidor: sale sólo el reporte.
          */
         post: operations["proyectos"];
         delete?: never;
@@ -184,6 +182,24 @@ export interface operations {
             };
             /** @description falta el token o no es el correcto */
             401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description el body no llegó entero a tiempo */
+            408: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description falta Content-Length (el body no puede ir chunked) */
+            411: {
                 headers: {
                     [name: string]: unknown;
                 };

@@ -73,7 +73,7 @@
       "post": {
         "operationId": "proyectos",
         "summary": "Valida fichas proyecto.ttl contra domain/proyecto-reglas.ttl. Responde {\"conforma\": bool, \"reporte\": str}.",
-        "description": "CLI: las fichas son archivos (default: proyectos/*/proyecto.ttl). Exit 0 si conforman; 1 si no; 2 si\nno hay fichas o una no parsea. HTTP: POST /proyectos con la ficha en el body (text/turtle), nunca una\nruta, y con token. No conformar es un resultado: 200 igual. El motor y las reglas se quedan en el\nservidor: sale sólo el reporte.",
+        "description": "POST /proyectos con la ficha en el body (text/turtle), nunca una ruta, y con token. No conformar es un\nresultado: 200 igual. El motor y las reglas se quedan en el servidor: sale sólo el reporte.",
         "requestBody": {
           "required": true,
           "description": "fichas proyecto.ttl a validar (CLI sin archivos: proyectos/*/proyecto.ttl)",
@@ -100,6 +100,14 @@
           },
           "400": {
             "description": "el comando no pudo hacer su trabajo (parámetros, datos)",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } }
+          },
+          "408": {
+            "description": "el body no llegó entero a tiempo",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } }
+          },
+          "411": {
+            "description": "falta Content-Length (el body no puede ir chunked)",
             "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } }
           },
           "413": {

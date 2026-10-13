@@ -45,12 +45,19 @@ export function atenderFalso(token: string | undefined): (pedido: Request) => Pr
   };
 }
 
-/** Levanta el servidor falso. Puerto 0: uno libre (server.addr.port). */
+/**
+ * Levanta el servidor falso. Puerto 0: uno libre (server.addr.port). Por la red exige además
+ * Content-Length, como el real (411: el body no puede ir chunked); en memoria no aplica, porque un
+ * Request armado a mano no trae esa cabecera.
+ */
 export function servidorFalso(opciones: { puerto?: number; token?: string }): Deno.HttpServer<Deno.NetAddr> {
-  return Deno.serve(
-    { port: opciones.puerto ?? 0, hostname: "127.0.0.1", onListen: () => {} },
-    atenderFalso(opciones.token),
-  );
+  const atender = atenderFalso(opciones.token);
+  return Deno.serve({ port: opciones.puerto ?? 0, hostname: "127.0.0.1", onListen: () => {} }, (pedido) => {
+    if (pedido.method === "POST" && pedido.body && !pedido.headers.has("Content-Length")) {
+      return json(411, { error: "falta Content-Length (el body no puede ir chunked)" });
+    }
+    return atender(pedido);
+  });
 }
 
 if (import.meta.main) {
