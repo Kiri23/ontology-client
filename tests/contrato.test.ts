@@ -1,4 +1,5 @@
-// Tests de lo que `deno task contrato` acepta como contrato, y de que generado/ está al día.
+// Tests de lo que `deno task contrato` acepta como contrato. Que generado/ esté al día lo chequea CI
+// con `deno task generar --check`.
 
 import { assertEquals } from "@std/assert";
 import { validarContrato } from "../scripts/contrato.ts";

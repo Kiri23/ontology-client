@@ -1,7 +1,8 @@
 // Tests de validarProyecto con un fetch falso: nunca tocan la red.
 
 import { assertEquals, assertStringIncludes } from "@std/assert";
-import { validarProyecto } from "../mod.ts";
+import { crearCliente, URL_PRODUCCION, validarProyecto } from "../mod.ts";
+import { servidorMudo } from "./servidor-mudo.ts";
 import { atenderFalso, MARCA_NO_CONFORMA } from "./servidor-falso.ts";
 
 const FICHA = '@prefix k: <https://kiri23.dev/catalogo#> .\nk:x a k:Proyecto ; k:nota "con \\"comillas\\"" .\n';
@@ -87,4 +88,27 @@ Deno.test("502 de un proxy con HTML: el texto, recortado", async () => {
   const fetch = () => Promise.resolve(new Response("Bad Gateway", { status: 502 }));
   const r = await validarProyecto(FICHA, { token: "x", url: "http://falso", fetch });
   assertEquals(r, { ok: false, status: 502, error: "Bad Gateway" });
+});
+
+Deno.test("timeout: un servidor que acepta y nunca responde vuelve como status null", async () => {
+  const mudo = servidorMudo();
+  try {
+    const r = await validarProyecto(FICHA, { token: "x", url: mudo.url, timeoutMs: 200 });
+    assertEquals(r, { ok: false, status: null, error: "el servidor no respondió en 0.2 s (timeout)" });
+  } finally {
+    mudo.cerrar();
+  }
+});
+
+Deno.test("crearCliente({ baseUrl: undefined }) cae a producción", async () => {
+  let url = "";
+  const cliente = crearCliente({
+    baseUrl: undefined,
+    fetch: (pedido: Request) => {
+      url = pedido.url;
+      return Promise.resolve(Response.json({ conforma: true, reporte: "" }));
+    },
+  });
+  await cliente.POST("/proyectos", { body: FICHA, bodySerializer: (t: string) => t });
+  assertEquals(url, `${URL_PRODUCCION}/proyectos`);
 });

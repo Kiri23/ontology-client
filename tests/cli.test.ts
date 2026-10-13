@@ -2,7 +2,9 @@
 // codes del proceso de verdad contra el servidor falso.
 
 import { assertEquals, assertStringIncludes } from "@std/assert";
-import { anotacionError, correr, type Entorno, escaparMensaje, escaparPropiedad } from "../cli.ts";
+import { anotacionError, correr, type Entorno, escaparMensaje, escaparPropiedad, neutralizarComandos } from "../cli.ts";
+import { URL_PRODUCCION } from "../mod.ts";
+import { servidorMudo } from "./servidor-mudo.ts";
 import { atenderFalso, MARCA_NO_CONFORMA, servidorFalso } from "./servidor-falso.ts";
 
 const CONFORME = "@prefix k: <https://kiri23.dev/catalogo#> .\nk:x a k:Proyecto .\n";
@@ -74,7 +76,7 @@ Deno.test("exit 2: token malo, y corta en la primera ficha", async () => {
   assertEquals(await correr(["a.ttl", "b.ttl"], e), 2);
   assertStringIncludes(err.join("\n"), "HTTP 401");
   assertStringIncludes(err.join("\n"), "Revisá ONTOLOGY_PROYECTOS_TOKEN");
-  assertStringIncludes(err.join("\n"), "las 1 fichas que faltan");
+  assertStringIncludes(err.join("\n"), "Corto acá: la ficha que falta fallaría igual.");
 });
 
 Deno.test("exit 2: sin token, mensaje claro y sin tocar la red", async () => {
@@ -113,6 +115,107 @@ Deno.test("--url le gana a ONTOLOGY_URL", async () => {
   };
   assertEquals(await correr(["--url", "http://otro:9/", "a.ttl"], e), 0);
   assertEquals(url, "http://otro:9/proyectos");
+});
+
+Deno.test("exit 2 le gana a exit 1: una no conforma y otra no se pudo validar (400, sigue con las demás)", async () => {
+  const { e, out, err } = entorno({ archivos: { "a.ttl": NO_CONFORME, "b.ttl": "  \n", "c.ttl": CONFORME } });
+  assertEquals(await correr(["a.ttl", "b.ttl", "c.ttl"], e), 2);
+  assertStringIncludes(out.join("\n"), "✗ a.ttl no conforma");
+  assertStringIncludes(err.join("\n"), "✗ b.ttl:");
+  assertStringIncludes(out.join("\n"), "✓ c.ttl conforma"); // un 400 es de la ficha: no corta
+});
+
+Deno.test("la anotación de un error lleva el mismo punto que stderr", async () => {
+  const { e, out } = entorno({ env: { GITHUB_ACTIONS: "true" }, token: "otro", archivos: { "a.ttl": CONFORME } });
+  assertEquals(await correr(["a.ttl"], e), 2);
+  assertEquals(
+    out.find((l) => l.startsWith("::error ")),
+    "::error file=a.ttl,title=No se pudo validar (HTTP 401)::falta el token o no es el correcto (HTTP 401). " +
+      "Revisá ONTOLOGY_PROYECTOS_TOKEN.",
+  );
+});
+
+// ── workflow commands desde la ficha ──
+
+// El runner parte en \n, \r o \r\n, quita el blanco inicial (TrimStart de .NET) y ejecuta lo que empieza con ::
+const esComando = (linea: string) => /^[\s\u0085]*::/.test(linea);
+const lineas = (salida: string[]) => salida.flatMap((s) => s.split(/\r\n|\r|\n/));
+
+Deno.test("neutralizarComandos: solo toca las líneas que el runner ejecutaría", () => {
+  assertEquals(neutralizarComandos("  ::warning::x"), "  \u200b::warning::x");
+  assertEquals(neutralizarComandos("a\r::add-mask::b"), "a\n\u200b::add-mask::b");
+  assertEquals(neutralizarComandos("\u0085\t::stop-commands::t"), "\u0085\t\u200b::stop-commands::t");
+  assertEquals(neutralizarComandos("Result Path: k:x :: nada"), "Result Path: k:x :: nada");
+});
+
+Deno.test("en Actions, un reporte con ::comandos no inyecta nada; solo sale nuestra anotación", async () => {
+  const reporte =
+    'Value Node: Literal("x\n::warning title=inyectado::desde la ficha\r  ::add-mask::algo\n\t::stop-commands::t")';
+  const malicioso = (status: number, cuerpo: unknown) => () => Promise.resolve(Response.json(cuerpo, { status }));
+  for (const fetch of [malicioso(200, { conforma: false, reporte }), malicioso(400, { error: reporte })]) {
+    const { e, out, err } = entorno({ env: { GITHUB_ACTIONS: "true" }, archivos: { "a.ttl": CONFORME } });
+    e.fetch = fetch;
+    await correr(["a.ttl"], e);
+    const comandos = lineas([...out, ...err]).filter(esComando);
+    assertEquals(comandos.length, 1, comandos.join("\n"));
+    assertEquals(comandos[0].startsWith("::error file=a.ttl,"), true);
+    assertStringIncludes(out.join("\n") + err.join("\n"), "\u200b::warning title=inyectado"); // se ve, no se ejecuta
+  }
+});
+
+Deno.test("fuera de Actions la salida va tal cual", async () => {
+  const { e, out } = entorno({ archivos: { "a.ttl": CONFORME } });
+  e.fetch = () => Promise.resolve(Response.json({ conforma: false, reporte: "::warning::x" }));
+  assertEquals(await correr(["a.ttl"], e), 1);
+  assertStringIncludes(out.join("\n"), "    ::warning::x");
+});
+
+// ── timeout y URL ──
+
+Deno.test("timeout: un servidor que nunca responde da exit 2 y corta", async () => {
+  const mudo = servidorMudo();
+  try {
+    const { e, err } = entorno({
+      env: { ONTOLOGY_URL: mudo.url },
+      archivos: { "a.ttl": CONFORME, "b.ttl": CONFORME },
+    });
+    e.fetch = undefined; // fetch de verdad, por la red
+    const inicio = Date.now();
+    assertEquals(await correr(["--timeout", "0.3", "a.ttl", "b.ttl"], e), 2);
+    assertEquals(Date.now() - inicio < 5_000, true);
+    assertStringIncludes(err.join("\n"), "timeout");
+    assertStringIncludes(err.join("\n"), "Corto acá");
+  } finally {
+    mudo.cerrar();
+  }
+});
+
+Deno.test("ONTOLOGY_TIMEOUT inválido o --timeout 0: exit 2", async () => {
+  const { e } = entorno({ env: { ONTOLOGY_TIMEOUT: "mucho" }, archivos: { "a.ttl": CONFORME } });
+  assertEquals(await correr(["a.ttl"], e), 2);
+  assertEquals(await correr(["--timeout", "0", "a.ttl"], e), 2);
+});
+
+Deno.test('URL vacía (url: "" en la action) cae al default', async () => {
+  const { e } = entorno({ env: { ONTOLOGY_URL: "" }, archivos: { "a.ttl": CONFORME } });
+  let url = "";
+  const atender = atenderFalso("secreto");
+  e.fetch = (pedido: Request) => {
+    url = pedido.url;
+    return atender(pedido);
+  };
+  assertEquals(await correr(["a.ttl"], e), 0);
+  assertEquals(await correr(["--url", "", "a.ttl"], e), 0);
+  assertEquals(url, `${URL_PRODUCCION}/proyectos`);
+});
+
+Deno.test("avisa si el token va por http a un host que no es local", async () => {
+  const { e, err } = entorno({ archivos: { "a.ttl": CONFORME } });
+  assertEquals(await correr(["a.ttl"], e), 0); // ONTOLOGY_URL=http://falso
+  assertStringIncludes(err.join("\n"), "el token viaja en claro");
+  const local = entorno({ env: { ONTOLOGY_URL: "http://127.0.0.1:9" }, archivos: { "a.ttl": CONFORME } });
+  assertEquals(await correr(["a.ttl"], local.e), 0);
+  assertEquals(local.err.length, 0);
 });
 
 // ── el proceso de verdad ──

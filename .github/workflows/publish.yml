@@ -8,6 +8,10 @@ name: Publish @kiri23/ontology-client
 # deno publish ve id-token: write y pide el token a GitHub; además firma provenance, que acá sí
 # queremos: el repo es público.
 #
+# Dos jobs: `revisar` corre los tests (código de dependencias incluido) sin id-token; `publish` tiene
+# id-token: write y solo corre deno publish. Así una dependencia comprometida en los tests no puede
+# pedir un token OIDC para JSR.
+#
 # Antes de la primera corrida, @kiri23/ontology-client tiene que existir en jsr.io y estar vinculado a
 # Kiri23/ontology-client; si no, deno publish falla con "doesn't exist yet" o "not linked".
 on:
@@ -17,21 +21,29 @@ on:
     paths: ["deno.json"]
   workflow_dispatch:
 
+# Subir la versión dispara dos corridas (el push a main que toca deno.json y el tag): una por vez, y la
+# segunda ve "already published".
+concurrency:
+  group: publish
+  cancel-in-progress: false
+
 permissions:
   contents: read
-  id-token: write
 
 jobs:
-  publish:
+  revisar:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+        with:
+          persist-credentials: false
 
       - uses: denoland/setup-deno@22d081ff2d3a40755e97629de92e3bcbfa7cf2ed # v2.0.5
         with:
           deno-version: v2.9.5
 
-      # Un tag que no es la versión de deno.json publicaría otra cosa que la que dice el tag.
+      # Un tag que no es la versión de deno.json publicaría otra cosa que la que dice el tag. El tag móvil
+      # v0 no es una versión: pasa.
       - name: El tag coincide con la versión
         if: startsWith(github.ref, 'refs/tags/v')
         run: |
@@ -44,11 +56,28 @@ jobs:
       # Nada sale a JSR sin pasar lo mismo que CI.
       - name: Revisar
         run: |
+          deno install --frozen
           deno fmt --check
           deno lint
           deno task test
           deno task generar --check
 
+  publish:
+    needs: revisar
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+        with:
+          persist-credentials: false
+
+      - uses: denoland/setup-deno@22d081ff2d3a40755e97629de92e3bcbfa7cf2ed # v2.0.5
+        with:
+          deno-version: v2.9.5
+
+      # Solo deno publish: no corre código del repo ni de sus dependencias (lock.frozen en deno.json).
       # Una versión que ya está en JSR no es un error: deno publish la salta y sale 0. Pasa con el tag
       # móvil v0 o al tocar deno.json sin subir la versión. El log va a RUNNER_TEMP, fuera del árbol.
       - name: Publicar en JSR

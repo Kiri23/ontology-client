@@ -10,8 +10,9 @@ branding:
 inputs:
   archivos:
     description: >
-      Fichas a validar: rutas o globs separados por espacios o saltos de línea. Vacío: las que encuentre
-      `git ls-files '*proyecto.ttl'`; si no hay ninguna, sale 0 con un aviso.
+      Fichas a validar: rutas o globs separados por espacios o saltos de línea. Vacío: los archivos
+      llamados exactamente proyecto.ttl que git tiene en el repo (necesita actions/checkout antes); si no
+      hay ninguno, sale 0 con un aviso.
     required: false
     default: ""
   url:
@@ -21,6 +22,10 @@ inputs:
   token:
     description: El token del servidor (secreto ONTOLOGY_PROYECTOS_TOKEN). Sin token, el paso falla.
     required: true
+  timeout:
+    description: Segundos de espera por ficha antes de dar el servidor por caído (exit 2).
+    required: false
+    default: "30"
 
 runs:
   using: composite
@@ -37,6 +42,7 @@ runs:
         ARCHIVOS: ${{ inputs.archivos }}
         ONTOLOGY_URL: ${{ inputs.url }}
         ONTOLOGY_PROYECTOS_TOKEN: ${{ inputs.token }}
+        ONTOLOGY_TIMEOUT: ${{ inputs.timeout }}
       run: |
         set -euo pipefail
         if [ -n "$ARCHIVOS" ]; then
@@ -45,12 +51,23 @@ runs:
           shopt -s globstar
           fichas=($ARCHIVOS)
         else
-          mapfile -t fichas < <(git ls-files -- '*proyecto.ttl' 2>/dev/null || true)
+          # Si git falla (sin actions/checkout no hay repo; "dubious ownership" en un container), fallar:
+          # tragarse el error daría verde sin validar nada. -z: rutas crudas, sin las comillas y \303\261
+          # de core.quotePath. :(glob): * no cruza / y el nombre tiene que ser proyecto.ttl exacto, no
+          # otroproyecto.ttl.
+          lista=$(mktemp)
+          if ! git ls-files -z -- ':(glob)proyecto.ttl' ':(glob)**/proyecto.ttl' >"$lista"; then
+            echo "::error title=No pude listar las fichas::git ls-files falló en $PWD. ¿Falta actions/checkout antes de esta action? (o pasá las rutas en el input archivos)"
+            exit 2
+          fi
+          mapfile -d '' -t fichas <"$lista"
+          rm -f "$lista"
         fi
         if [ "${#fichas[@]}" -eq 0 ]; then
           echo "::notice title=Sin fichas::No hay archivos proyecto.ttl en el repo: nada que validar."
           exit 0
         fi
         # --config: el deno.json de la action, no el del repo que la usa (si tiene uno).
-        deno run --allow-net --allow-read --allow-env --config "$GITHUB_ACTION_PATH/deno.json" --frozen \
+        deno run --allow-net --allow-read --allow-env=ONTOLOGY_URL,ONTOLOGY_PROYECTOS_TOKEN,ONTOLOGY_TIMEOUT,GITHUB_ACTIONS \
+          --config "$GITHUB_ACTION_PATH/deno.json" --frozen \
           "$GITHUB_ACTION_PATH/cli.ts" "${fichas[@]}"
