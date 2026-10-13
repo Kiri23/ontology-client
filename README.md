@@ -159,7 +159,7 @@ deno run --allow-net --allow-read tests/servidor-falso.ts --puerto 8787 --token 
 
 `.github/workflows/publish.yml` publica en JSR por OIDC (sin token) al empujar un tag `v*` o cuando un push a `main`
 toca `deno.json`. Para una versión nueva: subir `version` en `deno.json`, mergear, `git tag vX.Y.Z && git push --tags`,
-y mover `v0`: `git tag -f v0 vX.Y.Z && git push -f origin v0`.
+y mover `v0` al mismo commit: `git tag -f v0 'vX.Y.Z^{}' && git push -f origin v0`.
 
 OIDC exige que el paquete exista en jsr.io y esté vinculado a este repo:
 
