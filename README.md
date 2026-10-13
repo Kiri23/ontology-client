@@ -40,7 +40,7 @@ ahí.
 ## Librería
 
 ```ts
-import { validarProyecto } from "jsr:@kiri23/ontology-client@0.1.0";
+import { validarProyecto } from "jsr:@kiri23/ontology-client@0.1.1";
 
 const ficha = await Deno.readTextFile("proyectos/mi-proyecto/proyecto.ttl");
 const r = await validarProyecto(ficha, { token: Deno.env.get("ONTOLOGY_PROYECTOS_TOKEN")! });
@@ -49,7 +49,8 @@ if (!r.ok) console.error(`no se pudo validar (HTTP ${r.status ?? "sin respuesta"
 else if (!r.conforma) console.log(r.reporte);
 ```
 
-`validarProyecto(turtle, { token, url?, fetch? })` nunca tira; devuelve un `Resultado`:
+`validarProyecto(turtle, { token, url?, fetch?, timeoutMs? })` nunca tira; devuelve un `Resultado`. `timeoutMs` (default
+30 000) cubre la respuesta entera; si se cumple, vuelve como `status: null`.
 
 | Resultado                                | Cuándo                                                               |
 | ---------------------------------------- | -------------------------------------------------------------------- |
@@ -62,7 +63,7 @@ else if (!r.conforma) console.log(r.reporte);
 | `{ ok: false, status: 413, error }`      | la ficha pasa los 256 KiB                                            |
 | `{ ok: false, status: 415, error }`      | el body no va como `text/turtle` (no pasa con este cliente)          |
 | `{ ok: false, status: 503, error }`      | el servidor no tiene token configurado: falla cerrado                |
-| `{ ok: false, status: null, error }`     | no hubo respuesta: red caída, DNS, TLS                               |
+| `{ ok: false, status: null, error }`     | no hubo respuesta: red caída, DNS, TLS o timeout                     |
 
 `fetch` acepta uno propio (tests, proxies); recibe un `Request`, como en openapi-fetch.
 
@@ -73,7 +74,7 @@ vista: `crearCliente()` devuelve su `Client<paths>` tal cual, con los paths del 
 cualquier otra cosa que `validarProyecto` no previó.
 
 ```ts
-import { crearCliente } from "jsr:@kiri23/ontology-client@0.1.0";
+import { crearCliente } from "jsr:@kiri23/ontology-client@0.1.1";
 
 const cliente = crearCliente({ headers: { Authorization: `Bearer ${token}` } });
 cliente.use({ onRequest: ({ request }) => console.log(request.method, request.url) });
@@ -92,16 +93,22 @@ openapi-fetch directamente.
 
 ```sh
 export ONTOLOGY_PROYECTOS_TOKEN=...
-deno run --allow-net --allow-read --allow-env jsr:@kiri23/ontology-client@0.1.0/cli proyectos/*/proyecto.ttl
+deno run --allow-net --allow-read --allow-env jsr:@kiri23/ontology-client@0.1.1/cli proyectos/*/proyecto.ttl
 deno run --allow-net --allow-read --allow-env cli.ts --url http://localhost:8899 proyecto.ttl   # desde el repo
 ```
 
-- URL: `--url`, o `ONTOLOGY_URL`, o `https://ontology.kiri231.com`.
+- URL: `--url`, o `ONTOLOGY_URL`, o `https://ontology.kiri231.com` (vacía cuenta como no dada). Si es `http://` a un
+  host que no es local, avisa: el token viaja en claro.
 - Token: solo `ONTOLOGY_PROYECTOS_TOKEN` (por flag quedaría en el historial y en la lista de procesos).
-- Exit: **0** todas conforman · **1** alguna no conforma · **2** error de uso, lectura, red o token.
-- Con `GITHUB_ACTIONS=true` emite `::error file=<archivo>,title=...::<reporte>` por cada ficha que no conforma o no se
-  pudo validar.
-- Un 401, un 503 o la red caída cortan en la primera ficha: las demás fallarían igual.
+- Timeout por ficha: `--timeout` u `ONTOLOGY_TIMEOUT`, en segundos (default 30).
+- Exit: **0** todas conforman · **1** alguna no conforma · **2** error de uso, lectura, red, timeout o token. **El 2 le
+  gana al 1**: si una ficha no conforma y otra no se pudo validar, sale 2, porque el resultado no cubre todas.
+- Un 401, un 503, cualquier otro 5xx, la red caída o el timeout cortan en la primera ficha: las demás fallarían igual.
+  Un 400, 413 o 415 son de esa ficha: sigue con las demás.
+- Con `GITHUB_ACTIONS=true` emite `::error file=<archivo>,title=...::<mensaje>` por cada ficha que no conforma o no se
+  pudo validar. El resto de la salida (el reporte copia literales de la ficha) sale neutralizado: una línea que
+  empezaría con `::` lleva un espacio de ancho cero adelante, así una ficha no puede colar un workflow command
+  (`::add-mask::`, `::stop-commands::`, anotaciones falsas) en el log.
 
 ## GitHub Action
 
@@ -127,33 +134,57 @@ jobs:
       - uses: Kiri23/ontology-client@v0
         with:
           token: ${{ secrets.ONTOLOGY_PROYECTOS_TOKEN }}
-          # archivos: proyectos/*/proyecto.ttl   # opcional; default: git ls-files '*proyecto.ttl'
+          # archivos: proyectos/*/proyecto.ttl   # opcional; default: todo proyecto.ttl que git conoce
           # url: https://ontology.kiri231.com    # opcional
+          # timeout: 30                          # opcional, segundos por ficha
 ```
 
 | Input      | Default                        | Qué es                                                                 |
 | ---------- | ------------------------------ | ---------------------------------------------------------------------- |
 | `token`    | (requerido)                    | el token del servidor; sin él el paso falla                            |
-| `archivos` | `git ls-files '*proyecto.ttl'` | rutas o globs (`**` incluido) separados por espacios o saltos de línea |
+| `archivos` | los `proyecto.ttl` del repo    | rutas o globs (`**` incluido) separados por espacios o saltos de línea |
 | `url`      | `https://ontology.kiri231.com` | la URL base del servidor                                               |
+| `timeout`  | `30`                           | segundos por ficha antes de dar el servidor por caído                  |
 
-Si no hay ninguna ficha, sale 0 con un aviso. Los inputs pasan al script por variables de entorno, nunca interpolados:
-no se puede inyectar shell. La action instala Deno 2.9.5 con `denoland/setup-deno` fijado por SHA y corre el `cli.ts` de
-la versión de la action, con su propio `deno.json` y lockfile (`--frozen`), así el `deno.json` del repo que la usa no
-interfiere.
+Sin `archivos`, valida los archivos que se llaman exactamente `proyecto.ttl` (no `otroproyecto.ttl`) y que git conoce:
+`git ls-files -z -- ':(glob)proyecto.ttl' ':(glob)**/proyecto.ttl'`, rutas no ASCII incluidas. Si el repo no tiene
+ninguna, sale 0 con un aviso.
 
-`v0` es un tag móvil que apunta al último `v0.x.y`; para fijar, `@v0.1.0` o un SHA.
+Antes de adoptarla:
+
+- **Va después de `actions/checkout`.** Sin checkout no hay repo, `git ls-files` falla y la action falla con exit 2 y un
+  error que lo dice. No da verde sin haber validado nada.
+- **El token.** `ONTOLOGY_PROYECTOS_TOKEN` es el token que el servidor tiene configurado; lo da el dueño del servidor.
+  Se carga como secret del repo consumidor: `gh secret set ONTOLOGY_PROYECTOS_TOKEN -R <owner>/<repo>` (pide el valor
+  por stdin, no queda en el historial).
+- **PRs desde forks.** GitHub no les pasa secretos: sin token el paso falla con exit 2. O el check no se exige para
+  forks, o el workflow usa `pull_request_target`. En ese caso la ficha viene de alguien de afuera y el workflow tiene el
+  secreto: no hagas checkout del código del PR para ejecutarlo, solo de las fichas. La salida de la action ya neutraliza
+  los workflow commands que traiga una ficha.
+- **Deno en el PATH.** La action instala Deno 2.9.5 con `denoland/setup-deno` y queda primero en el `PATH` del job: los
+  pasos que siguen corren con ese Deno. Si el job usa otra versión, poné tu `setup-deno` después de esta action.
+
+Los inputs pasan al script por variables de entorno, nunca interpolados: no se puede inyectar shell. La action instala
+Deno 2.9.5 con `denoland/setup-deno` fijado por SHA y corre el `cli.ts` de la versión de la action, con su propio
+`deno.json` y lockfile (`--frozen`), así el `deno.json` del repo que la usa no interfiere.
+
+`v0` es un tag móvil que apunta al último `v0.x.y`; para fijar, `@v0.1.1` o un SHA.
 
 ## Desarrollo
 
 ```sh
-deno task test        # tests: fetch falso, anotaciones, exit codes del proceso
+deno task test        # tests: fetch falso, anotaciones, workflow commands, timeout, exit codes del proceso
 deno fmt --check && deno lint && deno task generar --check
 deno run --allow-net --allow-read tests/servidor-falso.ts --puerto 8787 --token prueba
 ```
 
 `tests/servidor-falso.ts` imita el contrato sin el motor: una ficha no conforma si trae la línea
-`# servidor-falso: no conforma`. CI lo levanta para probar la action con `uses: ./`.
+`# servidor-falso: no conforma`. CI lo levanta para probar la action con `uses: ./`, y en otro job la prueba sin repo
+git, con un repo sin fichas y con nombres parecidos a `proyecto.ttl`. `tests/servidor-mudo.ts` acepta conexiones y nunca
+responde: prueba el timeout.
+
+`deno.json` tiene `lock.frozen`: nada cambia `deno.lock` sin querer. Para sumar o subir una dependencia,
+`deno install --frozen=false` y commitear el lock.
 
 ### Publicar
 
