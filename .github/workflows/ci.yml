@@ -1,7 +1,9 @@
 name: CI
 
-# Dos jobs: `calidad` revisa el código (formato, lint, tipos, tests, generado/ al día con el contrato,
-# publish en seco) y `action` prueba la action misma (`uses: ./`) contra el servidor falso de tests/.
+# Tres jobs: `calidad` revisa el código (formato, lint, tipos, tests, generado/ al día con el contrato,
+# publish en seco); `action` prueba la action (`uses: ./`) contra el servidor falso de tests/ con rutas y
+# globs; `descubrimiento` prueba lo que hace sin el input archivos: sin repo git, con un repo sin fichas y
+# con nombres parecidos a proyecto.ttl y rutas no ASCII.
 on:
   push:
     branches: [main]
@@ -15,11 +17,17 @@ jobs:
   calidad:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+        with:
+          persist-credentials: false
 
       - uses: denoland/setup-deno@22d081ff2d3a40755e97629de92e3bcbfa7cf2ed # v2.0.5
         with:
           deno-version: v2.9.5
+
+      # deno.json tiene lock.frozen: si a deno.lock le falta algo, esto falla acá y no en el consumidor.
+      - name: Dependencias según deno.lock
+        run: deno install --frozen
 
       - name: Formato
         run: deno fmt --check
@@ -43,7 +51,9 @@ jobs:
   action:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+        with:
+          persist-credentials: false
 
       - uses: denoland/setup-deno@22d081ff2d3a40755e97629de92e3bcbfa7cf2ed # v2.0.5
         with:
@@ -63,6 +73,23 @@ jobs:
         uses: ./
         with:
           archivos: tests/fichas/conforme/proyecto.ttl
+          url: http://127.0.0.1:8787
+          token: prueba
+
+      - name: Glob que solo encuentra conformes (tiene que pasar)
+        uses: ./
+        with:
+          archivos: |
+            tests/fichas/conf*/*.ttl
+          url: http://127.0.0.1:8787
+          token: prueba
+
+      - name: Glob con ** que incluye la no conforme (tiene que fallar)
+        id: glob_todas
+        continue-on-error: true
+        uses: ./
+        with:
+          archivos: tests/fichas/**/proyecto.ttl
           url: http://127.0.0.1:8787
           token: prueba
 
@@ -95,15 +122,86 @@ jobs:
 
       - name: Verificar los fallos esperados
         env:
+          GLOB_TODAS: ${{ steps.glob_todas.outcome }}
           NO_CONFORME: ${{ steps.no_conforme.outcome }}
           TOKEN_MALO: ${{ steps.token_malo.outcome }}
           POR_DEFECTO: ${{ steps.por_defecto.outcome }}
         run: |
           fallo=0
-          for caso in NO_CONFORME TOKEN_MALO POR_DEFECTO; do
+          for caso in GLOB_TODAS NO_CONFORME TOKEN_MALO POR_DEFECTO; do
             if [ "${!caso}" != "failure" ]; then
               echo "::error::$caso terminó en ${!caso}, se esperaba failure"
               fallo=1
             fi
           done
           exit $fallo
+
+  # La action en un workspace que no es este repo: el checkout va a accion/ y el workspace se arma a mano.
+  descubrimiento:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+        with:
+          path: accion
+          persist-credentials: false
+
+      - uses: denoland/setup-deno@22d081ff2d3a40755e97629de92e3bcbfa7cf2ed # v2.0.5
+        with:
+          deno-version: v2.9.5
+
+      - name: Levantar el servidor falso
+        run: |
+          deno run --allow-net --allow-read accion/tests/servidor-falso.ts --puerto 8787 --token prueba &
+          for _ in $(seq 1 30); do
+            curl -sf http://127.0.0.1:8787/openapi.json >/dev/null && exit 0
+            sleep 1
+          done
+          echo "::error::El servidor falso no levantó"
+          exit 1
+
+      # El workspace no es un repo git (como sin actions/checkout): tiene que fallar, no dar verde.
+      - name: Sin repo git (tiene que fallar)
+        id: sin_repo
+        continue-on-error: true
+        uses: ./accion
+        with:
+          url: http://127.0.0.1:8787
+          token: prueba
+
+      - name: Repo sin fichas
+        run: git init -q
+
+      # Un repo git sin ninguna proyecto.ttl: verde con aviso.
+      - name: Sin fichas (tiene que pasar)
+        uses: ./accion
+        with:
+          url: http://127.0.0.1:8787
+          token: prueba
+
+      # Solo valen los proyecto.ttl exactos (año/ incluido); otroproyecto.ttl y mi-proyecto.ttl no conforman
+      # y no se tienen que validar.
+      - name: Fichas con nombres parecidos y rutas no ASCII
+        run: |
+          mkdir -p año sub
+          cp accion/tests/fichas/conforme/proyecto.ttl proyecto.ttl
+          cp accion/tests/fichas/conforme/proyecto.ttl año/proyecto.ttl
+          for f in otroproyecto.ttl mi-proyecto.ttl sub/otroproyecto.ttl; do
+            cp accion/tests/fichas/no-conforme/proyecto.ttl "$f"
+          done
+          git add proyecto.ttl año otroproyecto.ttl mi-proyecto.ttl sub
+          git ls-files
+
+      - name: Solo proyecto.ttl exactos (tiene que pasar)
+        uses: ./accion
+        with:
+          url: http://127.0.0.1:8787
+          token: prueba
+
+      - name: Verificar el fallo esperado
+        env:
+          SIN_REPO: ${{ steps.sin_repo.outcome }}
+        run: |
+          if [ "$SIN_REPO" != "failure" ]; then
+            echo "::error::SIN_REPO terminó en $SIN_REPO, se esperaba failure"
+            exit 1
+          fi
