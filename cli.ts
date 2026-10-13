@@ -54,7 +54,7 @@ export function anotacionError(archivo: string, titulo: string, mensaje: string)
  * blanco para .NET, así que la línea ya no empieza con `::`, y en el log se ve igual.
  */
 export function neutralizarComandos(texto: string): string {
-  return texto.split(/\r\n|\r|\n/).map((linea) => linea.replace(/^([\s\u0085]*)::/, "$1​::")).join("\n");
+  return texto.split(/\r\n|\r|\n/).map((linea) => linea.replace(/^([\s\u0085]*)::/, "$1\u200b::")).join("\n");
 }
 
 // Un error que no depende de la ficha: las que siguen fallarían igual, así que se corta ahí.
