@@ -6,6 +6,7 @@
     "jsr:@std/fmt@^1.0.10": "1.0.10",
     "jsr:@std/internal@^1.0.12": "1.0.14",
     "jsr:@std/internal@^1.0.14": "1.0.14",
+    "npm:@cfworker/json-schema@4.1.1": "4.1.1",
     "npm:openapi-fetch@0.17": "0.17.0",
     "npm:openapi-typescript@7.13.0": "7.13.0_typescript@5.9.3"
   },
@@ -41,6 +42,9 @@
     },
     "@babel/helper-validator-identifier@7.29.7": {
       "integrity": "sha512-qehxGkRj55h/ff8EMaJ+cYhyaKlHIxqYDn682wQD7RNp9UujOQsHog2uS0r2vzr4pW+sXf90NeeayjcNaX3fFg=="
+    },
+    "@cfworker/json-schema@4.1.1": {
+      "integrity": "sha512-gAmrUZSGtKc3AiBL71iNWxDsyUC5uMaKKGdvzYsBoTW/xi42JQHl7eKV2OYzCUqvc+D2RCcf7EXY2iCyFIk6og=="
     },
     "@redocly/ajv@8.11.2": {
       "integrity": "sha512-io1JpnwtIcvojV7QKDUSIuMN/ikdOUd1ReEnUnMKGfDVridQZ31J0MmIuqwuRjWDZfmvr+Q0MqCcfHM2gTivOg==",
@@ -199,6 +203,7 @@
     "dependencies": [
       "jsr:@std/assert@^1.0.13",
       "jsr:@std/cli@^1.0.20",
+      "npm:@cfworker/json-schema@4.1.1",
       "npm:openapi-fetch@0.17",
       "npm:openapi-typescript@7.13.0"
     ]

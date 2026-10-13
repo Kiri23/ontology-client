@@ -2,55 +2,37 @@
 // producción el 2026-10-13). No tocan la red, salvo el último: con ONTOLOGY_PRODUCCION=1 llama a producción.
 //
 // La forma se chequea contra el schema del contrato (contrato/openapi.json), no contra una lista de campos
-// escrita acá: si el servidor cambia JobPost, este chequeo cambia con él.
+// escrita acá: si el servidor cambia JobPost, este chequeo cambia con él. Lo valida @cfworker/json-schema
+// (JSON Schema 2020-12, sin dependencias, solo en los tests): entiende las claves al lado de un $ref,
+// allOf, additionalProperties y unevaluatedProperties, que el contrato puede usar para cerrar JobPost.
 
 import { assert, assertEquals, assertInstanceOf, assertRejects, assertStringIncludes } from "@std/assert";
+import { type Schema, Validator } from "@cfworker/json-schema";
 import { ErrorServidor, jobs } from "../mod.ts";
 import { servidorMudo } from "./servidor-mudo.ts";
 
 const FIXTURE = await Deno.readTextFile(new URL("./datos/jobs.json", import.meta.url));
 
-interface Schema {
-  type?: string;
-  $ref?: string;
-  format?: string;
-  properties?: Record<string, Schema>;
-  required?: string[];
-  additionalProperties?: boolean;
-  items?: Schema;
+// El contrato entero entra como documento, con una URI inventada de base: así sus $ref
+// (#/components/schemas/JobPost) resuelven dentro de él. La raíz apunta al schema del 200 de GET /jobs.
+const BASE = "https://contrato.invalid/openapi.json";
+const contrato = JSON.parse(await Deno.readTextFile(new URL("../contrato/openapi.json", import.meta.url)));
+const validador = new Validator(
+  { $ref: `${BASE}#/paths/~1jobs/get/responses/200/content/application~1json/schema` },
+  "2020-12",
+  false,
+);
+validador.addSchema(contrato as Schema, BASE);
+
+// Lo que no calza de `valor` con el 200 de GET /jobs, cada cosa con su ruta. [] si calza.
+function problemas(valor: unknown): string[] {
+  return validador.validate(valor).errors.map((e) => `${e.instanceLocation} ${e.keyword}: ${e.error}`);
 }
 
-const contrato = JSON.parse(await Deno.readTextFile(new URL("../contrato/openapi.json", import.meta.url)));
-const SCHEMAS: Record<string, Schema> = contrato.components.schemas;
-const RESPUESTA_200: Schema = contrato.paths["/jobs"].get.responses["200"].content["application/json"].schema;
-
-// Lo que no calza de `valor` respecto de `s`, cada cosa con su ruta ($[0].pide[1].nombre: falta). [] si calza.
-function problemas(valor: unknown, s: Schema, ruta = "$"): string[] {
-  if (s.$ref) return problemas(valor, SCHEMAS[s.$ref.split("/").pop()!], ruta);
-  if (s.type === "string") {
-    if (typeof valor !== "string") return [`${ruta}: no es string`];
-    if (s.format === "date-time" && Number.isNaN(Date.parse(valor))) return [`${ruta}: no es date-time`];
-    if (s.format === "uri" && !URL.canParse(valor)) return [`${ruta}: no es uri`];
-    return [];
-  }
-  if (s.type === "array") {
-    if (!Array.isArray(valor)) return [`${ruta}: no es lista`];
-    return valor.flatMap((v, i) => problemas(v, s.items!, `${ruta}[${i}]`));
-  }
-  if (s.type === "object") {
-    if (typeof valor !== "object" || valor === null || Array.isArray(valor)) return [`${ruta}: no es objeto`];
-    const o = valor as Record<string, unknown>;
-    const propiedades = s.properties ?? {};
-    const faltan = (s.required ?? []).filter((k) => !(k in o)).map((k) => `${ruta}.${k}: falta`);
-    const sobran = s.additionalProperties === false
-      ? Object.keys(o).filter((k) => !(k in propiedades)).map((k) => `${ruta}.${k}: no está en el schema`)
-      : [];
-    const campos = Object.entries(o).flatMap(([k, v]) =>
-      propiedades[k] ? problemas(v, propiedades[k], `${ruta}.${k}`) : []
-    );
-    return [...faltan, ...sobran, ...campos];
-  }
-  throw new Error(`${ruta}: este chequeo no conoce el schema ${JSON.stringify(s)}`);
+// Que `valor` no calce y que entre los problemas esté `esperado` (la ruta y el motivo).
+function marca(valor: unknown, esperado: RegExp): void {
+  const vistos = problemas(valor);
+  assert(vistos.some((p) => esperado.test(p)), `se esperaba ${esperado}; el validador dijo ${JSON.stringify(vistos)}`);
 }
 
 // Un fetch que guarda el último pedido y responde con `respuesta`.
@@ -65,13 +47,24 @@ function grabador(respuesta: () => Response) {
 
 const fixture = () => new Response(FIXTURE, { headers: { "Content-Type": "application/json" } });
 
-Deno.test("el chequeo de forma muerde: un JobPost sin titulo o con un campo de más no pasa", () => {
+Deno.test("el chequeo de forma muerde: un campo que JobPost o Technology no declaran no pasa", () => {
+  const [puesto] = JSON.parse(FIXTURE);
+  marca([{ ...puesto, salario: 1 }], /^#\/0 (additional|unevaluated)Properties: Property "salario"/);
+  marca(
+    [{ ...puesto, pide: [{ ...puesto.pide[0], version: "3" }] }],
+    /^#\/0\/pide\/0 (additional|unevaluated)Properties: Property "version"/,
+  );
+});
+
+Deno.test("el chequeo de forma muerde: un campo que falta o con otro formato no pasa", () => {
   const [puesto] = JSON.parse(FIXTURE);
   const { titulo: _, ...sinTitulo } = puesto;
-  assertEquals(problemas([sinTitulo], RESPUESTA_200), ["$[0].titulo: falta"]);
-  assertEquals(problemas([{ ...puesto, salario: 1 }], RESPUESTA_200), ["$[0].salario: no está en el schema"]);
-  const pideRoto = { ...puesto, pide: [{ link: "https://kiri23.dev/tech#X", sinonimos: [] }] };
-  assertEquals(problemas([pideRoto], RESPUESTA_200), ["$[0].pide[0].nombre: falta"]);
+  marca([sinTitulo], /^#\/0 required: .*"titulo"/);
+  marca(
+    [{ ...puesto, pide: [{ link: "https://kiri23.dev/tech#X", sinonimos: [] }] }],
+    /^#\/0\/pide\/0 required: .*"nombre"/,
+  );
+  marca([{ ...puesto, fecha: "ayer" }], /^#\/0\/fecha format: /);
 });
 
 Deno.test("jobs.get(): GET /jobs sin token, y la lista calza con el schema JobPost[] del contrato", async () => {
@@ -81,7 +74,7 @@ Deno.test("jobs.get(): GET /jobs sin token, y la lista calza con el schema JobPo
   assertEquals(visto.pedido?.url, "http://falso/jobs");
   assertEquals(visto.pedido?.headers.get("Authorization"), null);
   assertEquals(lista.length, 3);
-  assertEquals(problemas(lista, RESPUESTA_200), []);
+  assertEquals(problemas(lista), []);
   assertEquals(lista[1].pide.map((t) => t.nombre), ["C#", "Node.js", "Python", "React", "TypeScript"]);
 });
 
@@ -150,7 +143,7 @@ Deno.test({
   fn: async () => {
     const lista = await jobs.get({ tecnologia: "python" });
     assert(lista.length > 0, "producción no devolvió ningún puesto con python");
-    assertEquals(problemas(lista, RESPUESTA_200), []);
+    assertEquals(problemas(lista), []);
     const pidePython = (p: (typeof lista)[number]) =>
       p.pide.some((t) => [t.nombre, ...t.sinonimos].some((n) => n.toLowerCase() === "python"));
     assertEquals(lista.filter((p) => !pidePython(p)).map((p) => p.link), []);
