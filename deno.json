@@ -28,6 +28,15 @@
     "exclude": ["generado/"]
   },
   "publish": {
-    "include": ["mod.ts", "cli.ts", "generado/api.ts", "contrato/openapi.json", "README.md", "LICENSE"]
+    "include": [
+      "mod.ts",
+      "cliente.ts",
+      "jobs.ts",
+      "cli.ts",
+      "generado/api.ts",
+      "contrato/openapi.json",
+      "README.md",
+      "LICENSE"
+    ]
   }
 }
