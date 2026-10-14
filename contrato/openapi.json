@@ -44,7 +44,7 @@
             "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } }
           },
           "503": {
-            "description": "datos/jobs.trig es de una forma vieja: POST /jobs lo rehace",
+            "description": "datos/jobs.trig es de una forma vieja: POST /jobs lo rehace; o un .trig de datos/ no se puede leer",
             "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } }
           }
         },
@@ -95,7 +95,7 @@
             "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } }
           },
           "503": {
-            "description": "datos/jobs.trig es de una forma vieja: POST /jobs lo rehace",
+            "description": "datos/jobs.trig es de una forma vieja: POST /jobs lo rehace; o un .trig de datos/ no se puede leer",
             "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } }
           }
         },
@@ -119,7 +119,12 @@
                     "format": "uri",
                     "description": "El link del JobPost sobre el que corre."
                   },
-                  "porque": { "type": "string", "minLength": 1, "description": "Por qué lo descarto, en mis palabras." }
+                  "porque": {
+                    "type": "string",
+                    "minLength": 1,
+                    "pattern": "\\S",
+                    "description": "Por qué lo descarto, en mis palabras."
+                  }
                 },
                 "required": ["link", "porque"],
                 "additionalProperties": false
@@ -161,7 +166,7 @@
             "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } }
           },
           "503": {
-            "description": "el servidor no tiene token configurado: falla cerrado",
+            "description": "el servidor no tiene token configurado (falla cerrado), o un .trig de datos/ no se puede leer",
             "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } }
           }
         },
@@ -226,7 +231,7 @@
             "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } }
           },
           "503": {
-            "description": "el servidor no tiene token configurado: falla cerrado",
+            "description": "el servidor no tiene token configurado (falla cerrado), o un .trig de datos/ no se puede leer",
             "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } }
           }
         },

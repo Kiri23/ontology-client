@@ -284,7 +284,7 @@ export interface operations {
                     "application/json": components["schemas"]["Error"];
                 };
             };
-            /** @description datos/jobs.trig es de una forma vieja: POST /jobs lo rehace */
+            /** @description datos/jobs.trig es de una forma vieja: POST /jobs lo rehace; o un .trig de datos/ no se puede leer */
             503: {
                 headers: {
                     [name: string]: unknown;
@@ -352,7 +352,7 @@ export interface operations {
                     "application/json": components["schemas"]["Error"];
                 };
             };
-            /** @description datos/jobs.trig es de una forma vieja: POST /jobs lo rehace */
+            /** @description datos/jobs.trig es de una forma vieja: POST /jobs lo rehace; o un .trig de datos/ no se puede leer */
             503: {
                 headers: {
                     [name: string]: unknown;
@@ -447,7 +447,7 @@ export interface operations {
                     "application/json": components["schemas"]["Error"];
                 };
             };
-            /** @description el servidor no tiene token configurado: falla cerrado */
+            /** @description el servidor no tiene token configurado (falla cerrado), o un .trig de datos/ no se puede leer */
             503: {
                 headers: {
                     [name: string]: unknown;
@@ -540,7 +540,7 @@ export interface operations {
                     "application/json": components["schemas"]["Error"];
                 };
             };
-            /** @description el servidor no tiene token configurado: falla cerrado */
+            /** @description el servidor no tiene token configurado (falla cerrado), o un .trig de datos/ no se puede leer */
             503: {
                 headers: {
                     [name: string]: unknown;
