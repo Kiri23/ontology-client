@@ -1,8 +1,8 @@
 # @kiri23/ontology-client
 
 El cliente HTTP de ontologyLearning. Valida fichas `proyecto.ttl` (manda una ficha Turtle a `POST /proyectos` y devuelve
-si conforma a las reglas, con el reporte de SHACL) y lee los puestos de trabajo (`GET /jobs`, tipados como `JobPost[]`).
-Es tres cosas:
+si conforma a las reglas, con el reporte de SHACL), lee los puestos de trabajo (`GET /jobs`, tipados como `JobPost[]`) y
+corre acciones sobre ellos (descartar, marcar aplicado). Es tres cosas:
 
 - una **librería** TypeScript en JSR (`jsr:@kiri23/ontology-client`),
 - un **CLI** que valida archivos y sale 0/1/2,
@@ -74,7 +74,8 @@ else if (!r.conforma) console.log(r.reporte);
 
 ### Puestos de trabajo: `jobs`
 
-Un módulo por clase de la ontología, no por endpoint: `jobs` es la clase `JobPost`, con sus métodos. Hoy tiene uno.
+Un módulo por clase de la ontología, no por endpoint: `jobs` es la clase `JobPost`, con sus métodos: `get` para leer y
+dos acciones, `descartar` y `marcarAplicado`.
 
 ```ts
 import { type JobPost, jobs } from "jsr:@kiri23/ontology-client";
@@ -88,6 +89,34 @@ lista[0].pide[0].nombre; // string: cada tecnología es un Technology { link, no
 A diferencia de `validarProyecto`, **tira** cuando no hay lista: un `ErrorServidor` con `status` (503, 400, 200 fuera
 del contrato, o `null` si no hubo respuesta) y el `{"error"}` del servidor en el mensaje. El 503 es "datos viejos": el
 mensaje dice que `POST /jobs?kiri_jobs=--all` los rehace.
+
+#### Acciones: `descartar` y `marcarAplicado`
+
+Son los action types del servidor (al estilo de Palantir Foundry): cada una está declarada en el grafo del servidor, con
+sus parámetros y su precondición, y sale en el contrato como una operación (`jobs_descartar`, `jobs_marcar_aplicado`).
+Escriben, así que piden token.
+
+```ts
+import { jobs } from "jsr:@kiri23/ontology-client";
+
+const token = Deno.env.get("ONTOLOGY_ACCIONES_TOKEN")!;
+const [puesto] = await jobs.get({ tecnologia: "python" });
+
+const descartado = await jobs.descartar(puesto, "pide 5 años de Java", { token });
+descartado.descartadoEl; // string | undefined (date-time); descartado.porque: "pide 5 años de Java"
+
+const aplicado = await jobs.marcarAplicado(puesto.link, { token }); // el puesto o su link
+aplicado.aplicadoEl;
+```
+
+- `jobs.descartar(job, porque, { token?, url?, fetch?, timeoutMs? })` → `POST /jobs/descartar` con `{"link", "porque"}`.
+- `jobs.marcarAplicado(job, { token?, url?, fetch?, timeoutMs? })` → `POST /jobs/marcar-aplicado` con `{"link"}`.
+- `job` es el `JobPost` (o cualquier cosa con `link`) o el link solo. Las dos devuelven el `JobPost` como queda.
+- Token: `token`, o la variable `ONTOLOGY_ACCIONES_TOKEN` si Deno tiene permiso para leerla (`--allow-env`; sin permiso
+  no pregunta). Sin ninguno, el pedido va sin token y el servidor responde 401.
+- Tiran `ErrorServidor`, como `jobs.get`: **400** si el puesto no existe, falta `porque` o no se cumple la precondición
+  (el mensaje es el del servidor: `Ya lo descartaste.`, `Ya aplicaste a este puesto.`), **401** sin token o con otro,
+  **503** si el servidor no tiene token configurado, `null` si no hubo respuesta.
 
 Traer puestos nuevos no tiene método todavía: el 200 de `POST /jobs` no declara schema en el contrato, así que
 devolvería `unknown`. Va por el cliente tipado:
@@ -200,10 +229,17 @@ Deno 2.9.5 con `denoland/setup-deno` fijado por SHA y corre el `cli.ts` de la ve
 
 ```sh
 deno task test        # tests: fetch falso, anotaciones, workflow commands, timeout, exit codes del proceso
-ONTOLOGY_PRODUCCION=1 deno task test   # además, jobs.get() contra producción
+ONTOLOGY_PRODUCCION=1 deno task test   # además, jobs.get() contra producción (solo lee)
+ONTOLOGY_ACCIONES_URL=http://127.0.0.1:8800 ONTOLOGY_ACCIONES_TOKEN=prueba-local deno task test   # acciones, server local
 deno fmt --check && deno lint && deno task generar --check
 deno run --allow-net --allow-read tests/servidor-falso.ts --puerto 8787 --token prueba
 ```
+
+Las acciones escriben, así que su test de punta a punta va **solo** contra un ontologyLearning local
+(`ONTOLOGY_ACCIONES_TOKEN=prueba-local python3 main.py web --puerto 8800` con `datos/jobs.trig` =
+`tests/fixtures/jobs.trig`): sin `ONTOLOGY_ACCIONES_URL` se saltea (CI no lo corre) y si no es `localhost`/`127.0.0.1`
+falla antes de pedir nada. Cada corrida descarta un puesto que no tenía decisiones; cuando no quedan, borrá
+`datos/decisiones.trig` del servidor.
 
 `tests/servidor-falso.ts` imita el contrato sin el motor: una ficha no conforma si trae la línea
 `# servidor-falso: no conforma`. CI lo levanta para probar la action con `uses: ./`, y en otro job la prueba sin repo
