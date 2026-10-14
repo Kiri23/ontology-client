@@ -1,9 +1,8 @@
 {
-  "openapi": "3.1.0",
   "info": {
+    "description": "Los comandos de ontologyLearning por HTTP (vistas/web/rutas.py).",
     "title": "ontologyLearning",
-    "version": "1",
-    "description": "Los comandos de ontologyLearning por HTTP (vistas/web/rutas.py)."
+    "version": "1"
   },
   "servers": [{ "url": "https://ontology.kiri231.com" }],
   "paths": {
@@ -11,7 +10,7 @@
       "get": {
         "operationId": "jobs_get",
         "summary": "Los puestos como JobPost[]: cada uno con la forma de j:JobPostShape, el schema JobPost del contrato.",
-        "description": "GET /jobs. Filtra por tecnologia como consultas/jobs.rq (prefLabel o altLabel, sin mayúsculas) y por\nfuente contra el campo fuente del puesto (igual, sin mayúsculas: remotive, hn). El orden es el del\n.rq: lo más nuevo primero. Para traer puestos nuevos, POST /jobs?kiri_jobs=--all.",
+        "description": "GET /jobs. Filtra por tecnologia como consultas/jobs.rq (prefLabel o altLabel, sin mayúsculas) y por\nfuente contra el campo fuente del puesto (igual, sin mayúsculas: remotive, hn). El orden es el del\n.rq: lo más nuevo primero. Para traer puestos nuevos, POST /jobs (las dos fuentes).",
         "parameters": [
           {
             "name": "tecnologia",
@@ -32,7 +31,12 @@
           "200": {
             "description": "la respuesta del comando",
             "content": {
-              "application/json": { "schema": { "type": "array", "items": { "$ref": "#/components/schemas/JobPost" } } }
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": { "$ref": "#/components/schemas/JobPost", "unevaluatedProperties": false }
+                }
+              }
             }
           },
           "400": {
@@ -40,7 +44,7 @@
             "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } }
           },
           "503": {
-            "description": "datos/jobs.trig es de una forma vieja: POST /jobs?kiri_jobs=--all lo rehace",
+            "description": "datos/jobs.trig es de una forma vieja: POST /jobs lo rehace",
             "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } }
           }
         },
@@ -49,11 +53,12 @@
       "post": {
         "operationId": "jobs",
         "summary": "Trae puestos con kiri-jobs, los pasa a triples, los valida con SHACL y guarda datos/jobs.trig.",
+        "description": "Sin bandera de fuente trae las dos (--all). jobs.trig se reescribe entero: con el default de\nkiri-jobs (solo remotive), un POST /jobs sin argumentos se quedaría sin los puestos de HN. --hn o\n--remotive eligen una sola.",
         "parameters": [
           {
             "name": "kiri_jobs",
             "in": "query",
-            "description": "args para kiri-jobs: --all, --hn, react… (separados por espacios)",
+            "description": "args para kiri-jobs (default --all, las dos fuentes): --hn, --remotive, react… (separados por espacios)",
             "required": false,
             "schema": { "type": "string" }
           }
@@ -66,6 +71,166 @@
           }
         },
         "security": []
+      }
+    },
+    "/jobs/con-mi-stack": {
+      "get": {
+        "operationId": "jobs_con_mi_stack",
+        "summary": "Los puestos que piden alguna tecnología que ya sé, más coincidencias primero: JobConMiStack[].",
+        "description": "GET /jobs/con-mi-stack. Cada uno es un JobPost con un campo más, coincidencias: cuántas tecnologías\nmías pide. El schema JobConMiStack extiende a JobPost (l:JobConMiStack, domain/lecturas-formas.ttl).\nEl orden y la cuenta son los de consultas/jobs-con-mi-stack.rq, que /preguntar sigue sirviendo como filas.",
+        "responses": {
+          "200": {
+            "description": "la respuesta del comando",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": { "$ref": "#/components/schemas/JobConMiStack", "unevaluatedProperties": false }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "el comando no pudo hacer su trabajo (parámetros, datos)",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } }
+          },
+          "503": {
+            "description": "datos/jobs.trig es de una forma vieja: POST /jobs lo rehace",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } }
+          }
+        },
+        "security": []
+      }
+    },
+    "/jobs/descartar": {
+      "post": {
+        "operationId": "jobs_descartar",
+        "summary": "Descarta un puesto: no me interesa, y digo por qué.",
+        "description": "La acción https://kiri23.dev/jobs#Descartar (dash:ModifyAction): la declara domain/, la corre core/acciones.py.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "link": {
+                    "type": "string",
+                    "format": "uri",
+                    "description": "El link del JobPost sobre el que corre."
+                  },
+                  "porque": { "type": "string", "minLength": 1, "description": "Por qué lo descarto, en mis palabras." }
+                },
+                "required": ["link", "porque"],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "el JobPost como queda después de descartar",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/JobPost", "unevaluatedProperties": false }
+              }
+            }
+          },
+          "400": {
+            "description": "no se pudo: falta un parámetro o no es del tipo, el objeto no existe, o no cumple la precondición (el error trae sus sh:message)",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } }
+          },
+          "401": {
+            "description": "falta el token o no es el correcto",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } }
+          },
+          "408": {
+            "description": "el body no llegó entero a tiempo",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } }
+          },
+          "411": {
+            "description": "falta Content-Length (el body no puede ir chunked)",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } }
+          },
+          "413": {
+            "description": "el body pasa el tope de la vista",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } }
+          },
+          "415": {
+            "description": "el body no viene como application/json",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } }
+          },
+          "503": {
+            "description": "el servidor no tiene token configurado: falla cerrado",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } }
+          }
+        },
+        "security": [{ "bearer": [] }]
+      }
+    },
+    "/jobs/marcar-aplicado": {
+      "post": {
+        "operationId": "jobs_marcar_aplicado",
+        "summary": "Marca que apliqué a un puesto. Uno descartado también se puede marcar.",
+        "description": "La acción https://kiri23.dev/jobs#MarcarAplicado (dash:ModifyAction): la declara domain/, la corre core/acciones.py.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "link": {
+                    "type": "string",
+                    "format": "uri",
+                    "description": "El link del JobPost sobre el que corre."
+                  }
+                },
+                "required": ["link"],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "el JobPost como queda después de marcarAplicado",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/JobPost", "unevaluatedProperties": false }
+              }
+            }
+          },
+          "400": {
+            "description": "no se pudo: falta un parámetro o no es del tipo, el objeto no existe, o no cumple la precondición (el error trae sus sh:message)",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } }
+          },
+          "401": {
+            "description": "falta el token o no es el correcto",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } }
+          },
+          "408": {
+            "description": "el body no llegó entero a tiempo",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } }
+          },
+          "411": {
+            "description": "falta Content-Length (el body no puede ir chunked)",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } }
+          },
+          "413": {
+            "description": "el body pasa el tope de la vista",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } }
+          },
+          "415": {
+            "description": "el body no viene como application/json",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } }
+          },
+          "503": {
+            "description": "el servidor no tiene token configurado: falla cerrado",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } }
+          }
+        },
+        "security": [{ "bearer": [] }]
       }
     },
     "/preguntar": {
@@ -167,15 +332,128 @@
         },
         "security": [{ "bearer": [] }]
       }
+    },
+    "/reportes/demanda": {
+      "get": {
+        "operationId": "reporte_demanda",
+        "summary": "Cuántos puestos piden cada una de mis tecnologías, la más pedida primero: Demanda[].",
+        "description": "GET /reportes/demanda. Un reporte: cada fila es una de consultas/demanda.rq, con la forma l:Demanda\n(domain/lecturas-formas.ttl): nombre y puestos.",
+        "responses": {
+          "200": {
+            "description": "la respuesta del comando",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": { "$ref": "#/components/schemas/Demanda", "unevaluatedProperties": false }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "el comando no pudo hacer su trabajo (parámetros, datos)",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } }
+          }
+        },
+        "security": []
+      }
+    },
+    "/reportes/dependencias": {
+      "get": {
+        "operationId": "reporte_dependencias",
+        "summary": "Qué action usa cada repo, una fila por uso: Dependencia[].",
+        "description": "GET /reportes/dependencias. Un reporte: cada fila es una de consultas/dependencias.rq (lee\ngenerado/repos.trig), con la forma l:Dependencia (domain/lecturas-formas.ttl): repo, accion, ref y\narchivo. Los filtros son los del .rq, opcionales, por substring y sin mayúsculas: \"¿quién se rompe si\ncambio pm-actividad?\" es ?accion=pm-actividad.",
+        "parameters": [
+          {
+            "name": "accion",
+            "in": "query",
+            "description": "parte de la action, sin mayúsculas: pm-actividad, checkout",
+            "required": false,
+            "schema": { "type": "string" }
+          },
+          {
+            "name": "repo",
+            "in": "query",
+            "description": "parte del nombre del repo, sin mayúsculas: portfolio",
+            "required": false,
+            "schema": { "type": "string" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "la respuesta del comando",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": { "$ref": "#/components/schemas/Dependencia", "unevaluatedProperties": false }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "el comando no pudo hacer su trabajo (parámetros, datos)",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } }
+          }
+        },
+        "security": []
+      }
     }
   },
+  "openapi": "3.1.0",
   "components": {
     "schemas": {
       "Error": { "type": "object", "properties": { "error": { "type": "string" } }, "required": ["error"] },
+      "Demanda": {
+        "type": "object",
+        "properties": {
+          "nombre": { "type": "string", "description": "La tecnología: su prefLabel." },
+          "puestos": { "type": "integer", "description": "En cuántos puestos aparece." }
+        },
+        "required": ["nombre", "puestos"]
+      },
+      "Dependencia": {
+        "type": "object",
+        "properties": {
+          "accion": { "type": "string", "description": "La action como va en uses:, sin la ref: owner/repo[/ruta]." },
+          "archivo": { "type": "string", "description": "El workflow donde está el uses:." },
+          "ref": {
+            "type": "string",
+            "description": "La versión que pide: rama, tag o SHA; default (por el puente del checkout) o local."
+          },
+          "repo": { "type": "string", "description": "El doap:name del repo que declara el uso." }
+        },
+        "required": ["accion", "archivo", "ref", "repo"]
+      },
+      "JobConMiStack": {
+        "allOf": [
+          { "$ref": "#/components/schemas/JobPost" },
+          {
+            "type": "object",
+            "properties": {
+              "coincidencias": {
+                "type": "integer",
+                "description": "Cuántas tecnologías mías pide el puesto (?n de consultas/jobs-con-mi-stack.rq)."
+              }
+            },
+            "required": ["coincidencias"]
+          }
+        ]
+      },
       "JobPost": {
         "type": "object",
         "properties": {
           "link": { "type": "string", "format": "uri", "description": "La URI del nodo: su identificador." },
+          "aplicadoEl": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Cuándo apliqué (POST /jobs/marcar-aplicado)."
+          },
+          "descartadoEl": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Cuándo lo descarté (POST /jobs/descartar)."
+          },
           "empresa": { "type": "string" },
           "fecha": {
             "type": "string",
@@ -183,11 +461,14 @@
             "description": "Cuándo lo trajo kiri-jobs (no cuándo se publicó)."
           },
           "fuente": { "type": "string", "description": "De dónde salió el puesto: remotive, hn…" },
-          "pide": { "type": "array", "items": { "$ref": "#/components/schemas/Technology" } },
+          "pide": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/Technology", "unevaluatedProperties": false }
+          },
+          "porque": { "type": "string", "description": "Por qué lo descarté." },
           "titulo": { "type": "string" }
         },
-        "required": ["link", "fecha", "fuente", "pide", "titulo"],
-        "additionalProperties": false
+        "required": ["link", "fecha", "fuente", "pide", "titulo"]
       },
       "Technology": {
         "type": "object",
@@ -196,8 +477,7 @@
           "nombre": { "type": "string" },
           "sinonimos": { "type": "array", "items": { "type": "string" } }
         },
-        "required": ["link", "nombre", "sinonimos"],
-        "additionalProperties": false
+        "required": ["link", "nombre", "sinonimos"]
       }
     },
     "securitySchemes": { "bearer": { "type": "http", "scheme": "bearer" } }

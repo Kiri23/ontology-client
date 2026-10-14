@@ -13,12 +13,79 @@ export interface paths {
          * Los puestos como JobPost[]: cada uno con la forma de j:JobPostShape, el schema JobPost del contrato.
          * @description GET /jobs. Filtra por tecnologia como consultas/jobs.rq (prefLabel o altLabel, sin mayúsculas) y por
          *     fuente contra el campo fuente del puesto (igual, sin mayúsculas: remotive, hn). El orden es el del
-         *     .rq: lo más nuevo primero. Para traer puestos nuevos, POST /jobs?kiri_jobs=--all.
+         *     .rq: lo más nuevo primero. Para traer puestos nuevos, POST /jobs (las dos fuentes).
          */
         get: operations["jobs_get"];
         put?: never;
-        /** Trae puestos con kiri-jobs, los pasa a triples, los valida con SHACL y guarda datos/jobs.trig. */
+        /**
+         * Trae puestos con kiri-jobs, los pasa a triples, los valida con SHACL y guarda datos/jobs.trig.
+         * @description Sin bandera de fuente trae las dos (--all). jobs.trig se reescribe entero: con el default de
+         *     kiri-jobs (solo remotive), un POST /jobs sin argumentos se quedaría sin los puestos de HN. --hn o
+         *     --remotive eligen una sola.
+         */
         post: operations["jobs"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/jobs/con-mi-stack": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Los puestos que piden alguna tecnología que ya sé, más coincidencias primero: JobConMiStack[].
+         * @description GET /jobs/con-mi-stack. Cada uno es un JobPost con un campo más, coincidencias: cuántas tecnologías
+         *     mías pide. El schema JobConMiStack extiende a JobPost (l:JobConMiStack, domain/lecturas-formas.ttl).
+         *     El orden y la cuenta son los de consultas/jobs-con-mi-stack.rq, que /preguntar sigue sirviendo como filas.
+         */
+        get: operations["jobs_con_mi_stack"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/jobs/descartar": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Descarta un puesto: no me interesa, y digo por qué.
+         * @description La acción https://kiri23.dev/jobs#Descartar (dash:ModifyAction): la declara domain/, la corre core/acciones.py.
+         */
+        post: operations["jobs_descartar"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/jobs/marcar-aplicado": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Marca que apliqué a un puesto. Uno descartado también se puede marcar.
+         * @description La acción https://kiri23.dev/jobs#MarcarAplicado (dash:ModifyAction): la declara domain/, la corre core/acciones.py.
+         */
+        post: operations["jobs_marcar_aplicado"];
         delete?: never;
         options?: never;
         head?: never;
@@ -67,6 +134,50 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/reportes/demanda": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Cuántos puestos piden cada una de mis tecnologías, la más pedida primero: Demanda[].
+         * @description GET /reportes/demanda. Un reporte: cada fila es una de consultas/demanda.rq, con la forma l:Demanda
+         *     (domain/lecturas-formas.ttl): nombre y puestos.
+         */
+        get: operations["reporte_demanda"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/reportes/dependencias": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Qué action usa cada repo, una fila por uso: Dependencia[].
+         * @description GET /reportes/dependencias. Un reporte: cada fila es una de consultas/dependencias.rq (lee
+         *     generado/repos.trig), con la forma l:Dependencia (domain/lecturas-formas.ttl): repo, accion, ref y
+         *     archivo. Los filtros son los del .rq, opcionales, por substring y sin mayúsculas: "¿quién se rompe si
+         *     cambio pm-actividad?" es ?accion=pm-actividad.
+         */
+        get: operations["reporte_dependencias"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -74,12 +185,42 @@ export interface components {
         Error: {
             error: string;
         };
+        Demanda: {
+            /** @description La tecnología: su prefLabel. */
+            nombre: string;
+            /** @description En cuántos puestos aparece. */
+            puestos: number;
+        };
+        Dependencia: {
+            /** @description La action como va en uses:, sin la ref: owner/repo[/ruta]. */
+            accion: string;
+            /** @description El workflow donde está el uses:. */
+            archivo: string;
+            /** @description La versión que pide: rama, tag o SHA; default (por el puente del checkout) o local. */
+            ref: string;
+            /** @description El doap:name del repo que declara el uso. */
+            repo: string;
+        };
+        JobConMiStack: components["schemas"]["JobPost"] & {
+            /** @description Cuántas tecnologías mías pide el puesto (?n de consultas/jobs-con-mi-stack.rq). */
+            coincidencias: number;
+        };
         JobPost: {
             /**
              * Format: uri
              * @description La URI del nodo: su identificador.
              */
             link: string;
+            /**
+             * Format: date-time
+             * @description Cuándo apliqué (POST /jobs/marcar-aplicado).
+             */
+            aplicadoEl?: string;
+            /**
+             * Format: date-time
+             * @description Cuándo lo descarté (POST /jobs/descartar).
+             */
+            descartadoEl?: string;
             empresa?: string;
             /**
              * Format: date-time
@@ -89,6 +230,8 @@ export interface components {
             /** @description De dónde salió el puesto: remotive, hn… */
             fuente: string;
             pide: components["schemas"]["Technology"][];
+            /** @description Por qué lo descarté. */
+            porque?: string;
             titulo: string;
         };
         Technology: {
@@ -141,7 +284,7 @@ export interface operations {
                     "application/json": components["schemas"]["Error"];
                 };
             };
-            /** @description datos/jobs.trig es de una forma vieja: POST /jobs?kiri_jobs=--all lo rehace */
+            /** @description datos/jobs.trig es de una forma vieja: POST /jobs lo rehace */
             503: {
                 headers: {
                     [name: string]: unknown;
@@ -155,7 +298,7 @@ export interface operations {
     jobs: {
         parameters: {
             query?: {
-                /** @description args para kiri-jobs: --all, --hn, react… (separados por espacios) */
+                /** @description args para kiri-jobs (default --all, las dos fuentes): --hn, --remotive, react… (separados por espacios) */
                 kiri_jobs?: string;
             };
             header?: never;
@@ -173,6 +316,232 @@ export interface operations {
             };
             /** @description el comando no pudo hacer su trabajo (parámetros, datos) */
             400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    jobs_con_mi_stack: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description la respuesta del comando */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["JobConMiStack"][];
+                };
+            };
+            /** @description el comando no pudo hacer su trabajo (parámetros, datos) */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description datos/jobs.trig es de una forma vieja: POST /jobs lo rehace */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    jobs_descartar: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /**
+                     * Format: uri
+                     * @description El link del JobPost sobre el que corre.
+                     */
+                    link: string;
+                    /** @description Por qué lo descarto, en mis palabras. */
+                    porque: string;
+                };
+            };
+        };
+        responses: {
+            /** @description el JobPost como queda después de descartar */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["JobPost"];
+                };
+            };
+            /** @description no se pudo: falta un parámetro o no es del tipo, el objeto no existe, o no cumple la precondición (el error trae sus sh:message) */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description falta el token o no es el correcto */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description el body no llegó entero a tiempo */
+            408: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description falta Content-Length (el body no puede ir chunked) */
+            411: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description el body pasa el tope de la vista */
+            413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description el body no viene como application/json */
+            415: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description el servidor no tiene token configurado: falla cerrado */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    jobs_marcar_aplicado: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /**
+                     * Format: uri
+                     * @description El link del JobPost sobre el que corre.
+                     */
+                    link: string;
+                };
+            };
+        };
+        responses: {
+            /** @description el JobPost como queda después de marcarAplicado */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["JobPost"];
+                };
+            };
+            /** @description no se pudo: falta un parámetro o no es del tipo, el objeto no existe, o no cumple la precondición (el error trae sus sh:message) */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description falta el token o no es el correcto */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description el body no llegó entero a tiempo */
+            408: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description falta Content-Length (el body no puede ir chunked) */
+            411: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description el body pasa el tope de la vista */
+            413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description el body no viene como application/json */
+            415: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description el servidor no tiene token configurado: falla cerrado */
+            503: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -302,6 +671,69 @@ export interface operations {
             };
             /** @description el servidor no tiene token configurado: falla cerrado */
             503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    reporte_demanda: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description la respuesta del comando */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Demanda"][];
+                };
+            };
+            /** @description el comando no pudo hacer su trabajo (parámetros, datos) */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    reporte_dependencias: {
+        parameters: {
+            query?: {
+                /** @description parte de la action, sin mayúsculas: pm-actividad, checkout */
+                accion?: string;
+                /** @description parte del nombre del repo, sin mayúsculas: portfolio */
+                repo?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description la respuesta del comando */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Dependencia"][];
+                };
+            };
+            /** @description el comando no pudo hacer su trabajo (parámetros, datos) */
+            400: {
                 headers: {
                     [name: string]: unknown;
                 };
