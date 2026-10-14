@@ -88,7 +88,7 @@ lista[0].pide[0].nombre; // string: cada tecnología es un Technology { link, no
 `jobs.get(filtros?, { url?, fetch?, timeoutMs? })` va a `GET /jobs` sin token y devuelve la lista, lo más nuevo primero.
 A diferencia de `validarProyecto`, **tira** cuando no hay lista: un `ErrorServidor` con `status` (503, 400, 200 fuera
 del contrato, o `null` si no hubo respuesta) y el `{"error"}` del servidor en el mensaje. El 503 es "datos viejos": el
-mensaje dice que `POST /jobs?kiri_jobs=--all` los rehace.
+mensaje dice que `POST /jobs` los rehace (sin argumentos trae las dos fuentes).
 
 #### Acciones: `descartar` y `marcarAplicado`
 
@@ -99,7 +99,7 @@ Escriben, así que piden token.
 ```ts
 import { jobs } from "jsr:@kiri23/ontology-client";
 
-const token = Deno.env.get("ONTOLOGY_ACCIONES_TOKEN")!;
+const token = Deno.env.get("ONTOLOGY_ACCIONES_TOKEN")!; // con la url de producción, opcional: lo lee de ahí
 const [puesto] = await jobs.get({ tecnologia: "python" });
 
 const descartado = await jobs.descartar(puesto, "pide 5 años de Java", { token });
@@ -112,15 +112,19 @@ aplicado.aplicadoEl;
 - `jobs.descartar(job, porque, { token?, url?, fetch?, timeoutMs? })` → `POST /jobs/descartar` con `{"link", "porque"}`.
 - `jobs.marcarAplicado(job, { token?, url?, fetch?, timeoutMs? })` → `POST /jobs/marcar-aplicado` con `{"link"}`.
 - `job` es el `JobPost` (o cualquier cosa con `link`) o el link solo. Las dos devuelven el `JobPost` como queda.
-- Token: `token`, o la variable `ONTOLOGY_ACCIONES_TOKEN` si Deno tiene permiso para leerla (`--allow-env`; sin permiso
-  no pregunta). Sin ninguno, el pedido va sin token y el servidor responde 401.
+- Token: `token`. Solo si la url es la de producción (o no se pasa), sin `token` usa la variable
+  `ONTOLOGY_ACCIONES_TOKEN` si Deno tiene permiso para leerla (`--allow-env`; sin permiso no pregunta). Con cualquier
+  otra url el token va explícito: el de producción no sale hacia una url que no es la suya. Sin ninguno, el pedido va
+  sin token y el servidor responde 401.
+- La url tiene que ser `https:`; `http:` solo a `localhost`, `127.0.0.1` o `[::1]`. Si no, tiran `TypeError` sin pedir
+  nada: el token iría en claro.
 - Tiran `ErrorServidor`, como `jobs.get`: **400** si el puesto no existe, falta `porque` o no se cumple la precondición
   (el mensaje es el del servidor: `Ya lo descartaste.`, `Ya aplicaste a este puesto.`), **401** sin token o con otro,
   **503** si el servidor no tiene token configurado, `null` si no hubo respuesta.
 
 Traer puestos nuevos no tiene método todavía: el 200 de `POST /jobs` no declara schema en el contrato, así que
-devolvería `unknown`. Va por el cliente tipado:
-`crearCliente().POST("/jobs", { params: { query: { kiri_jobs: "--all" } } })`.
+devolvería `unknown`. Va por el cliente tipado: `crearCliente().POST("/jobs")` trae las dos fuentes, y
+`{ params: { query: { kiri_jobs: "--hn" } } }` (o `--remotive`) elige una.
 
 ### El cliente tipado, sin envoltorio
 
