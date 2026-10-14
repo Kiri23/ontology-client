@@ -5,7 +5,8 @@
 //
 //   ONTOLOGY_ACCIONES_URL=http://127.0.0.1:8800 ONTOLOGY_ACCIONES_TOKEN=prueba-local deno task test
 //
-// Nunca contra producción: si ONTOLOGY_ACCIONES_URL no es localhost, el test falla antes de pedir nada.
+// Nunca contra producción: si ONTOLOGY_ACCIONES_URL no es localhost, el test falla antes de pedir nada. El
+// token va a mano (`token:`): el cliente usa ONTOLOGY_ACCIONES_TOKEN solo cuando la url es la de producción.
 // Cada corrida descarta (y marca aplicado) un puesto que todavía no tenía decisiones; con los 4 del fixture
 // de ontologyLearning alcanza para 4 corridas. Después: borrar datos/decisiones.trig del servidor.
 
@@ -35,24 +36,39 @@ function grabador(respuesta: () => Response) {
 
 const json = (status: number, cuerpo: unknown) => () => Response.json(cuerpo, { status });
 
+// Una url que no es producción. https: una acción no va por http salvo a localhost.
+const FALSO = "https://falso.invalid";
+
 // Corre `fn` con ONTOLOGY_ACCIONES_TOKEN en `valor` (undefined: sin la variable) y la deja como estaba.
 async function conToken<T>(valor: string | undefined, fn: () => Promise<T>): Promise<T> {
-  const antes = Deno.env.get(jobs.VARIABLE_TOKEN);
-  if (valor === undefined) Deno.env.delete(jobs.VARIABLE_TOKEN);
-  else Deno.env.set(jobs.VARIABLE_TOKEN, valor);
+  const antes = Deno.env.get("ONTOLOGY_ACCIONES_TOKEN");
+  if (valor === undefined) Deno.env.delete("ONTOLOGY_ACCIONES_TOKEN");
+  else Deno.env.set("ONTOLOGY_ACCIONES_TOKEN", valor);
   try {
     return await fn();
   } finally {
-    if (antes === undefined) Deno.env.delete(jobs.VARIABLE_TOKEN);
-    else Deno.env.set(jobs.VARIABLE_TOKEN, antes);
+    if (antes === undefined) Deno.env.delete("ONTOLOGY_ACCIONES_TOKEN");
+    else Deno.env.set("ONTOLOGY_ACCIONES_TOKEN", antes);
+  }
+}
+
+// Corre `fn` con un globalThis.fetch que tira: los tests que nombran la url de producción pasan su fetch falso,
+// y esto garantiza que, si el cliente lo ignorara, el pedido no sale a producción.
+async function sinRed<T>(fn: () => Promise<T>): Promise<T> {
+  const real = globalThis.fetch;
+  globalThis.fetch = () => Promise.reject(new Error("este test no puede usar la red"));
+  try {
+    return await fn();
+  } finally {
+    globalThis.fetch = real;
   }
 }
 
 Deno.test("descartar(puesto, porque): POST /jobs/descartar con {link, porque} en JSON y el token", async () => {
   const { fetch, visto } = grabador(json(200, { ...PUESTO, descartadoEl: "2026-10-14T05:17:09+00:00", porque: "x" }));
-  const r = await jobs.descartar(PUESTO, "pide 5 años de Java", { url: "http://falso", fetch, token: "t" });
+  const r = await jobs.descartar(PUESTO, "pide 5 años de Java", { url: FALSO, fetch, token: "t" });
   assertEquals(visto.pedido?.method, "POST");
-  assertEquals(visto.pedido?.url, "http://falso/jobs/descartar");
+  assertEquals(visto.pedido?.url, `${FALSO}/jobs/descartar`);
   assertEquals(visto.pedido?.headers.get("Content-Type"), "application/json");
   assertEquals(visto.pedido?.headers.get("Authorization"), "Bearer t");
   assertEquals(visto.body, { link: PUESTO.link, porque: "pide 5 años de Java" });
@@ -61,27 +77,73 @@ Deno.test("descartar(puesto, porque): POST /jobs/descartar con {link, porque} en
 
 Deno.test("marcarAplicado(link): acepta el link solo y manda {link}", async () => {
   const { fetch, visto } = grabador(json(200, { ...PUESTO, aplicadoEl: "2026-10-14T05:17:21+00:00" }));
-  const r = await jobs.marcarAplicado(PUESTO.link, { url: "http://falso", fetch, token: "t" });
-  assertEquals(visto.pedido?.url, "http://falso/jobs/marcar-aplicado");
+  const r = await jobs.marcarAplicado(PUESTO.link, { url: FALSO, fetch, token: "t" });
+  assertEquals(visto.pedido?.url, `${FALSO}/jobs/marcar-aplicado`);
   assertEquals(visto.body, { link: PUESTO.link });
   assertEquals(r.aplicadoEl, "2026-10-14T05:17:21+00:00");
 });
 
-Deno.test("token: la opción le gana a ONTOLOGY_ACCIONES_TOKEN; sin ninguno, el pedido va sin Authorization", async () => {
+Deno.test("token: con la url de producción, la opción le gana a ONTOLOGY_ACCIONES_TOKEN; sin ninguno, sin Authorization", async () => {
   const { fetch, visto } = grabador(json(200, PUESTO));
-  const o = { url: "http://falso", fetch };
+  await sinRed(async () => {
+    await conToken("de-entorno", async () => {
+      await jobs.marcarAplicado(PUESTO, { fetch, token: "de-opcion" });
+      assertEquals(visto.pedido?.url, "https://ontology.kiri231.com/jobs/marcar-aplicado");
+      assertEquals(visto.pedido?.headers.get("Authorization"), "Bearer de-opcion");
+      await jobs.marcarAplicado(PUESTO, { fetch });
+      assertEquals(visto.pedido?.headers.get("Authorization"), "Bearer de-entorno");
+      await jobs.marcarAplicado(PUESTO, { fetch, url: "https://ontology.kiri231.com/", token: "  " }); // en blanco: no dado
+      assertEquals(visto.pedido?.headers.get("Authorization"), "Bearer de-entorno");
+    });
+    await conToken(undefined, async () => {
+      await jobs.marcarAplicado(PUESTO, { fetch });
+      assertEquals(visto.pedido?.headers.get("Authorization"), null);
+    });
+  });
+});
+
+Deno.test("token: con otra url, ONTOLOGY_ACCIONES_TOKEN no sale; hace falta token explícito", async () => {
+  const { fetch, visto } = grabador(json(200, PUESTO));
   await conToken("de-entorno", async () => {
-    await jobs.marcarAplicado(PUESTO, { ...o, token: "de-opcion" });
-    assertEquals(visto.pedido?.headers.get("Authorization"), "Bearer de-opcion");
-    await jobs.marcarAplicado(PUESTO, o);
-    assertEquals(visto.pedido?.headers.get("Authorization"), "Bearer de-entorno");
-    await jobs.marcarAplicado(PUESTO, { ...o, token: "  " }); // en blanco cuenta como no dado
-    assertEquals(visto.pedido?.headers.get("Authorization"), "Bearer de-entorno");
-  });
-  await conToken(undefined, async () => {
-    await jobs.marcarAplicado(PUESTO, o);
+    await jobs.marcarAplicado(PUESTO, { url: FALSO, fetch });
+    assertEquals(visto.pedido?.url, `${FALSO}/jobs/marcar-aplicado`);
     assertEquals(visto.pedido?.headers.get("Authorization"), null);
+    await jobs.descartar(PUESTO, "x", { url: "http://127.0.0.1:1", fetch });
+    assertEquals(visto.pedido?.headers.get("Authorization"), null);
+    await jobs.descartar(PUESTO, "x", { url: "http://localhost:1", fetch, token: "local" });
+    assertEquals(visto.pedido?.headers.get("Authorization"), "Bearer local");
   });
+});
+
+Deno.test("url: http a un host que no es local, u otra cosa que https, tira TypeError sin pedir nada", async () => {
+  const { fetch, visto } = grabador(json(200, PUESTO));
+  for (
+    const url of ["http://ontology.kiri231.com", "http://192.168.1.5:8800", "ftp://falso.invalid", "no es una url"]
+  ) {
+    await assertRejects(() => jobs.descartar(PUESTO, "x", { url, fetch, token: "t" }), TypeError);
+    await assertRejects(() => jobs.marcarAplicado(PUESTO, { url, fetch }), TypeError);
+  }
+  assertEquals(visto.pedido, undefined);
+  const e = await assertRejects(
+    () => jobs.marcarAplicado(PUESTO, { url: "http://192.168.1.5:8800", fetch }),
+    TypeError,
+  );
+  assertEquals(
+    e.message,
+    "http://192.168.1.5:8800: las acciones van por https (http solo a localhost): el token iría en claro",
+  );
+});
+
+Deno.test("un Deno sin permissions (shim): la variable no se usa y el pedido sale igual, sin Authorization", async () => {
+  const { fetch, visto } = grabador(json(200, PUESTO));
+  const permisos = Deno.permissions;
+  Object.defineProperty(Deno, "permissions", { value: undefined, configurable: true, writable: true });
+  try {
+    await sinRed(() => conToken("de-entorno", () => jobs.marcarAplicado(PUESTO, { fetch })));
+  } finally {
+    Object.defineProperty(Deno, "permissions", { value: permisos, configurable: true, writable: true });
+  }
+  assertEquals(visto.pedido?.headers.get("Authorization"), null);
 });
 
 Deno.test("400, 401 y 503: ErrorServidor con el status y el {error} del servidor", async () => {
@@ -92,18 +154,18 @@ Deno.test("400, 401 y 503: ErrorServidor con el status y el {error} del servidor
   ];
   for (const [status, mensaje] of casos) {
     const { fetch } = grabador(json(status, { error: mensaje }));
-    const e = await assertRejects(() => jobs.descartar(PUESTO, "x", { url: "http://falso", fetch }), ErrorServidor);
+    const e = await assertRejects(() => jobs.descartar(PUESTO, "x", { url: FALSO, fetch }), ErrorServidor);
     assertEquals([e.status, e.message], [status, `POST /jobs/descartar: ${mensaje}`]);
   }
   const { fetch } = grabador(json(400, { error: "Ya aplicaste a este puesto." }));
-  const e = await assertRejects(() => jobs.marcarAplicado(PUESTO, { url: "http://falso", fetch }), ErrorServidor);
+  const e = await assertRejects(() => jobs.marcarAplicado(PUESTO, { url: FALSO, fetch }), ErrorServidor);
   assertEquals([e.status, e.message], [400, "POST /jobs/marcar-aplicado: Ya aplicaste a este puesto."]);
 });
 
 Deno.test("200 que no es un JobPost: fuera del contrato, con su status", async () => {
   for (const cuerpo of [[PUESTO], { ok: true }, null]) {
     const { fetch } = grabador(json(200, cuerpo));
-    const e = await assertRejects(() => jobs.descartar(PUESTO, "x", { url: "http://falso", fetch }), ErrorServidor);
+    const e = await assertRejects(() => jobs.descartar(PUESTO, "x", { url: FALSO, fetch }), ErrorServidor);
     assertEquals([e.status, e.message], [
       200,
       "POST /jobs/descartar: la respuesta no es un JobPost: fuera del contrato",
@@ -113,7 +175,7 @@ Deno.test("200 que no es un JobPost: fuera del contrato, con su status", async (
 
 Deno.test("red caída y timeout: ErrorServidor con status null", async () => {
   const fetch = () => Promise.reject(new TypeError("error sending request: connection refused"));
-  const e = await assertRejects(() => jobs.marcarAplicado(PUESTO, { url: "http://falso", fetch }), ErrorServidor);
+  const e = await assertRejects(() => jobs.marcarAplicado(PUESTO, { url: FALSO, fetch }), ErrorServidor);
   assertEquals(e.status, null);
   assert(e.message.startsWith("POST /jobs/marcar-aplicado: sin respuesta del servidor: "), e.message);
 
@@ -153,14 +215,15 @@ Deno.test({
   fn: async (t) => {
     const url = URL_LOCAL!;
     assert(LOCALES.has(new URL(url).hostname), `ONTOLOGY_ACCIONES_URL=${url} no es local: estos tests escriben`);
-    assertExists(Deno.env.get(jobs.VARIABLE_TOKEN), "falta ONTOLOGY_ACCIONES_TOKEN, el token del servidor local");
+    const token = Deno.env.get("ONTOLOGY_ACCIONES_TOKEN");
+    assertExists(token, "falta ONTOLOGY_ACCIONES_TOKEN, el token del servidor local");
 
     const libre = (await jobs.get({}, { url })).find((p) => !p.descartadoEl && !p.aplicadoEl);
     assertExists(libre, "no queda ningún puesto sin decisiones: borrá datos/decisiones.trig del servidor local");
     const porque = `prueba del cliente ${new Date().toISOString()}`;
 
-    await t.step("descartar → el JobPost con descartadoEl y porque (token de ONTOLOGY_ACCIONES_TOKEN)", async () => {
-      const r = await jobs.descartar(libre, porque, { url });
+    await t.step("descartar → el JobPost con descartadoEl y porque", async () => {
+      const r = await jobs.descartar(libre, porque, { url, token });
       assertEquals(problemas("/jobs/descartar", r), []);
       assertEquals([r.link, r.porque, r.titulo], [libre.link, porque, libre.titulo]);
       assert(r.descartadoEl && !Number.isNaN(Date.parse(r.descartadoEl)), `descartadoEl: ${r.descartadoEl}`);
@@ -169,22 +232,20 @@ Deno.test({
     });
 
     await t.step('descartar otra vez → ErrorServidor 400 "Ya lo descartaste."', async () => {
-      const e = await assertRejects(() => jobs.descartar(libre.link, "otra vez", { url }), ErrorServidor);
+      const e = await assertRejects(() => jobs.descartar(libre.link, "otra vez", { url, token }), ErrorServidor);
       assertEquals([e.status, e.message], [400, "POST /jobs/descartar: Ya lo descartaste."]);
     });
 
     await t.step("marcarAplicado(link) → aplicadoEl, y el descarte sigue", async () => {
-      const r = await jobs.marcarAplicado(libre.link, { url });
+      const r = await jobs.marcarAplicado(libre.link, { url, token });
       assertEquals(problemas("/jobs/marcar-aplicado", r), []);
       assert(r.aplicadoEl && !Number.isNaN(Date.parse(r.aplicadoEl)), `aplicadoEl: ${r.aplicadoEl}`);
       assertEquals(r.porque, porque);
     });
 
     await t.step("sin token o con otro → ErrorServidor 401", async () => {
-      const sin = await conToken(
-        undefined,
-        () => assertRejects(() => jobs.descartar(libre, "x", { url }), ErrorServidor),
-      );
+      // La variable está puesta, pero la url no es producción: el pedido sale sin token.
+      const sin = await assertRejects(() => jobs.descartar(libre, "x", { url }), ErrorServidor);
       assertEquals([sin.status, sin.message], [401, "POST /jobs/descartar: falta el token o no es el correcto"]);
       const otro = await assertRejects(
         () => jobs.marcarAplicado(libre, { url, token: "otro" }),

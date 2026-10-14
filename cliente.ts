@@ -1,5 +1,6 @@
 // cliente.ts — lo que comparten los módulos del SDK (mod.ts para proyectos, jobs.ts para jobs): el Client
-// de openapi-fetch con los paths del contrato, la URL de producción y cómo se lee un {"error": ...}.
+// de openapi-fetch con los paths del contrato, la URL de producción, cómo se lee un {"error": ...} y pedir(),
+// un pedido con su timeout donde todo lo que no es un 200 de la forma esperada termina en ErrorServidor.
 
 import createClient, { type Client, type ClientOptions } from "openapi-fetch";
 import type { paths } from "./generado/api.ts";
@@ -50,4 +51,74 @@ export function mensajeDeError(error: unknown, status: number): string {
   }
   if (typeof error === "string" && error.trim()) return error.trim().slice(0, 200);
   return `HTTP ${status}`;
+}
+
+/** Lo que todo pedido acepta: a dónde, con qué fetch y cuánto esperar. */
+export interface OpcionesPedido {
+  /** La URL base del servidor; default {@link URL_PRODUCCION}. */
+  url?: string;
+  /** Un fetch propio (tests, proxies). Recibe un Request, como en openapi-fetch. */
+  fetch?: ClientOptions["fetch"];
+  /** Cuánto esperar la respuesta entera, en milisegundos; default {@link TIMEOUT_MS}. */
+  timeoutMs?: number;
+}
+
+/** Lo mínimo que se chequea de un 200 antes de devolverlo con su tipo: la forma entera la garantiza el contrato. */
+export interface Forma {
+  es: (data: unknown) => boolean;
+  /** Lo que le falta a la respuesta cuando no es: "no es un JobPost" → "la respuesta no es un JobPost: fuera…". */
+  motivo: string;
+}
+
+/**
+ * Un pedido de openapi-fetch con su timeout. Devuelve el `data` de un 2xx que tiene la `forma`; todo lo demás
+ * tira {@link ErrorServidor} con el status (o `null` si no hubo respuesta). `etiqueta` ("GET /jobs") va
+ * adelante de cada mensaje; sin ella, el mensaje es el detalle solo.
+ */
+export async function pedir<D>(
+  opciones: OpcionesPedido,
+  llamar: (cliente: Client<paths>, signal: AbortSignal) => Promise<{ data?: D; error?: unknown; response: Response }>,
+  forma: Forma,
+  etiqueta?: string,
+): Promise<D> {
+  const fallo = (status: number | null, detalle: string, cause?: unknown) =>
+    new ErrorServidor(
+      status,
+      etiqueta ? `${etiqueta}: ${detalle}` : detalle,
+      cause === undefined ? undefined : { cause },
+    );
+  // El status de la última respuesta: openapi-fetch tira si un 2xx no es JSON, y ahí el status se pierde.
+  let status: number | null = null;
+  const base = opciones.fetch ?? globalThis.fetch;
+  const timeoutMs = opciones.timeoutMs ?? TIMEOUT_MS;
+  // Un AbortController con su setTimeout, y no AbortSignal.timeout: el timer se limpia al terminar y no
+  // queda vivo en el proceso (ni en los tests).
+  const corte = new AbortController();
+  const reloj = setTimeout(
+    () => corte.abort(new DOMException(`sin respuesta en ${timeoutMs} ms`, "TimeoutError")),
+    timeoutMs,
+  );
+  const cliente = crearCliente({
+    baseUrl: opciones.url,
+    fetch: async (pedido: Request) => {
+      const respuesta = await base(pedido);
+      status = respuesta.status;
+      return respuesta;
+    },
+  });
+  try {
+    const { data, error, response } = await llamar(cliente, corte.signal);
+    if (!response.ok) throw fallo(response.status, mensajeDeError(error, response.status));
+    if (!forma.es(data)) throw fallo(response.status, `la respuesta ${forma.motivo}: fuera del contrato`);
+    return data as D;
+  } catch (e) {
+    if (e instanceof ErrorServidor) throw e;
+    if (corte.signal.aborted) throw fallo(null, `el servidor no respondió en ${timeoutMs / 1000} s (timeout)`);
+    if (status !== null) {
+      throw fallo(status, `la respuesta no es JSON: fuera del contrato (${(e as Error).message})`, e);
+    }
+    throw fallo(null, `sin respuesta del servidor: ${(e as Error).message}`, e);
+  } finally {
+    clearTimeout(reloj);
+  }
 }

@@ -12,9 +12,9 @@
 // POST /jobs (traer puestos nuevos con kiri-jobs) no tiene método: su 200 no declara schema, así que
 // devolvería `unknown`. Mientras tanto va por crearCliente().POST("/jobs", ...).
 
-import type { Client, ClientOptions } from "openapi-fetch";
-import type { components, operations, paths } from "./generado/api.ts";
-import { crearCliente, ErrorServidor, mensajeDeError, TIMEOUT_MS } from "./cliente.ts";
+import type { ClientOptions } from "openapi-fetch";
+import type { components, operations } from "./generado/api.ts";
+import { type Forma, pedir, URL_PRODUCCION } from "./cliente.ts";
 
 /** Un puesto de trabajo, con la forma de j:JobPostShape: el schema JobPost del contrato. */
 export type JobPost = components["schemas"]["JobPost"];
@@ -41,15 +41,12 @@ export interface OpcionesJobs {
 /** Opciones de {@link descartar} y {@link marcarAplicado}: las de {@link get} más el token. */
 export interface OpcionesAcciones extends OpcionesJobs {
   /**
-   * El token de las acciones (Authorization: Bearer). Sin él, la variable de entorno
-   * `ONTOLOGY_ACCIONES_TOKEN` si Deno tiene permiso para leerla; si tampoco está, el pedido va sin token y
-   * el servidor responde 401.
+   * El token de las acciones (Authorization: Bearer). Sin él, y solo si `url` es la de producción (o no se
+   * pasa), la variable de entorno `ONTOLOGY_ACCIONES_TOKEN` si Deno tiene permiso para leerla. Si no hay
+   * ninguno, el pedido va sin token y el servidor responde 401.
    */
   token?: string;
 }
-
-/** La variable de entorno de donde sale el token de las acciones cuando no se pasa `token`. */
-export const VARIABLE_TOKEN = "ONTOLOGY_ACCIONES_TOKEN";
 
 /**
  * Los puestos, lo más nuevo primero. Sin filtros, todos.
@@ -64,10 +61,10 @@ export const VARIABLE_TOKEN = "ONTOLOGY_ACCIONES_TOKEN";
  */
 export function get(filtros: FiltrosJobs = {}, opciones: OpcionesJobs = {}): Promise<JobPost[]> {
   return pedir(
-    "GET /jobs",
     opciones,
     (cliente, signal) => cliente.GET("/jobs", { params: { query: filtros }, signal }),
-    { es: Array.isArray, nombre: "una lista de JobPost" },
+    { es: Array.isArray, motivo: "no es una lista de JobPost" },
+    "GET /jobs",
   );
 }
 
@@ -83,19 +80,21 @@ export function get(filtros: FiltrosJobs = {}, opciones: OpcionesJobs = {}): Pro
  *
  * Tira {@link ErrorServidor}: 400 si el puesto no existe, `porque` está vacío o no se cumple la
  * precondición (`"Ya lo descartaste."`, `"Ya aplicaste a este puesto."`), 401 sin token o con otro, 503 si
- * el servidor no tiene token configurado, `status: null` si no hubo respuesta.
+ * el servidor no tiene token configurado, `status: null` si no hubo respuesta. Tira `TypeError`, sin pedir
+ * nada, si `url` no es https (http solo a localhost) o no es una URL.
  */
-export function descartar(
+export async function descartar(
   job: ReferenciaJob,
   porque: CuerpoDescartar["porque"],
   opciones: OpcionesAcciones = {},
 ): Promise<JobPost> {
+  const headers = autorizacion(opciones); // antes del pedido: un error de configuración no se disfraza de red
   const body: CuerpoDescartar = { link: linkDe(job), porque };
-  return pedir(
-    "POST /jobs/descartar",
+  return await pedir(
     opciones,
-    (cliente, signal) => cliente.POST("/jobs/descartar", { body, headers: autorizacion(opciones), signal }),
+    (cliente, signal) => cliente.POST("/jobs/descartar", { body, headers, signal }),
     ES_JOB_POST,
+    "POST /jobs/descartar",
   );
 }
 
@@ -109,15 +108,16 @@ export function descartar(
  * ```
  *
  * Tira {@link ErrorServidor} como {@link descartar}: 400 si ya estaba marcado o el puesto no existe, 401,
- * 503, `status: null`.
+ * 503, `status: null`; y `TypeError` con la misma `url` que {@link descartar} rechaza.
  */
-export function marcarAplicado(job: ReferenciaJob, opciones: OpcionesAcciones = {}): Promise<JobPost> {
+export async function marcarAplicado(job: ReferenciaJob, opciones: OpcionesAcciones = {}): Promise<JobPost> {
+  const headers = autorizacion(opciones);
   const body: CuerpoMarcarAplicado = { link: linkDe(job) };
-  return pedir(
-    "POST /jobs/marcar-aplicado",
+  return await pedir(
     opciones,
-    (cliente, signal) => cliente.POST("/jobs/marcar-aplicado", { body, headers: autorizacion(opciones), signal }),
+    (cliente, signal) => cliente.POST("/jobs/marcar-aplicado", { body, headers, signal }),
     ES_JOB_POST,
+    "POST /jobs/marcar-aplicado",
   );
 }
 
@@ -125,83 +125,44 @@ export function marcarAplicado(job: ReferenciaJob, opciones: OpcionesAcciones = 
 type CuerpoDescartar = operations["jobs_descartar"]["requestBody"]["content"]["application/json"];
 type CuerpoMarcarAplicado = operations["jobs_marcar_aplicado"]["requestBody"]["content"]["application/json"];
 
-// Lo mínimo que se chequea de un 200 antes de devolverlo con su tipo: la forma entera la garantiza el contrato.
-interface Forma {
-  es: (data: unknown) => boolean;
-  nombre: string;
-}
-
 const ES_JOB_POST: Forma = {
   es: (data) =>
     typeof data === "object" && data !== null && !Array.isArray(data) &&
     typeof (data as { link?: unknown }).link === "string",
-  nombre: "un JobPost",
+  motivo: "no es un JobPost",
 };
 
 function linkDe(job: ReferenciaJob): string {
   return typeof job === "string" ? job : job.link;
 }
 
-// `opciones.token`, o la variable de entorno si Deno puede leerla sin preguntar. Vacío cuenta como no dado.
-function tokenDe(opciones: OpcionesAcciones): string | undefined {
-  const dado = opciones.token?.trim();
-  if (dado) return dado;
-  if (typeof Deno === "undefined") return undefined;
-  // querySync y no get directo: sin --allow-env, get abre un prompt en una terminal interactiva.
-  if (Deno.permissions.querySync({ name: "env", variable: VARIABLE_TOKEN }).state !== "granted") return undefined;
-  return Deno.env.get(VARIABLE_TOKEN)?.trim() || undefined;
-}
+const VARIABLE_TOKEN = "ONTOLOGY_ACCIONES_TOKEN";
+const LOCALES = new Set(["localhost", "127.0.0.1", "[::1]"]);
 
+// El header Authorization de una acción. Corre antes del pedido y tira TypeError si la url no sirve: https,
+// o http solo a localhost (el token no viaja en claro). El token es `opciones.token`; la variable de entorno
+// solo para producción, así el token de producción no sale hacia una url que pasó el llamador.
 function autorizacion(opciones: OpcionesAcciones): Record<string, string> {
-  const token = tokenDe(opciones);
+  const destino = new URL(opciones.url || URL_PRODUCCION);
+  const local = destino.protocol === "http:" && LOCALES.has(destino.hostname);
+  if (destino.protocol !== "https:" && !local) {
+    throw new TypeError(
+      `${destino.origin}: las acciones van por https (http solo a localhost): el token iría en claro`,
+    );
+  }
+  const deProduccion = destino.origin === new URL(URL_PRODUCCION).origin;
+  const token = opciones.token?.trim() || (deProduccion ? tokenDelEntorno() : undefined);
   return token ? { Authorization: `Bearer ${token}` } : {};
 }
 
-// Un pedido con su timeout, y todo lo que no es un 200 de la forma esperada como ErrorServidor: el status
-// (o null si no hubo respuesta) y "<etiqueta>: <el {"error"} del servidor>".
-async function pedir<D>(
-  etiqueta: string,
-  opciones: OpcionesJobs,
-  llamar: (cliente: Client<paths>, signal: AbortSignal) => Promise<{ data?: D; error?: unknown; response: Response }>,
-  forma: Forma,
-): Promise<D> {
-  // El status de la última respuesta: openapi-fetch tira si un 2xx no es JSON, y ahí el status se pierde.
-  let status: number | null = null;
-  const base = opciones.fetch ?? globalThis.fetch;
-  const timeoutMs = opciones.timeoutMs ?? TIMEOUT_MS;
-  // Como en validarProyecto: un AbortController con su setTimeout, que se limpia al terminar.
-  const corte = new AbortController();
-  const reloj = setTimeout(
-    () => corte.abort(new DOMException(`sin respuesta en ${timeoutMs} ms`, "TimeoutError")),
-    timeoutMs,
-  );
-  const cliente = crearCliente({
-    baseUrl: opciones.url,
-    fetch: async (pedido: Request) => {
-      const respuesta = await base(pedido);
-      status = respuesta.status;
-      return respuesta;
-    },
-  });
+// ONTOLOGY_ACCIONES_TOKEN si Deno puede leerla sin preguntar; si no (sin permiso, sin Deno, o un Deno a medias
+// sin `permissions`, como un shim), undefined. querySync y no get directo: sin --allow-env, get abre un prompt.
+function tokenDelEntorno(): string | undefined {
   try {
-    const { data, error, response } = await llamar(cliente, corte.signal);
-    if (!response.ok) {
-      throw new ErrorServidor(response.status, `${etiqueta}: ${mensajeDeError(error, response.status)}`);
-    }
-    if (!forma.es(data)) {
-      throw new ErrorServidor(response.status, `${etiqueta}: la respuesta no es ${forma.nombre}: fuera del contrato`);
-    }
-    return data as D;
-  } catch (e) {
-    if (e instanceof ErrorServidor) throw e;
-    if (corte.signal.aborted) {
-      throw new ErrorServidor(null, `${etiqueta}: el servidor no respondió en ${timeoutMs / 1000} s (timeout)`);
-    }
-    if (status !== null) {
-      throw new ErrorServidor(status, `${etiqueta}: la respuesta no es JSON: fuera del contrato`, { cause: e });
-    }
-    throw new ErrorServidor(null, `${etiqueta}: sin respuesta del servidor: ${(e as Error).message}`, { cause: e });
-  } finally {
-    clearTimeout(reloj);
+    const deno = (globalThis as { Deno?: typeof Deno }).Deno;
+    if (deno?.permissions?.querySync?.({ name: "env", variable: VARIABLE_TOKEN }).state !== "granted") return undefined;
+    return deno.env?.get?.(VARIABLE_TOKEN)?.trim() || undefined;
+  } catch {
+    return undefined;
   }
 }

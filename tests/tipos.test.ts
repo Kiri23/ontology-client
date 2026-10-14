@@ -50,7 +50,7 @@ Deno.test("tipos: las acciones devuelven el JobPost del 200 del contrato y acept
     pide: [],
   };
   const fetch = () => Promise.resolve(Response.json({ ...puesto, descartadoEl: "2026-10-14T05:17:09+00:00" }));
-  const o = { url: "http://falso", fetch, token: "t" };
+  const o = { url: "https://falso.invalid", fetch, token: "t" };
 
   type Del200<Op extends "jobs_descartar" | "jobs_marcar_aplicado"> =
     operations[Op]["responses"][200]["content"]["application/json"];

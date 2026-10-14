@@ -15,7 +15,7 @@
 
 import type { ClientOptions } from "openapi-fetch";
 import type { paths } from "./generado/api.ts";
-import { crearCliente, mensajeDeError, TIMEOUT_MS } from "./cliente.ts";
+import { ErrorServidor, type Forma, pedir } from "./cliente.ts";
 
 export type { components, operations, paths } from "./generado/api.ts";
 export { crearCliente, ErrorServidor, TIMEOUT_MS, URL_PRODUCCION } from "./cliente.ts";
@@ -49,53 +49,30 @@ export interface OpcionesValidar {
 
 /** Valida una ficha Turtle contra el servidor. Nunca tira: todo lo que pasa vuelve como {@link Resultado}. */
 export async function validarProyecto(turtle: string, opciones: OpcionesValidar): Promise<Resultado> {
-  // El status de la última respuesta: openapi-fetch tira si un 2xx no es JSON, y ahí el status se pierde.
-  let status: number | null = null;
-  const base = opciones.fetch ?? globalThis.fetch;
-  const timeoutMs = opciones.timeoutMs ?? TIMEOUT_MS;
-  // Un AbortController con su setTimeout, y no AbortSignal.timeout: el timer se limpia al terminar y no
-  // queda vivo en el proceso (ni en los tests).
-  const corte = new AbortController();
-  const reloj = setTimeout(
-    () => corte.abort(new DOMException(`sin respuesta en ${timeoutMs} ms`, "TimeoutError")),
-    timeoutMs,
-  );
-  const cliente = crearCliente({
-    baseUrl: opciones.url,
-    fetch: async (pedido: Request) => {
-      const respuesta = await base(pedido);
-      status = respuesta.status;
-      return respuesta;
-    },
-  });
   try {
-    const { data, error, response } = await cliente.POST("/proyectos", {
-      body: turtle,
-      // openapi-fetch serializa el body a JSON por default: la ficha saldría entre comillas.
-      bodySerializer: (ficha: string) => ficha,
-      headers: { "Content-Type": "text/turtle; charset=utf-8", Authorization: `Bearer ${opciones.token}` },
-      signal: corte.signal,
-    });
-    if (response.ok) {
-      if (typeof data?.conforma === "boolean" && typeof data.reporte === "string") {
-        return { ok: true, conforma: data.conforma, reporte: data.reporte };
-      }
-      return {
-        ok: false,
-        status: response.status,
-        error: "la respuesta no trae {conforma, reporte}: fuera del contrato",
-      };
-    }
-    return { ok: false, status: response.status, error: mensajeDeError(error, response.status) };
+    const data = await pedir(
+      opciones,
+      (cliente, signal) =>
+        cliente.POST("/proyectos", {
+          body: turtle,
+          // openapi-fetch serializa el body a JSON por default: la ficha saldría entre comillas.
+          bodySerializer: (ficha: string) => ficha,
+          headers: { "Content-Type": "text/turtle; charset=utf-8", Authorization: `Bearer ${opciones.token}` },
+          signal,
+        }),
+      ES_VALIDACION,
+    );
+    return { ok: true, conforma: data.conforma, reporte: data.reporte };
   } catch (e) {
-    if (corte.signal.aborted) {
-      return { ok: false, status: null, error: `el servidor no respondió en ${timeoutMs / 1000} s (timeout)` };
-    }
-    if (status !== null) {
-      return { ok: false, status, error: `la respuesta no es JSON: fuera del contrato (${(e as Error).message})` };
-    }
-    return { ok: false, status: null, error: `sin respuesta del servidor: ${(e as Error).message}` };
-  } finally {
-    clearTimeout(reloj);
+    // pedir() solo tira ErrorServidor; sin etiqueta, su mensaje es el error tal cual.
+    if (e instanceof ErrorServidor) return { ok: false, status: e.status, error: e.message };
+    throw e;
   }
 }
+
+const ES_VALIDACION: Forma = {
+  es: (data) =>
+    typeof (data as Partial<Validacion> | undefined)?.conforma === "boolean" &&
+    typeof (data as Partial<Validacion>).reporte === "string",
+  motivo: "no trae {conforma, reporte}",
+};
