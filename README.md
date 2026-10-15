@@ -132,7 +132,7 @@ Como los backends de base de datos de Django: el motor se elige **una vez**, al 
 ahí. El default es HTTP (`GET /jobs`); quien no llama a `configurar` no nota nada.
 
 ```ts
-import neo4j from "npm:neo4j-driver@6.2.0";
+import neo4j from "npm:neo4j-driver@^6.2.0";
 import { configurar, jobs } from "jsr:@kiri23/ontology-client";
 import { motorNeo4j } from "jsr:@kiri23/ontology-client/neo4j";
 
@@ -149,10 +149,16 @@ await driver.close(); // el driver es tuyo: el motor no lo cierra
   HTTP no baja `neo4j-driver`. No envuelve al driver: lo creás vos (URL, auth, config) y lo inyectás.
 - Neo4j es una **vista de solo lectura** del RDF (`neo4j/README.md`): el motor lee en `executeRead` y las acciones
   (`descartar`, `marcarAplicado`) van siempre por HTTP a la fuente, con cualquier motor.
-- Con Neo4j, `url` y `fetch` de `jobs.get` no se usan; `timeoutMs` es el timeout de la transacción. Todo error (Neo4j
-  caído, password, un puesto que no calza con `JobPost`) es `ErrorServidor` con `status: null` y el error del driver en
+- Con Neo4j, `url` y `fetch` de `jobs.get` no se usan; `timeoutMs` acota la espera entera (conexión y reintentos del
+  driver incluidos, que con el túnel caído son 30 s) y también es el timeout de la transacción. Todo error (Neo4j caído,
+  password, un puesto que no calza con `JobPost`) es `ErrorServidor` con `status: null` y el error del driver en
   `cause`.
 - En Deno, `neo4j-driver` lee `os.release()` al crear el driver: `--allow-sys=osRelease`.
+- **La vista no se actualiza sola.** Muestra lo que había en la fuente la última vez que se corrió
+  `deno task neo4j:cargar`: un `POST /jobs` en producción no entra hasta recargar. Y como las acciones escriben en la
+  fuente, `jobs.descartar()` seguido de `jobs.get()` por Neo4j **no** muestra `descartadoEl` (ni `marcarAplicado()`,
+  `aplicadoEl`): el puesto que devuelve la acción sí lo trae. Una vista vacía o con una carga cortada no devuelve `[]`:
+  tira `la vista Neo4j no está cargada`.
 
 La vista (el container, cómo se carga con n10s, el mapeo RDF → Neo4j, los named graphs, la memoria) está en
 [`neo4j/README.md`](neo4j/README.md).

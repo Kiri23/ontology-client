@@ -16,7 +16,7 @@ domain/*.ttl (privado) ──n10s.rdf.import.inline──┐
 | ------------ | ------------------------------------------------------------- | ------------------------------------------------------------------- |
 | Neo4j        | `neo4j:2025.06.2-community`, fijada por digest (`Dockerfile`) | la que pide n10s: su `pom.xml` en el tag 2025.06.1 dice `2025.06.2` |
 | n10s         | `neosemantics-2025.06.1.jar`, con `ADD --checksum=sha256:…`   | la última release (2026-06-16); NEO4J_PLUGINS elegiría versión sola |
-| neo4j-driver | `npm:neo4j-driver@6.2.0` (`deno.json`)                        | la última estable (2026-06-30)                                      |
+| neo4j-driver | `npm:neo4j-driver@^6.2.0` (`deno.json`; el lock fija 6.2.0)   | un rango: el `Driver` del consumidor puede ser otra 6.x             |
 
 ## Levantarla
 
@@ -24,6 +24,7 @@ En la VM (`neo4j-ontology` de exe.dev, trae docker), desde este directorio:
 
 ```sh
 # la password sale de Doppler y no pasa por la pantalla ni por git
+ssh neo4j-ontology.exe.xyz 'mkdir -p ~/neo4j'
 doppler run -p ontology -c dev -- sh -c 'printf "NEO4J_AUTH=neo4j/%s\n" "$NEO4J_PASSWORD" |
   ssh neo4j-ontology.exe.xyz "umask 077; cat > ~/neo4j/.env"'
 scp Dockerfile compose.yaml neo4j-ontology.exe.xyz:neo4j/
@@ -46,7 +47,11 @@ doppler run -p ontology -c dev -- deno task neo4j:cargar --domain /algun/dir/dom
 `scripts/neo4j-cargar.ts` es idempotente: **borra todo y vuelve a importar**. Refrescar es correrlo otra vez; no hay
 deltas, así que la vista no puede quedar con un triple que la fuente ya no tiene. Los pasos:
 
-1. `MATCH (n) DETACH DELETE n` (también la config de n10s y sus prefijos, que son nodos).
+0. Antes de tocar nada, `/sparql` tiene que responder la cuenta de triples distintos del patrón:
+   `SELECT (COUNT(*) AS ?n) WHERE { SELECT DISTINCT ?s ?p ?o WHERE { … } }`. Si la fuente está caída, la vista queda
+   como estaba.
+1. `MATCH (c:_Carga) DELETE c` (desde acá la vista cuenta como no cargada) y `MATCH (n) DETACH DELETE n` (también la
+   config de n10s y sus prefijos, que son nodos).
 2. La constraint de n10s: `CREATE CONSTRAINT n10s_unique_uri IF NOT EXISTS FOR (r:Resource) REQUIRE r.uri IS UNIQUE`.
 3. `n10s.graphconfig.init(CONFIG_N10S)` y `n10s.nsprefixes.add` de los prefijos que nombra la consulta del motor
    (`PREFIJOS` en `../vista-neo4j.ts`).
@@ -55,7 +60,13 @@ deltas, así que la vista no puede quedar con un triple que la fuente ya no tien
 5. Producción: `n10s.rdf.import.fetch` de un `CONSTRUCT` a `/sparql`. Neo4j lo baja solo; no pasa por la máquina que
    corre la carga.
 6. La verificación: cada import tiene que terminar `OK` con `triplesLoaded == triplesParsed`, y el de producción tiene
-   que traer los triples que `/sparql` cuenta con el mismo patrón (`SELECT (COUNT(*) AS ?n)`). Si no, la carga corta.
+   que traer los triples distintos que `/sparql` contó en el paso 0. Si no, la carga corta. (`COUNT(*)` sin `DISTINCT`
+   cuenta soluciones: un triple en dos named graphs saldría dos veces y el `CONSTRUCT` lo da una.)
+7. El centinela, solo si todo entró: `CREATE (:_Carga {completa: true, cuando: datetime(), triples: $triples})`.
+   `motorNeo4j` lo pide en la misma consulta que los puestos; sin él tira
+   `la vista Neo4j no está cargada: deno task
+   neo4j:cargar` en vez de devolver `[]`. Una carga cortada a la mitad (la
+   fuente se cae durante el fetch, un import falla) deja la vista sin centinela, y se nota.
 
 Salida real (2026-10-15):
 
@@ -65,7 +76,11 @@ Salida real (2026-10-15):
 …/domain/tecnologias.ttl: OK, 40 de 40 triples
 …                                   (14 archivos, 377 triples)
 https://ontology.kiri231.com/sparql: OK, 1173 de 1173 triples
+carga completa: 1550 triples
 ```
+
+Contra una vista cargada antes de que existiera el centinela, el motor tiró lo esperado (paridad, 2026-10-15):
+`ErrorServidor: neo4j jobs.get: la vista Neo4j no está cargada: deno task neo4j:cargar`.
 
 No hay cron: se corre a mano después de un `POST /jobs` o de una acción en producción. Si la vista está vieja, el test
 de paridad lo dice.
@@ -88,9 +103,16 @@ curl -s https://ontology.kiri231.com/jobs | jq length                           
 | `urn:kiri-repos:workflows`                                            |     341 |
 | default graph: A_MANO de domain/ (106) + metadata de los 3 grafos (9) |     115 |
 
-Lo escrito a mano que sirve producción es idéntico a `domain/` de `origin/main` (106 triples, 0 de diferencia, con
-rdflib). Por eso el `CONSTRUCT` deja afuera el default graph y lo trae `--domain`: si entrara por los dos lados, sus
-blank nodes quedarían duplicados (n10s les da un id nuevo en cada import).
+Los 6 archivos A_MANO que sirve producción (106 triples) son idénticos a los de `domain/` de `origin/main` (0 de
+diferencia, con rdflib). Por eso el `CONSTRUCT` deja afuera el default graph y lo trae `--domain`: si entrara por los
+dos lados, sus blank nodes quedarían duplicados (n10s les da un id nuevo en cada import).
+
+**La vista carga más que el servidor.** `--domain` trae los 14 `.ttl` de `domain/` (377 triples): los 6 A_MANO más las
+reglas, las acciones, las formas de las lecturas y proyecto. El servidor arma su grafo solo con los A_MANO. Hoy esos 8
+archivos de más no tocan lo que lee el motor (la paridad da idéntico), pero el riesgo existe: un `j:JobPost`, un
+`rdfs:label` o un `skos:altLabel` escrito en una regla, una acción o un ejemplo entraría a la vista y no al servidor, y
+`jobs.get()` por Neo4j devolvería un puesto, un título o un sinónimo que HTTP no. La paridad lo detecta; si pasa,
+`--domain` tiene que recibir solo los A_MANO.
 
 ## Named graphs: aplanados a la unión
 
@@ -188,26 +210,26 @@ NEO4J_URL=bolt://localhost:7687 doppler run -p ontology -c dev -- deno task test
 ok | 3 passed | 0 failed (6s)
 ```
 
-Diferencias conocidas, ninguna presente en los datos de hoy: `fuente` se compara con `toLowerCase` y el servidor con
-`casefold()` (difieren en letras como `ß`), y dos puestos con la misma fecha y el mismo título no tienen orden fijo en
-ninguno de los dos lados.
+Diferencias conocidas, ninguna presente en los datos de hoy: los `.ttl` de domain/ que el servidor no lee (arriba),
+`fuente` se compara con `toLowerCase` y el servidor con `casefold()` (difieren en letras como `ß`), y dos puestos con la
+misma fecha y el mismo título no tienen orden fijo en ninguno de los dos lados.
 
 **Solo lectura.** El motor lee en `executeRead`, en una sesión `READ`. Una escritura ahí la rechaza Neo4j (probado):
 `Neo.ClientError.Statement.AccessMode: Writing in read access mode not allowed`.
 
 ## Memoria (medida el 2026-10-15)
 
-| Config (`compose.yaml`)                                                               | Con el grafo cargado y 3 `jobs.get()`                          |
-| ------------------------------------------------------------------------------------- | -------------------------------------------------------------- |
-| heap 64m→96m, pagecache 16m, SerialGC, JIT solo C1, code cache 48m, `mem_limit: 448m` | **354.7 MiB / 448 MiB** (en frío, recién arrancada: 259.5 MiB) |
-| heap 128m→160m, pagecache 16m, G1, `mem_limit: 384m`                                  | OOM durante la carga (`anon-rss: 389452kB`, dmesg)             |
-| heap 128m→192m, pagecache 32m, G1, `mem_limit: 512m`                                  | 453.9 MiB / 512 MiB                                            |
+| Config (`compose.yaml`)                                                               | Con el grafo cargado y 3 `jobs.get()`                                                       |
+| ------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------- |
+| heap 64m→96m, pagecache 16m, SerialGC, JIT solo C1, code cache 48m, `mem_limit: 448m` | **360.7 MiB / 448 MiB** (en frío, recién arrancada: 259.9 MiB); antes de la revisión, 354.7 |
+| heap 128m→160m, pagecache 16m, G1, `mem_limit: 384m`                                  | OOM durante la carga (`anon-rss: 389452kB`, dmesg)                                          |
+| heap 128m→192m, pagecache 32m, G1, `mem_limit: 512m`                                  | 453.9 MiB / 512 MiB                                                                         |
 
 ```sh
 ssh neo4j-ontology.exe.xyz 'docker stats --no-stream; free -m'
 # después de: deno task neo4j:cargar … && deno task test tests/neo4j-paridad.test.ts
-# 18123814497d neo4j-neo4j-1  1.19%  354.7MiB / 448MiB  79.18%
-# Mem: total 7935  used 611  free 5767  (la VM entera)
+# ad88a81cb2c1 neo4j-neo4j-1  1.53%  360.7MiB / 448MiB  80.51%   (2026-10-15T18:54:08Z)
+# Mem: total 7935  used 643  free 5674  (la VM entera)
 ```
 
 Lo que pesa no es el grafo (346 nodos) sino la JVM. `jcmd <pid> VM.native_memory summary` con
