@@ -1,22 +1,16 @@
 #!/usr/bin/env bash
-# Humo de la imagen del explorador ANTES de publicarla: lo corre el job build de .github/workflows/deploy.yml, también
-# en cada PR. Necesita docker y curl (en el Pixel no corre).   explorador/scripts/humo-imagen ghcr.io/kiri23/ontology-explorador:ci
+# Humo de la imagen ANTES de publicarla (job build de deploy.yml, también en cada PR). Necesita docker y curl.
+# Todo se captura antes del grep: con pipefail, `curl | grep -q` falla si grep sale antes de que curl termine.
 set -euo pipefail
-IMAGEN="${1:?uso: explorador/scripts/humo-imagen <imagen>}"
-DIR="$(cd "$(dirname "$0")/.." && pwd)"
-B="http://127.0.0.1:8080"
-C=ontology-explorador-humo
+IMAGEN="${1:?uso: explorador/scripts/humo-imagen <imagen>}" B="http://127.0.0.1:8080" C=ontology-explorador-humo
 fallo() { echo "FALLA: $*" >&2; docker logs "$C" 2>&1 | tail -20 >&2 || true; exit 1; }
 trap 'docker rm -f "$C" >/dev/null 2>&1 || true' EXIT
 cabeceras() { curl -s -o /dev/null -D - "$1" | tr -d '\r'; }
-
-imagenes="$(IMAGE_TAG="${IMAGEN##*:}" docker compose -f "$DIR/compose.prod.yaml" config --images)"
+tiene() { grep -qi -- "$1" <<<"$2"; }
+imagenes="$(IMAGE_TAG="${IMAGEN##*:}" docker compose -f "$(dirname "$0")/../compose.prod.yaml" config --images)"
 grep -qx "$IMAGEN" <<<"$imagenes" || fallo "la imagen no se llama como en compose.prod.yaml"
 docker run -d --name "$C" -p 127.0.0.1:8080:8080 "$IMAGEN" >/dev/null
 for _ in $(seq 1 30); do curl -sf -o /dev/null "$B/explorador/" && break; sleep 1; done
-
-# Todo se captura antes del grep: con pipefail, `curl | grep -q` falla si grep sale antes de que curl termine.
-tiene() { grep -qi -- "$1" <<<"$2"; }
 tiene '^location: /explorador/$' "$(cabeceras "$B/explorador")" || fallo "/explorador no redirige a /explorador/"
 html="$(curl -sf "$B/explorador/")" || fallo "/explorador/ no contesta"
 tiene 'id="raiz"' "$html" || fallo "/explorador/ no es el index del explorador"

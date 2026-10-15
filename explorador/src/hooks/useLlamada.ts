@@ -17,14 +17,14 @@ export type Estado =
   | { fase: "ok"; datos: unknown; ms: number; pedido?: Pedido }
   | { fase: "error"; status: number | null; nombre: string; mensaje: string; ms: number; pedido?: Pedido };
 
-export interface Base {
+interface Base {
   url: string;
   token?: string;
   /** El fetch de verdad; los tests pasan uno falso. */
   fetch?: (pedido: Request) => Promise<Response>;
 }
 
-export function describirError(e: unknown): { status: number | null; nombre: string; mensaje: string } {
+function describirError(e: unknown): { status: number | null; nombre: string; mensaje: string } {
   if (e instanceof ErrorServidor) return { status: e.status, nombre: e.name, mensaje: e.message };
   if (e instanceof Error) return { status: null, nombre: e.name, mensaje: e.message };
   return { status: null, nombre: "Error", mensaje: String(e) };

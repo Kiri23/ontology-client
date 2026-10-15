@@ -24,6 +24,8 @@ permissions:
 env:
   IMAGE: ghcr.io/kiri23/ontology-explorador
   DEPLOY_DIR: deploy/ontology-explorador
+  # Relativa al home del usuario ci en vps2; una por run.
+  DOCKER_CONFIG_VPS: .docker-explorador-${{ github.run_id }}
 
 jobs:
   build:
@@ -118,22 +120,34 @@ jobs:
           explorador/compose.prod.yaml
           ${{ vars.VPS_USER }}@${{ vars.VPS_HOST }}:${{ env.DEPLOY_DIR }}/
 
+      # Login con una config de Docker propia de este run (DOCKER_CONFIG), no con ~/.docker/config.json: el usuario ci
+      # es el mismo que despliega ontologyLearning, y un login o logout de un deploy no le pisa el del otro si se solapan.
       - name: Log vps2 into GHCR with the job token
         env:
           GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: >
           printf "%s" "$GHCR_TOKEN" |
           ssh -o StrictHostKeyChecking=accept-new ${{ vars.VPS_USER }}@${{ vars.VPS_HOST }}
-          "docker login ghcr.io -u ${{ github.actor }} --password-stdin"
+          "export DOCKER_CONFIG=\$HOME/${{ env.DOCKER_CONFIG_VPS }}
+          && mkdir -p -m 700 \$DOCKER_CONFIG
+          && docker login ghcr.io -u ${{ github.actor }} --password-stdin"
 
       - name: Pull and start the new image
         run: >
           ssh -o StrictHostKeyChecking=accept-new ${{ vars.VPS_USER }}@${{ vars.VPS_HOST }}
-          "cd ${{ env.DEPLOY_DIR }}
+          "export DOCKER_CONFIG=\$HOME/${{ env.DOCKER_CONFIG_VPS }}
+          && cd ${{ env.DEPLOY_DIR }}
           && export IMAGE_TAG=${{ github.sha }}
           && docker compose -f compose.prod.yaml pull ontology-explorador
           && docker compose -f compose.prod.yaml up -d --no-build --remove-orphans;
-          s=\$?; docker logout ghcr.io; exit \$s"
+          s=\$?; rm -rf \$DOCKER_CONFIG; exit \$s"
+
+      # Si el paso de arriba no llegó a correr, la credencial no queda en vps2.
+      - name: Remove the run's Docker config from vps2
+        if: always()
+        run: >
+          ssh -o StrictHostKeyChecking=accept-new ${{ vars.VPS_USER }}@${{ vars.VPS_HOST }}
+          "rm -rf \$HOME/${{ env.DOCKER_CONFIG_VPS }}"
 
       - name: Report the status through Cloudflare
         continue-on-error: true
@@ -141,16 +155,19 @@ jobs:
           curl -s -o /dev/null -w "through Cloudflare: HTTP %{http_code}\n"
           https://ontology.kiri231.com/explorador/
 
-      # El origen, sin Cloudflare: el index del explorador por el Caddy del borde, y la API sigue contestando al lado.
+      # El origen, sin Cloudflare: el index del explorador y su JS por el Caddy del borde. No mira la API: si /jobs da 503
+      # por datos viejos, eso no es de este deploy.
       - name: Check the origin directly
         run: |
           origen() { curl -sf --connect-timeout 5 --max-time 10 --resolve ontology.kiri231.com:443:${{ vars.VPS_PUBLIC_IP }} "https://ontology.kiri231.com$1"; }
           for _ in $(seq 1 24); do
-            if grep -q 'id="raiz"' <<<"$(origen /explorador/)" && origen /jobs >/dev/null; then
-              echo "el explorador y la API contestan en el origen"
+            html="$(origen /explorador/ || true)"
+            js="$(grep -o '/explorador/assets/[^"]*\.js' <<<"$html" | head -1 || true)"
+            if grep -q 'id="raiz"' <<<"$html" && [ -n "$js" ] && origen "$js" >/dev/null; then
+              echo "el origen sirve /explorador/ y $js"
               exit 0
             fi
             sleep 5
           done
-          echo "the origin never served /explorador/"
+          echo "the origin never served /explorador/ and its JS"
           exit 1
