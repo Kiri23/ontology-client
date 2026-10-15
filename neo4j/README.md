@@ -37,6 +37,15 @@ Bolt (7687) y el browser (7474) escuchan solo en `127.0.0.1` de la VM. Desde afu
 ssh -N -L 7687:localhost:7687 -L 7474:localhost:7474 neo4j-ontology.exe.xyz
 ```
 
+Con el túnel abierto:
+
+- **Verla:** `http://localhost:7474/browser/` es el Neo4j Browser que trae la imagen. Conectá a `bolt://localhost:7687`
+  con usuario `neo4j` y la password de Doppler (`ontology/dev`, `NEO4J_PASSWORD`). Un primer Cypher:
+  `MATCH (p:j__JobPost)-[r:j__pide]->(t) RETURN p, r, t LIMIT 25`.
+- **Hablarle desde código:** `doppler run -p ontology -c dev -- deno task neo4j:hola` corre `ejemplos/hola-neo4j.ts`: se
+  conecta, cuenta nodos por clase en Cypher, muestra un puesto con lo que pide y después hace
+  `jobs.get({ tecnologia: "python" })` por el SDK con el motor Neo4j.
+
 ## Cargarla (y refrescarla)
 
 ```sh
