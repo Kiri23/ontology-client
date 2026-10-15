@@ -1,0 +1,35 @@
+# La vista Neo4j del RDF de ontologyLearning: solo lectura para el SDK, se rehace entera desde la
+# fuente con `deno task neo4j:cargar` (neo4j/README.md).
+#
+#   docker compose up -d --build        (en la VM, desde este directorio)
+#
+# La password no está acá: .env (umask 077, fuera de git) trae NEO4J_AUTH=neo4j/<password>, que sale
+# de Doppler (ontology/dev, NEO4J_PASSWORD). Bolt y el browser escuchan solo en 127.0.0.1: desde
+# afuera se entra por un túnel ssh (ssh -N -L 7687:localhost:7687 <vm>).
+#
+# Memoria: los VPS tienen poca RAM (prod usa mem_limit 384m/256m). Heap y pagecache chicos; el grafo
+# entero son ~1300 triples. Lo medido está en neo4j/README.md.
+services:
+  neo4j:
+    build: .
+    image: kiri23/ontology-neo4j:2025.06.2-n10s-2025.06.1
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      NEO4J_server_memory_heap_initial__size: 128m
+      NEO4J_server_memory_heap_max__size: 192m
+      NEO4J_server_memory_pagecache_size: 32m
+      NEO4J_db_memory_transaction_total_max: 64m
+      NEO4J_dbms_usage__report_enabled: "false"
+      # n10s escribe con procedimientos propios; sin esto el server no los deja correr.
+      NEO4J_dbms_security_procedures_unrestricted: n10s.*
+      NEO4J_dbms_security_procedures_allowlist: n10s.*
+    ports:
+      - "127.0.0.1:7687:7687"
+      - "127.0.0.1:7474:7474"
+    volumes:
+      - datos:/data
+    mem_limit: 512m
+
+volumes:
+  datos:
