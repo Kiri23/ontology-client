@@ -19,6 +19,7 @@ assets="$(grep -o '/explorador/assets/[^"]*' <<<"$html")" || fallo "el index no 
 js="$(grep '\.js$' <<<"$assets")" || fallo "el index no trae el JS"
 css="$(grep '\.css$' <<<"$assets")" || fallo "el index no trae el CSS"
 fuentes="$(grep -o '/explorador/assets/[^)]*\.woff2' <<<"$(curl -sf "$B$css")" | sort -u)" || fallo "el CSS no trae fuentes"
+! grep -q 'url(data:' <<<"$(curl -sf "$B$css")" || fallo "el CSS trae assets data:, que la CSP bloquea"
 for a in $assets $fuentes; do tiene '^HTTP/1.1 200' "$(cabeceras "$B$a")" || fallo "$a no da 200"; done
 tiene '^cache-control: .*immutable' "$(cabeceras "$B$js")" || fallo "los assets no van immutable"
 tiene 'jobs.marcarAplicado' "$(curl -sf "$B$js")" || fallo "el bundle no trae las historias"

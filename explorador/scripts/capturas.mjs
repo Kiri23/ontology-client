@@ -25,6 +25,15 @@ const CAPTURAS = [
     esperar: "table",
   },
   {
+    // Con un token de mentira en sessionStorage, para ver la confirmación. Nunca se aprieta "Sí, escribir", y el POST
+    // se abortaría igual: la interceptación de abajo no deja salir nada que no sea GET.
+    nombre: "confirmacion",
+    hash: `#/jobs.descartar?link=${encodeURIComponent(LINK)}&porque=pide+5+a%C3%B1os+de+Java`,
+    token: "no-es-un-token",
+    correr: true,
+    esperar: ".confirmar",
+  },
+  {
     nombre: "accion-sin-token",
     hash: `#/jobs.descartar?link=${encodeURIComponent(LINK)}&porque=pide+5+a%C3%B1os+de+Java`,
     correr: false,
@@ -37,6 +46,10 @@ const CAPTURAS = [
     esperar: ".recibo-error",
   },
 ];
+// La misma CSP que pone el Caddyfile, así la captura también prueba que la página anda con ella.
+const CSP =
+  readFileSync(new URL("../Caddyfile", import.meta.url), "utf8").match(/Content-Security-Policy "([^"]+)"/)[1];
+
 const ANCHOS = [
   { ancho: 390, alto: 844, escala: 2 },
   { ancho: 1280, alto: 900, escala: 1 },
@@ -60,7 +73,7 @@ for (const nombre of readdirSync(new URL("assets/", DIST))) {
 
 // Corre en chromium-box. `context` llega como JSON.
 const codigo = `export default async function ({ page, context }) {
-  const { archivos, origen, capturas, anchos } = context;
+  const { archivos, origen, capturas, anchos, csp } = context;
   const tipos = { ".js": "text/javascript", ".css": "text/css", ".woff2": "font/woff2", ".html": "text/html" };
   const tipo = (ruta) => tipos[ruta.slice(ruta.lastIndexOf("."))] ?? "text/html";
   const bytes = (b64) => Uint8Array.from(atob(b64), (c) => c.charCodeAt(0));
@@ -70,11 +83,18 @@ const codigo = `export default async function ({ page, context }) {
     if (url.origin !== origen) return r.continue();
     if (url.pathname.startsWith("/explorador/")) {
       const b64 = archivos[url.pathname];
-      return b64 ? r.respond({ status: 200, contentType: tipo(url.pathname), body: bytes(b64) })
+      const headers = { "Content-Security-Policy": csp };
+      return b64 ? r.respond({ status: 200, contentType: tipo(url.pathname), headers, body: bytes(b64) })
         : r.respond({ status: 404, contentType: "text/plain", body: "no" });
     }
     if (r.method() !== "GET") return r.abort();
     return r.continue();
+  });
+  // Cada violación de la CSP que vea la página queda anotada y vuelve con la captura.
+  await page.evaluateOnNewDocument(() => {
+    document.addEventListener("securitypolicyviolation", (e) => {
+      (window.__csp ??= []).push(e.violatedDirective + " " + e.blockedURI);
+    });
   });
   const salida = [];
   for (const a of anchos) {
@@ -82,6 +102,12 @@ const codigo = `export default async function ({ page, context }) {
     for (const c of capturas) {
       await page.goto("about:blank");
       await page.goto(origen + "/explorador/" + c.hash, { waitUntil: "networkidle0" });
+      // El token de una captura no pasa a la siguiente: mismo origen, misma pestaña.
+      await page.evaluate((t) => {
+        sessionStorage.clear();
+        if (t) sessionStorage.setItem("ontology-explorador.token.acciones", t);
+      }, c.token ?? "");
+      await page.reload({ waitUntil: "networkidle0" });
       await page.waitForSelector(".boton-correr");
       if (c.correr) await page.click(".boton-correr");
       await page.waitForSelector(c.esperar, { timeout: 20000 });
@@ -89,7 +115,8 @@ const codigo = `export default async function ({ page, context }) {
       await page.evaluate(() => (document.activeElement?.blur(), window.scrollTo(0, 0), document.fonts.ready));
       await new Promise((listo) => setTimeout(listo, 700));
       const png = await page.screenshot({ fullPage: true, encoding: "base64" });
-      salida.push({ nombre: c.nombre + "-" + a.ancho, png });
+      const csp = await page.evaluate(() => window.__csp ?? []);
+      salida.push({ nombre: c.nombre + "-" + a.ancho, png, csp });
     }
   }
   return { data: salida, type: "application/json" };
@@ -97,7 +124,7 @@ const codigo = `export default async function ({ page, context }) {
 
 const cuerpo = JSON.stringify({
   code: codigo,
-  context: { archivos, origen: ORIGEN, capturas: CAPTURAS, anchos: ANCHOS },
+  context: { archivos, origen: ORIGEN, capturas: CAPTURAS, anchos: ANCHOS, csp: CSP },
 });
 const remoto = 'T=$(cat ~/browserless.token); curl -s -X POST -H "Content-Type: application/json" ' +
   '--data-binary @- "http://127.0.0.1:8000/function?token=$T"';
@@ -116,8 +143,16 @@ try {
   process.exit(1);
 }
 mkdirSync(salida, { recursive: true });
-for (const { nombre, png } of respuesta.data ?? respuesta) {
+const capturas = respuesta.data ?? respuesta;
+if (!Array.isArray(capturas)) {
+  console.error(`chromium-box no devolvió capturas:\n${JSON.stringify(respuesta).slice(0, 800)}`);
+  process.exit(1);
+}
+let violaciones = 0;
+for (const { nombre, png, csp } of capturas) {
   const ruta = `${salida}/${nombre}.png`;
   writeFileSync(ruta, Buffer.from(png, "base64"));
-  console.log(ruta);
+  console.log(`${ruta}  CSP: ${csp.length ? csp.join("; ") : "sin violaciones"}`);
+  violaciones += csp.length;
 }
+process.exit(violaciones ? 1 : 0);

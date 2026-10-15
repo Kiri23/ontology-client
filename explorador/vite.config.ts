@@ -24,7 +24,9 @@ export default defineConfig({
       [...rutasApi, "openapi.json"].map((r) => [`/${r}`, { target: PRODUCCION, changeOrigin: true }]),
     ),
   },
-  build: { outDir: "dist", emptyOutDir: true },
+  // assetsInlineLimit 0: Vite metería como data: las fuentes de menos de 4 KB, y la CSP del Caddyfile (font-src 'self')
+  // las bloquea. Todo asset sale como archivo.
+  build: { outDir: "dist", emptyOutDir: true, assetsInlineLimit: 0 },
   test: {
     environment: "happy-dom",
     include: ["pruebas/**/*.test.{ts,tsx}"],
