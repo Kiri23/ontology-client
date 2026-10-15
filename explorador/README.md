@@ -23,6 +23,7 @@ explorador/
   src/hooks/       useLlamada (useActionState), useRuta (el hash), useToken (sessionStorage)
   src/componentes/ Barra, PanelHistoria, Controles, CampoToken, Respuesta, Tabla, Json, Prosa
   src/logica/      la ruta del hash y las celdas de la tabla, sin React
+  src/estilos/     un CSS por sección (base, barra, panel, ficha, recibo, tabla); cada componente importa el suyo
   vite/doc-sdk.ts  plugin de Vite: el JSDoc y la firma de cada función, leídos del código del SDK
   pruebas/         vitest: historias, hooks y panel con un fetch falso (sin red)
   scripts/         humo-imagen (CI) y capturas.mjs (capturas para un PR)
@@ -33,17 +34,21 @@ explorador/
 
 ## Agregar una historia
 
-Cuando `mod.ts` gana una función, el test `tests/explorador.test.ts` de la raíz falla en CI hasta que tenga su historia:
-lee las funciones que exporta el módulo (`jobs.get`, `validarProyecto`…) y las compara con el campo `funcion` de cada
-historia. También falla si una historia apunta a algo que ya no se exporta, si dos tienen el mismo id o si una que
-escribe no pide token.
+Cuando `mod.ts` gana una función, el test `tests/explorador.test.ts` de la raíz falla en CI hasta que tenga su historia.
+Recorre lo que exporta el módulo (namespaces incluidos: `jobs.get`, `validarProyecto`…) y lo compara **por identidad**
+con la `fn` de cada historia. También falla si una historia apunta a algo que mod.ts no exporta, si su `funcion` no es
+el nombre de su `fn`, si dos tienen el mismo id, si una que escribe no pide token, y si una historia hace un pedido que
+no es GET sin `escribe: true` (o al revés): las corre todas con un fetch falso y mira los métodos. La única excepción
+con nombre es `validarProyecto`, que manda la ficha por POST pero no guarda nada.
 
-1. En `src/historias/`, en el archivo de su clase (o uno nuevo, sumado a `CLASES` en `index.ts`), agregá un objeto
-   `Historia`: `id` (va en la URL), `funcion` (el nombre en mod.ts), `nombre`, `llamada`, `controles` y `correr`, que
-   llama al SDK con los valores del formulario y `{ url, fetch, token }` del contexto.
+1. En `src/historias/`, en el archivo de su clase (o uno nuevo, sumado a `CLASES` en `index.ts`), agregá
+   `historia({ ... })`: `id` (va en la URL), `fn` (la función de mod.ts, la referencia), `funcion` (su nombre),
+   `nombre`, `llamada`, `controles` y `llamar(fn, valores, { url, fetch, token })`. `llamar` recibe la misma `fn` con su
+   tipo exacto: llamá a esa, no a otra importada.
 2. Si escribe en el servidor: `escribe: true` y `token: "acciones"` (o el que corresponda). Sin token el botón queda
-   deshabilitado; con token, la página pide confirmación antes de correr.
-3. La descripción y la firma salen solas del JSDoc de la función (`vite/doc-sdk.ts`). `nota` agrega una línea propia.
+   deshabilitado; con token, la página muestra los valores y pide confirmación antes de correr.
+3. La descripción y la firma salen solas del JSDoc de la función (`vite/doc-sdk.ts`). `nota` agrega una línea propia y
+   `columnas` dice qué columnas van primero si la respuesta es una tabla.
 4. `deno task test` en la raíz y `npm test` acá.
 
 Un GET nuevo en el contrato no necesita nada: `cliente.ts` arma su historia desde `contrato/openapi.json`.
@@ -80,8 +85,9 @@ Los bindings nativos (`@rolldown/binding-android-arm64`, `lightningcss-android-a
 
 Las acciones (`jobs.descartar`, `jobs.marcarAplicado`) y `validarProyecto` piden token. Se escribe en la página, vive en
 el `sessionStorage` de la pestaña (se va al cerrarla), sale solo en el header `Authorization` del pedido y nunca va en
-la URL, en el bundle ni en un log. El Caddyfile pone una CSP que solo deja correr el JS propio y hablar con el mismo
-origen.
+la URL, en el bundle ni en un log. El campo va fuera del `<form>` y, donde el navegador lo permite, es texto enmascarado
+en vez de `type="password"`, para que el gestor de contraseñas no ofrezca guardarlo (detalle en `CampoToken.tsx`). El
+Caddyfile pone una CSP que solo deja correr el JS propio y hablar con el mismo origen.
 
 ## Deploy
 
@@ -91,8 +97,9 @@ origen.
   `scripts/humo-imagen` (que levanta la imagen y revisa el redirect de `/explorador`, el index, cada asset y fuente, la
   CSP, el cache y que no corra como root).
 - En `main`: además publica `ghcr.io/kiri23/ontology-explorador` y la levanta en vps2 con `compose.prod.yaml`, detrás de
-  kiri-edge. El label `caddy.reverse_proxy: "/explorador* {{upstreams 8080}}"` se suma al sitio `ontology.kiri231.com`
-  que arman ontology-web y ontology-grlc; el comentario de `compose.prod.yaml` explica por qué no choca.
+  kiri-edge. Las labels `caddy.reverse_proxy_0: "/explorador …"` y `_1: "/explorador/* …"` se suman al sitio
+  `ontology.kiri231.com` que arman ontology-web y ontology-grlc; el comentario de `compose.prod.yaml` explica por qué no
+  choca.
 
 Verificar después del merge:
 
@@ -104,10 +111,11 @@ curl -s https://ontology.kiri231.com/explorador/ | grep -c 'id="raiz"'   # → 1
 ## Capturas para un PR
 
 `kiri-pr-shots` y `chromium-shot.py` no sirven para una SPA. `scripts/capturas.mjs` hace que chromium-box navegue a la
-URL de producción y contesta `/explorador/*` con el `dist/` local; la API real responde los GET y cualquier otro método
-se aborta antes de salir.
+URL de producción y contesta `/explorador/*` con el `dist/` local y la misma CSP del Caddyfile; la API real responde los
+GET y cualquier otro método se aborta antes de salir. Sale 1 si la página tuvo alguna violación de CSP (así apareció una
+fuente `data:` que la CSP bloqueaba: por eso `assetsInlineLimit: 0` en `vite.config.ts`).
 
 ```sh
-npm run build && node scripts/capturas.mjs ~/tmp/capturas   # 3 historias × 390 y 1280 px
+npm run build && node scripts/capturas.mjs ~/tmp/capturas   # 4 capturas × 390 y 1280 px
 kiri-pr-shots subir <pr#> ~/tmp/capturas/*.png
 ```

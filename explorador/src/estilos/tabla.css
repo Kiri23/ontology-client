@@ -132,11 +132,17 @@ td[data-tipo="link"] a {
   display: none;
 }
 
+/* Con alto máximo y scroll propio, como la tabla: 100 tarjetas no entierran la documentación de abajo. */
 .tarjetas {
   list-style: none;
   margin: 0;
-  padding: 0;
+  padding: 0.5rem;
   gap: 0.6rem;
+  max-height: 72vh;
+  overflow-y: auto;
+  border: 1px solid var(--regla);
+  border-radius: 3px;
+  background: var(--papel-hundido);
 }
 
 .tarjeta {
