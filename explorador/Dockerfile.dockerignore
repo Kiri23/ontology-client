@@ -1,0 +1,5 @@
+# El contexto de explorador/Dockerfile es la raíz del repo (importa ../mod.ts). BuildKit lee este archivo por estar
+# al lado del Dockerfile, con rutas relativas a la raíz.
+.git
+**/node_modules
+explorador/dist
