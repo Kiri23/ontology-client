@@ -1,6 +1,6 @@
 // jobs: la clase JobPost de la ontología. Una historia por función de jobs.ts.
 import { jobs } from "../../../mod.ts";
-import { type Clase, type Control, opcional } from "./tipos.ts";
+import { type Clase, type Control, historia, opcional } from "./tipos.ts";
 
 const LINK: Control = {
   nombre: "link",
@@ -14,9 +14,10 @@ export const JOBS: Clase = {
   nombre: "jobs",
   representa: "JobPost",
   historias: [
-    {
+    historia({
       id: "jobs.get",
       clase: "jobs",
+      fn: jobs.get,
       funcion: "jobs.get",
       nombre: "get",
       llamada: "jobs.get({ tecnologia, fuente })",
@@ -34,12 +35,13 @@ export const JOBS: Clase = {
           sugerencias: ["remotive", "hn"],
         },
       ],
-      correr: (v, { url, fetch }) =>
-        jobs.get({ tecnologia: opcional(v.tecnologia), fuente: opcional(v.fuente) }, { url, fetch }),
-    },
-    {
+      llamar: (get, v, { url, fetch }) =>
+        get({ tecnologia: opcional(v.tecnologia), fuente: opcional(v.fuente) }, { url, fetch }),
+    }),
+    historia({
       id: "jobs.descartar",
       clase: "jobs",
+      fn: jobs.descartar,
       funcion: "jobs.descartar",
       nombre: "descartar",
       llamada: "jobs.descartar(link, porque, { token })",
@@ -49,18 +51,19 @@ export const JOBS: Clase = {
       ],
       token: "acciones",
       escribe: true,
-      correr: (v, { url, fetch, token }) => jobs.descartar(v.link.trim(), v.porque.trim(), { url, fetch, token }),
-    },
-    {
+      llamar: (descartar, v, { url, fetch, token }) => descartar(v.link.trim(), v.porque.trim(), { url, fetch, token }),
+    }),
+    historia({
       id: "jobs.marcarAplicado",
       clase: "jobs",
+      fn: jobs.marcarAplicado,
       funcion: "jobs.marcarAplicado",
       nombre: "marcarAplicado",
       llamada: "jobs.marcarAplicado(link, { token })",
       controles: [LINK],
       token: "acciones",
       escribe: true,
-      correr: (v, { url, fetch, token }) => jobs.marcarAplicado(v.link.trim(), { url, fetch, token }),
-    },
+      llamar: (marcarAplicado, v, { url, fetch, token }) => marcarAplicado(v.link.trim(), { url, fetch, token }),
+    }),
   ],
 };

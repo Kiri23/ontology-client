@@ -33,13 +33,18 @@ export interface Contexto {
   token?: string;
 }
 
+/** Cualquier función que exporta el SDK. Acá no se llama: `llamar` la recibe con su tipo exacto. */
+export type FuncionSdk = (...args: never[]) => unknown;
+
 /** Una función del SDK con sus controles, lista para correr. */
 export interface Historia {
-  /** Único, va en la URL: `jobs.get`, `crearCliente.GET./reportes/demanda`. */
+  /** Único, va en la URL: `jobs.get`, `cliente.GET/reportes/demanda`. */
   id: string;
   /** La clase del SDK que la agrupa en la barra lateral: `jobs`, `proyectos`, `cliente`. */
   clase: string;
-  /** La función de mod.ts que corre, por su nombre de acceso: `jobs.get`, `crearCliente`. La exige el test. */
+  /** La función de mod.ts que corre, la misma referencia: el test la compara por identidad contra los exports. */
+  fn: FuncionSdk;
+  /** Su nombre de acceso en mod.ts: `jobs.get`, `crearCliente`. El test exige que sea el de `fn`. */
   funcion: string;
   /** Cómo se ve en la barra: `get`, `GET /reportes/demanda`. */
   nombre: string;
@@ -52,7 +57,22 @@ export interface Historia {
   token?: Token;
   /** Escribe en el servidor: la app pide confirmación antes de correrla. */
   escribe?: boolean;
+  /** Corre `fn` con los valores del formulario. Lo arma {@link historia}: no se escribe a mano. */
   correr(valores: Valores, contexto: Contexto): Promise<unknown>;
+}
+
+/** Lo que se escribe para definir una historia: `llamar` recibe `fn` con su tipo exacto y es lo único que la llama. */
+export type DefinicionHistoria<F extends FuncionSdk> = Omit<Historia, "fn" | "correr"> & {
+  fn: F;
+  llamar(fn: F, valores: Valores, contexto: Contexto): Promise<unknown>;
+};
+
+/**
+ * Arma una historia. `correr` le pasa a `llamar` la misma `fn` que la historia declara, así lo que el test compara por
+ * identidad (`fn`) es lo que corre: copiar una historia y cambiarle solo el nombre no alcanza para engañarlo.
+ */
+export function historia<F extends FuncionSdk>({ llamar, ...resto }: DefinicionHistoria<F>): Historia {
+  return { ...resto, correr: (valores, contexto) => llamar(resto.fn, valores, contexto) };
 }
 
 /** Una clase del SDK: un módulo de mod.ts (`jobs`) o una función suelta que hace de clase (`validarProyecto`). */

@@ -13,4 +13,4 @@ export function buscarHistoria(id: string): Historia | undefined {
   return HISTORIAS.find((h) => h.id === id);
 }
 
-export type { Clase, Contexto, Control, Historia, Token, Valores } from "./tipos.ts";
+export type { Clase, Control, Historia, Token, Valores } from "./tipos.ts";

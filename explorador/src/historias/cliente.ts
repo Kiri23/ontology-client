@@ -5,7 +5,7 @@
 // tienen a propósito, como POST /jobs).
 import { crearCliente, ErrorServidor } from "../../../mod.ts";
 import contrato from "../../../contrato/openapi.json" with { type: "json" };
-import { type Clase, type Control, type Historia, opcional, pares } from "./tipos.ts";
+import { type Clase, type Control, type Historia, historia, opcional, pares } from "./tipos.ts";
 
 interface Parametro {
   name: string;
@@ -38,28 +38,29 @@ function historiaGet(path: string, operacion: Operacion): Historia {
     descripcion: p.description,
     requerido: p.required,
   }));
-  return {
+  return historia({
     id: `cliente.GET${path}`,
     clase: "cliente",
+    fn: crearCliente,
     funcion: "crearCliente",
     nombre: `GET ${path}`,
     llamada: `crearCliente().GET("${path}"${query.length ? ", { params: { query } }" : ""})`,
     nota: operacion.summary,
     controles,
-    async correr(valores, { url, fetch }) {
+    async llamar(crear, valores, { url, fetch }) {
       const params: Record<string, string> = {};
       for (const p of query) {
         if (esFormExplotado(p)) Object.assign(params, pares(valores[p.name]));
         else if (opcional(valores[p.name]) !== undefined) params[p.name] = valores[p.name].trim();
       }
-      const cliente = crearCliente({ baseUrl: url, fetch });
+      const cliente = crear({ baseUrl: url, fetch });
       const get = cliente.GET as unknown as GetSuelto;
       const { data, error, response } = await get(path, { params: { query: params } });
       if (response.ok) return data;
       const mensaje = (error as { error?: unknown } | undefined)?.error;
       throw new ErrorServidor(response.status, typeof mensaje === "string" ? mensaje : `HTTP ${response.status}`);
     },
-  };
+  });
 }
 
 const paths = contrato.paths as Record<string, { get?: Operacion }>;

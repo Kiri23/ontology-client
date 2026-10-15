@@ -1,7 +1,7 @@
 // proyectos: validarProyecto, la función suelta de mod.ts que valida una ficha proyecto.ttl. No escribe nada en el
 // servidor, pero pide el token de proyectos.
 import { validarProyecto } from "../../../mod.ts";
-import type { Clase } from "./tipos.ts";
+import { type Clase, historia } from "./tipos.ts";
 
 const FICHA = `@prefix k: <https://kiri23.dev/catalogo#> .
 @prefix doap: <http://usefulinc.com/ns/doap#> .
@@ -15,9 +15,10 @@ export const PROYECTOS: Clase = {
   nombre: "proyectos",
   representa: "k:Proyecto",
   historias: [
-    {
+    historia({
       id: "validarProyecto",
       clase: "proyectos",
+      fn: validarProyecto,
       funcion: "validarProyecto",
       nombre: "validarProyecto",
       llamada: "validarProyecto(turtle, { token })",
@@ -26,7 +27,7 @@ export const PROYECTOS: Clase = {
         { nombre: "turtle", tipo: "parrafo", requerido: true, descripcion: "la ficha, text/turtle", inicial: FICHA },
       ],
       token: "proyectos",
-      correr: (v, { url, fetch, token }) => validarProyecto(v.turtle, { token: token ?? "", url, fetch }),
-    },
+      llamar: (validar, v, { url, fetch, token }) => validar(v.turtle, { token: token ?? "", url, fetch }),
+    }),
   ],
 };
