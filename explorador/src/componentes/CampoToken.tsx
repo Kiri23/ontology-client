@@ -18,7 +18,7 @@ export function CampoToken({ tipo, valor, guardar }: Props) {
     <div className="token">
       <label htmlFor={id}>
         <span className="control-nombre">token de {tipo}</span>
-        <span className="control-req">{SECRET[tipo]}</span>
+        <span className="token-secret">{SECRET[tipo]}</span>
       </label>
       <div className="token-fila">
         <input

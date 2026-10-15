@@ -9,6 +9,8 @@ function Contenido({ c }: { c: Celda }) {
       return <span className="celda-vacia">—</span>;
     case "link":
       return <a href={c.href} target="_blank" rel="noreferrer" title={c.href}>{c.texto}</a>;
+    case "fecha":
+      return <time dateTime={c.iso} title={c.iso}>{c.texto}</time>;
     case "etiquetas":
       return (
         <span className="etiquetas">

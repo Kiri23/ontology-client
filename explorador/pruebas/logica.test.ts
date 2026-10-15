@@ -35,6 +35,18 @@ describe("tabla", () => {
     expect(columnas([{ a: 1, b: 2 }, { c: 3, a: 4 }])).toEqual(["a", "b", "c"]);
   });
 
+  it("columnas: lo que nombra la fila primero, los links al final", () => {
+    const filas = [{ link: "https://x.dev/1", empresa: "Close", fecha: "2026-10-13", titulo: "Backend" }];
+    expect(columnas(filas)).toEqual(["titulo", "empresa", "fecha", "link"]);
+  });
+
+  it("una fecha ISO se lee como fecha y guarda el original", () => {
+    const c = celda("2026-10-13T21:03:57+00:00");
+    expect(c.tipo).toBe("fecha");
+    if (c.tipo === "fecha") expect(c.iso).toBe("2026-10-13T21:03:57+00:00");
+    expect(celda("2026 fue un año").tipo).toBe("texto");
+  });
+
   it("cada valor a su celda", () => {
     expect(celda(undefined)).toEqual({ tipo: "vacia" });
     expect(celda(40)).toEqual({ tipo: "numero", texto: "40" });
