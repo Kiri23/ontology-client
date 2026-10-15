@@ -34,7 +34,7 @@ services:
       - "127.0.0.1:7474:7474"
     volumes:
       - datos:/data
-    mem_limit: 448m
+    mem_limit: 640m
 
 volumes:
   datos:

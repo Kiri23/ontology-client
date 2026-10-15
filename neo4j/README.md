@@ -228,11 +228,12 @@ misma fecha y el mismo título no tienen orden fijo en ninguno de los dos lados.
 
 ## Memoria (medida el 2026-10-15)
 
-| Config (`compose.yaml`)                                                               | Con el grafo cargado y 3 `jobs.get()`                                                       |
-| ------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------- |
-| heap 64m→96m, pagecache 16m, SerialGC, JIT solo C1, code cache 48m, `mem_limit: 448m` | **360.7 MiB / 448 MiB** (en frío, recién arrancada: 259.9 MiB); antes de la revisión, 354.7 |
-| heap 128m→160m, pagecache 16m, G1, `mem_limit: 384m`                                  | OOM durante la carga (`anon-rss: 389452kB`, dmesg)                                          |
-| heap 128m→192m, pagecache 32m, G1, `mem_limit: 512m`                                  | 453.9 MiB / 512 MiB                                                                         |
+| Config (`compose.yaml`)                                                               | Con el grafo cargado y 3 `jobs.get()`                                                                                                                                          |
+| ------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| igual, con `mem_limit: 640m` (el de ahora)                                            | **347.4 MiB / 640 MiB** después de un `MATCH (n)` sobre todo el grafo, el Browser abierto y `neo4j:hola`; 0 reinicios                                                          |
+| heap 64m→96m, pagecache 16m, SerialGC, JIT solo C1, code cache 48m, `mem_limit: 448m` | OOM a las 19:30 UTC con dos clientes a la vez (`anon-rss: 454396kB`, dmesg). Sola: **360.7 MiB / 448 MiB** (en frío, recién arrancada: 259.9 MiB); antes de la revisión, 354.7 |
+| heap 128m→160m, pagecache 16m, G1, `mem_limit: 384m`                                  | OOM durante la carga (`anon-rss: 389452kB`, dmesg)                                                                                                                             |
+| heap 128m→192m, pagecache 32m, G1, `mem_limit: 512m`                                  | 453.9 MiB / 512 MiB                                                                                                                                                            |
 
 ```sh
 ssh neo4j-ontology.exe.xyz 'docker stats --no-stream; free -m'
@@ -243,8 +244,8 @@ ssh neo4j-ontology.exe.xyz 'docker stats --no-stream; free -m'
 
 Lo que pesa no es el grafo (346 nodos) sino la JVM. `jcmd <pid> VM.native_memory summary` con
 `-XX:NativeMemoryTracking=summary`: metaspace ~109 MB y symbols ~53 MB (las clases de Neo4j y n10s), heap el que se le
-dé, code cache ~26 MB; con G1, 41 MB más de GC (SerialGC: 0.4 MB). En un VPS con `mem_limit 384m` cabría por poco (~30
-MB de margen); 448m deja aire para la carga.
+dé, code cache ~26 MB; con G1, 41 MB más de GC (SerialGC: 0.4 MB). Con un solo cliente cabe en 448m, pero un `MATCH (n)`
+con el Browser abierto pasó los 448m: 640m deja aire para el uso real. Para un VPS, el número a reservar es ~640m.
 
 `cypher-shell` dentro del container es otra JVM: con el límite ajustado, el container se reinicia. Las consultas a mano
 van por el túnel con el driver.
