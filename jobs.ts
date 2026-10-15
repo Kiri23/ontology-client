@@ -15,6 +15,7 @@
 import type { ClientOptions } from "openapi-fetch";
 import type { components, operations } from "./generado/api.ts";
 import { type Forma, pedir, URL_PRODUCCION } from "./cliente.ts";
+import { motorActual } from "./motor.ts";
 
 /** Un puesto de trabajo, con la forma de j:JobPostShape: el schema JobPost del contrato. */
 export type JobPost = components["schemas"]["JobPost"];
@@ -30,11 +31,11 @@ export type ReferenciaJob = Pick<JobPost, "link"> | JobPost["link"];
 
 /** Opciones de {@link get}. */
 export interface OpcionesJobs {
-  /** La URL base del servidor; default https://ontology.kiri231.com. */
+  /** La URL base del servidor; default https://ontology.kiri231.com. La usan el motor HTTP y las acciones. */
   url?: string;
-  /** Un fetch propio (tests, proxies). Recibe un Request, como en openapi-fetch. */
+  /** Un fetch propio (tests, proxies). Recibe un Request, como en openapi-fetch. Lo usan el motor HTTP y las acciones. */
   fetch?: ClientOptions["fetch"];
-  /** Cuánto esperar la respuesta entera, en milisegundos; default 30 000. */
+  /** Cuánto esperar la respuesta entera, en milisegundos; default 30 000. Con Neo4j, el timeout de la transacción. */
   timeoutMs?: number;
 }
 
@@ -49,7 +50,8 @@ export interface OpcionesAcciones extends OpcionesJobs {
 }
 
 /**
- * Los puestos, lo más nuevo primero. Sin filtros, todos.
+ * Los puestos, lo más nuevo primero. Sin filtros, todos. Los lee el motor configurado (motor.ts): por default
+ * GET /jobs; con `configurar({ motor: motorNeo4j(driver) })`, la vista Neo4j, con la misma forma y el mismo orden.
  *
  * ```ts
  * const lista = await jobs.get({ tecnologia: "python" });
@@ -57,15 +59,12 @@ export interface OpcionesAcciones extends OpcionesJobs {
  * ```
  *
  * Tira {@link ErrorServidor} si el servidor no los da: 503 cuando sus datos son de una forma vieja (el
- * mensaje dice cómo rehacerlos), 400, un 200 que no es una lista, red caída o timeout (`status: null`).
+ * mensaje dice cómo rehacerlos), 400, un 200 que no es una lista, red caída o timeout (`status: null`). Con el
+ * motor Neo4j, todo error (Neo4j caído, password, un puesto que no calza con JobPost) es `status: null`, con el
+ * error del driver en `cause`.
  */
 export function get(filtros: FiltrosJobs = {}, opciones: OpcionesJobs = {}): Promise<JobPost[]> {
-  return pedir(
-    opciones,
-    (cliente, signal) => cliente.GET("/jobs", { params: { query: filtros }, signal }),
-    { es: Array.isArray, motivo: "no es una lista de JobPost" },
-    "GET /jobs",
-  );
+  return motorActual().jobs.get(filtros, opciones);
 }
 
 /**

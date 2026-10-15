@@ -36,7 +36,7 @@ jobs:
         run: deno lint
 
       - name: Tipos
-        run: deno check mod.ts cli.ts scripts/*.ts tests/*.ts
+        run: deno check mod.ts cli.ts neo4j.ts scripts/*.ts tests/*.ts
 
       - name: Tests
         run: deno task test

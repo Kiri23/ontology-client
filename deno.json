@@ -4,7 +4,8 @@
   "license": "MIT",
   "exports": {
     ".": "./mod.ts",
-    "./cli": "./cli.ts"
+    "./cli": "./cli.ts",
+    "./neo4j": "./neo4j.ts"
   },
   "imports": {
     "@cfworker/json-schema": "npm:@cfworker/json-schema@4.1.1",
@@ -35,6 +36,9 @@
       "mod.ts",
       "cliente.ts",
       "jobs.ts",
+      "motor.ts",
+      "neo4j.ts",
+      "vista-neo4j.ts",
       "cli.ts",
       "generado/api.ts",
       "contrato/openapi.json",
