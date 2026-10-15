@@ -21,9 +21,13 @@
   "lock": {
     "frozen": true
   },
+  "exclude": ["explorador/node_modules/", "explorador/dist/"],
+  "test": {
+    "exclude": ["explorador/"]
+  },
   "fmt": {
     "lineWidth": 120,
-    "exclude": ["generado/"]
+    "exclude": ["generado/", "explorador/package-lock.json"]
   },
   "lint": {
     "exclude": ["generado/"]
@@ -38,6 +42,7 @@
       "contrato/openapi.json",
       "README.md",
       "LICENSE"
-    ]
+    ],
+    "exclude": ["explorador/"]
   }
 }
