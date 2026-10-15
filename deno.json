@@ -11,7 +11,7 @@
     "@cfworker/json-schema": "npm:@cfworker/json-schema@4.1.1",
     "@std/assert": "jsr:@std/assert@^1.0.13",
     "@std/cli": "jsr:@std/cli@^1.0.20",
-    "neo4j-driver": "npm:neo4j-driver@6.2.0",
+    "neo4j-driver": "npm:neo4j-driver@^6.2.0",
     "openapi-fetch": "npm:openapi-fetch@^0.17.0",
     "openapi-typescript": "npm:openapi-typescript@7.13.0"
   },

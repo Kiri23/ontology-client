@@ -7,7 +7,7 @@
     "jsr:@std/internal@^1.0.12": "1.0.14",
     "jsr:@std/internal@^1.0.14": "1.0.14",
     "npm:@cfworker/json-schema@4.1.1": "4.1.1",
-    "npm:neo4j-driver@6.2.0": "6.2.0",
+    "npm:neo4j-driver@^6.2.0": "6.2.0",
     "npm:openapi-fetch@0.17": "0.17.0",
     "npm:openapi-typescript@7.13.0": "7.13.0_typescript@5.9.3"
   },
@@ -255,7 +255,7 @@
       "jsr:@std/assert@^1.0.13",
       "jsr:@std/cli@^1.0.20",
       "npm:@cfworker/json-schema@4.1.1",
-      "npm:neo4j-driver@6.2.0",
+      "npm:neo4j-driver@^6.2.0",
       "npm:openapi-fetch@0.17",
       "npm:openapi-typescript@7.13.0"
     ]

@@ -13,6 +13,8 @@ services:
   neo4j:
     build: .
     image: kiri23/ontology-neo4j:2025.06.2-n10s-2025.06.1
+    # La imagen no está en ningún registry: se construye acá, nunca se intenta bajar.
+    pull_policy: build
     restart: unless-stopped
     env_file: .env
     environment:
