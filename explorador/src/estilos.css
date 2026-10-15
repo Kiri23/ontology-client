@@ -291,6 +291,12 @@ a {
 
 .prosa-codigo,
 .firma pre {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.prosa-codigo,
+.firma pre {
   margin: 0 0 1rem;
   padding: 0.85rem 1rem;
   overflow-x: auto;
@@ -659,6 +665,10 @@ td {
 
 tbody tr:hover td {
   background: color-mix(in oklch, var(--papel-hundido) 60%, transparent);
+}
+
+td[data-tipo="fecha"] {
+  font-variant-numeric: tabular-nums;
 }
 
 td[data-tipo="numero"],
