@@ -25,7 +25,7 @@ try {
 
   // 2. Cypher a mano: cuántos nodos hay de cada clase. Las clases RDF son labels acortados (j:JobPost → j__JobPost).
   const { records: clases } = await driver.executeQuery(
-    `MATCH (n) UNWIND labels(n) AS clase WITH clase, count(*) AS n WHERE clase <> 'Resource'
+    `MATCH (n) UNWIND labels(n) AS clase WITH clase, count(*) AS n WHERE clase <> 'Resource' AND NOT clase STARTS WITH '_'
      RETURN clase, n ORDER BY n DESC LIMIT 8`,
     {},
     { routing: neo4j.routing.READ },
