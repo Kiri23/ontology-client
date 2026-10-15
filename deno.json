@@ -43,6 +43,7 @@
       "generado/api.ts",
       "contrato/openapi.json",
       "README.md",
+      "neo4j/README.md",
       "LICENSE"
     ]
   }
