@@ -1,0 +1,233 @@
+/* ---- la ficha: controles ---- */
+
+.ficha {
+  position: relative;
+  padding: 1.1rem clamp(1rem, 2.5vw, 1.6rem) 2.2rem;
+  background: var(--papel-ficha);
+  border: 1px solid var(--regla);
+  border-radius: 3px;
+  box-shadow: 4px 4px 0 var(--regla);
+}
+
+.seccion-titulo {
+  margin: 0;
+  font: 650 0.72rem var(--f-ui);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--tinta-suave);
+}
+
+.ficha .seccion-titulo {
+  padding-bottom: 0.55rem;
+  border-bottom: 2px solid var(--rojo);
+}
+
+.llamada {
+  display: block;
+  margin: 0.85rem 0 0.25rem;
+  font-size: 0.74rem;
+  overflow-wrap: anywhere;
+}
+
+.controles,
+.token {
+  display: grid;
+  gap: 1.15rem;
+  margin-top: 1.15rem;
+}
+
+.token {
+  padding-bottom: 1.15rem;
+  border-bottom: 1px dashed var(--regla);
+}
+
+.control label,
+.token label {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-bottom: 0.2rem;
+}
+
+.control-nombre {
+  font: 600 0.82rem var(--f-mono);
+}
+
+.control-req,
+.control-opc {
+  font-size: 0.7rem;
+  color: var(--tinta-suave);
+}
+
+.control-req {
+  color: var(--rojo);
+}
+
+.token-secret {
+  font: 400 0.68rem var(--f-mono);
+  color: var(--tinta-suave);
+}
+
+input,
+textarea {
+  width: 100%;
+  font: 400 0.92rem/1.5 var(--f-mono);
+  color: var(--tinta);
+  background: transparent;
+  border: 0;
+  border-bottom: 1.5px solid var(--renglon);
+  border-radius: 0;
+  padding: 0.35rem 0.1rem;
+  transition: border-color 160ms var(--salida);
+}
+
+input:hover,
+textarea:hover {
+  border-bottom-color: var(--tinta-suave);
+}
+
+input:focus-visible,
+textarea:focus-visible {
+  outline: none;
+  border-bottom-color: var(--rojo);
+}
+
+textarea {
+  resize: vertical;
+  font-size: 0.8rem;
+  background: repeating-linear-gradient(transparent 0 calc(1.5em - 1px), var(--renglon) calc(1.5em - 1px) 1.5em);
+  background-attachment: local;
+  line-height: 1.5em;
+  padding-top: 0;
+}
+
+.token-fila {
+  display: flex;
+  gap: 0.75rem;
+  align-items: end;
+}
+
+.control-ayuda {
+  margin: 0.3rem 0 0;
+  font-size: 0.78rem;
+  color: var(--tinta-suave);
+}
+
+.sin-controles {
+  margin: 1.15rem 0 0;
+  font-size: 0.9rem;
+  color: var(--tinta-suave);
+}
+
+.ficha-pie {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem 1rem;
+  margin-top: 1.6rem;
+}
+
+button {
+  font: inherit;
+  cursor: pointer;
+}
+
+.boton-correr,
+.boton-peligro {
+  padding: 0.62rem 1.6rem;
+  border: 0;
+  border-radius: 3px;
+  background: var(--tinta);
+  color: var(--papel);
+  font-weight: 650;
+  letter-spacing: 0.02em;
+  transition: transform 120ms var(--salida), opacity 160ms;
+}
+
+.boton-correr[data-escribe],
+.boton-peligro {
+  background: var(--rojo);
+  color: oklch(0.98 0.01 80);
+}
+
+.boton-correr:active:not(:disabled) {
+  transform: translateY(1px);
+}
+
+.boton-correr:disabled {
+  cursor: not-allowed;
+  opacity: 0.4;
+}
+
+.boton-texto {
+  padding: 0.3rem 0.2rem;
+  border: 0;
+  background: none;
+  color: var(--tinta-suave);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.motivo {
+  flex: 1 1 14rem;
+  margin: 0;
+  font-size: 0.82rem;
+  line-height: 1.45;
+  color: var(--tinta-suave);
+}
+
+.confirmar {
+  margin-top: 1.25rem;
+  padding: 0.9rem 1rem;
+  background: var(--rojo-fondo);
+  border: 1.5px solid var(--rojo);
+  border-radius: 3px;
+  font-size: 0.88rem;
+  animation: entrar 320ms var(--salida) both;
+}
+
+.confirmar p {
+  margin: 0 0 0.6rem;
+}
+
+.confirmar-titulo {
+  font-weight: 700;
+  color: var(--rojo);
+}
+
+.confirmar-botones {
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+}
+
+.confirmar-valores {
+  display: grid;
+  gap: 0.3rem;
+  margin: 0 0 0.6rem;
+  padding: 0.6rem 0.75rem;
+  background: var(--papel-ficha);
+  border-radius: 3px;
+}
+
+.confirmar-valores > div {
+  display: grid;
+  grid-template-columns: 4.5rem minmax(0, 1fr);
+  gap: 0.5rem;
+}
+
+.confirmar-valores dt {
+  font: 600 0.75rem/1.6 var(--f-mono);
+}
+
+.confirmar-valores dd {
+  margin: 0;
+  font: 400 0.8rem/1.5 var(--f-mono);
+  overflow-wrap: anywhere;
+}
+
+/* El token como texto enmascarado (CampoToken.tsx): los gestores de contraseñas no lo toman por un password. */
+.token-mascara {
+  -webkit-text-security: disc;
+}

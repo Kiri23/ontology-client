@@ -265,6 +265,13 @@ OIDC exige que el paquete exista en jsr.io y esté vinculado a este repo:
 2. En <https://jsr.io/@kiri23/ontology-client/settings>, **GitHub repository** → `Kiri23/ontology-client` → Link.
 3. Correr el publish: `gh workflow run publish.yml -R Kiri23/ontology-client`.
 
+## Explorador
+
+<https://ontology.kiri231.com/explorador/> es un Storybook del SDK: cada función de `mod.ts` es una historia que se
+corre contra el servidor, con controles para sus parámetros. Vive en `explorador/` (Vite + React) y no entra en el
+paquete de JSR. `tests/explorador.test.ts` falla si una función exportada no tiene su historia: ver
+[explorador/README.md](explorador/README.md).
+
 ## Licencia
 
 MIT

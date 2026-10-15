@@ -1,0 +1,100 @@
+/* ---- el recibo: la respuesta ---- */
+
+.recibo {
+  container: recibo / inline-size;
+  margin-top: 0.75rem;
+  transition: opacity 200ms;
+}
+
+.recibo[data-corriendo="true"] > :not(.seccion-titulo) {
+  opacity: 0.45;
+}
+
+/* El borde va en el contenedor, a todo el ancho; el texto se queda en una medida legible. */
+.recibo-vacio {
+  margin-top: 0.75rem;
+  padding: 1.5rem 0;
+  border-top: 1px solid var(--regla);
+}
+
+.recibo-vacio p {
+  margin: 0;
+  max-width: 60ch;
+  color: var(--tinta-suave);
+  font: italic 400 1rem/1.5 var(--f-prosa);
+}
+
+.recibo-cabecera {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.25rem 1.25rem;
+  margin-top: 0.75rem;
+  padding: 0.8rem 0;
+  border-top: 2px solid var(--tinta);
+  border-bottom: 1px solid var(--regla);
+  animation: entrar 360ms var(--salida) both;
+}
+
+.recibo-status {
+  font: 600 1.9rem/1 var(--f-mono);
+  letter-spacing: -0.03em;
+}
+
+.recibo-cabecera[data-tono="bien"] .recibo-status {
+  color: var(--verde);
+}
+
+.recibo-cabecera[data-tono="mal"] .recibo-status {
+  color: var(--rojo);
+}
+
+.recibo-pedido {
+  flex: 1 1 16rem;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.recibo-datos {
+  font-size: 0.82rem;
+  color: var(--tinta-suave);
+}
+
+.recibo-error {
+  padding: 1.1rem 0;
+}
+
+.recibo-error-nombre {
+  margin: 0 0 0.25rem;
+  font: 600 0.75rem var(--f-mono);
+  color: var(--rojo);
+}
+
+.recibo-error-mensaje {
+  margin: 0;
+  font: 500 1.2rem/1.45 var(--f-prosa);
+  max-width: 60ch;
+}
+
+.json {
+  margin: 0.75rem 0 0;
+  padding: 1rem;
+  font-size: 0.74rem;
+  line-height: 1.6;
+}
+
+.j-clave {
+  font-weight: 600;
+}
+
+.j-texto {
+  color: var(--verde);
+}
+
+.j-numero {
+  color: var(--azul);
+}
+
+.j-literal {
+  color: var(--rojo);
+}

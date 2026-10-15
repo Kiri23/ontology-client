@@ -1,0 +1,28 @@
+#!/usr/bin/env bash
+# Humo de la imagen ANTES de publicarla (job build de deploy.yml, también en cada PR). Necesita docker y curl.
+# Todo se captura antes del grep: con pipefail, `curl | grep -q` falla si grep sale antes de que curl termine.
+set -euo pipefail
+IMAGEN="${1:?uso: explorador/scripts/humo-imagen <imagen>}" B="http://127.0.0.1:8080" C=ontology-explorador-humo
+fallo() { echo "FALLA: $*" >&2; docker logs "$C" 2>&1 | tail -20 >&2 || true; exit 1; }
+trap 'docker rm -f "$C" >/dev/null 2>&1 || true' EXIT
+cabeceras() { curl -s -o /dev/null -D - "$1" | tr -d '\r'; }
+tiene() { grep -qi -- "$1" <<<"$2"; }
+imagenes="$(IMAGE_TAG="${IMAGEN##*:}" docker compose -f "$(dirname "$0")/../compose.prod.yaml" config --images)"
+grep -qx "$IMAGEN" <<<"$imagenes" || fallo "la imagen no se llama como en compose.prod.yaml"
+docker run -d --name "$C" -p 127.0.0.1:8080:8080 "$IMAGEN" >/dev/null
+for _ in $(seq 1 30); do curl -sf -o /dev/null "$B/explorador/" && break; sleep 1; done
+tiene '^location: /explorador/$' "$(cabeceras "$B/explorador")" || fallo "/explorador no redirige a /explorador/"
+html="$(curl -sf "$B/explorador/")" || fallo "/explorador/ no contesta"
+tiene 'id="raiz"' "$html" || fallo "/explorador/ no es el index del explorador"
+tiene "^content-security-policy: default-src 'self'" "$(cabeceras "$B/explorador/")" || fallo "falta la CSP"
+assets="$(grep -o '/explorador/assets/[^"]*' <<<"$html")" || fallo "el index no referencia assets"
+js="$(grep '\.js$' <<<"$assets")" || fallo "el index no trae el JS"
+css="$(grep '\.css$' <<<"$assets")" || fallo "el index no trae el CSS"
+fuentes="$(grep -o '/explorador/assets/[^)]*\.woff2' <<<"$(curl -sf "$B$css")" | sort -u)" || fallo "el CSS no trae fuentes"
+! grep -q 'url(data:' <<<"$(curl -sf "$B$css")" || fallo "el CSS trae assets data:, que la CSP bloquea"
+for a in $assets $fuentes; do tiene '^HTTP/1.1 200' "$(cabeceras "$B$a")" || fallo "$a no da 200"; done
+tiene '^cache-control: .*immutable' "$(cabeceras "$B$js")" || fallo "los assets no van immutable"
+tiene 'jobs.marcarAplicado' "$(curl -sf "$B$js")" || fallo "el bundle no trae las historias"
+[ "$(curl -s -o /dev/null -w '%{http_code}' "$B/")" = 404 ] || fallo "/ no da 404: el contenedor sirve solo /explorador/"
+[ "$(docker exec "$C" id -u)" != 0 ] || fallo "corre como root"
+echo "humo: OK"

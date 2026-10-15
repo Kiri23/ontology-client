@@ -1,0 +1,173 @@
+name: Deploy explorador
+
+# https://ontology.kiri231.com/explorador/ en vps2: el explorador del SDK (explorador/). La receta es la de
+# Kiri23/ontologyLearning (skill deploy-kiriinfra): imagen en GHCR (privada), Tailscale SSH a vps2, compose detrás de
+# kiri-edge (Caddy). Los secrets TS_OAUTH_CLIENT_ID y TS_AUDIENCE y las vars VPS_HOST, VPS_USER y VPS_PUBLIC_IP ya
+# están en el repo (los deja scripts/setup-ci-tailscale.ts de Kiri23/kiriInfra).
+#
+# En un PR solo corre `build`: construye la etapa de node, corre los tests adentro, construye la imagen final y le pasa
+# explorador/scripts/humo-imagen, sin publicar nada. Solo en main, además la publica y la despliega. Corre con
+# cualquier cambio y no solo con los de explorador/: el explorador importa el SDK de la raíz (mod.ts, jobs.ts…).
+#
+# El paquete JSR no lo toca: publish.yml es otro workflow y deno.json excluye explorador/ del publish.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  IMAGE: ghcr.io/kiri23/ontology-explorador
+  DEPLOY_DIR: deploy/ontology-explorador
+  # Relativa al home del usuario ci en vps2; una por run.
+  DOCKER_CONFIG_VPS: .docker-explorador-${{ github.run_id }}
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/setup-buildx-action@v3
+
+      # La etapa `construir` sola: tiene node, las dependencias y el build, y ahí corren los tests.
+      - name: Build the node stage
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: explorador/Dockerfile
+          target: construir
+          load: true
+          tags: ${{ env.IMAGE }}:construir
+          cache-from: type=gha,scope=explorador
+          cache-to: type=gha,mode=max,scope=explorador
+
+      - name: Unit tests inside the image
+        run: docker run --rm "$IMAGE:construir" npm test
+
+      # Mismo contexto y mismo caché: buildx reusa la etapa de arriba y solo arma la de Caddy.
+      - name: Build the image (no push)
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: explorador/Dockerfile
+          load: true
+          tags: ${{ env.IMAGE }}:ci
+          cache-from: type=gha,scope=explorador
+          cache-to: type=gha,mode=max,scope=explorador
+
+      - name: Smoke test the image
+        run: bash explorador/scripts/humo-imagen "$IMAGE:ci"
+
+      - if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Push the image to GHCR
+        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: explorador/Dockerfile
+          push: true
+          tags: |
+            ${{ env.IMAGE }}:${{ github.sha }}
+            ${{ env.IMAGE }}:latest
+          cache-from: type=gha,scope=explorador
+
+  deploy:
+    needs: build
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: read
+      id-token: write
+    concurrency:
+      group: deploy-ontology-explorador
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: tailscale/github-action@v4
+        with:
+          oauth-client-id: ${{ secrets.TS_OAUTH_CLIENT_ID }}
+          audience: ${{ secrets.TS_AUDIENCE }}
+          tags: tag:ci
+          ping: ${{ vars.VPS_HOST }}
+
+      # Antes del login: si este paso falla, vps2 no queda con la sesión de GHCR abierta (el logout va al final del up).
+      - name: Prepare the deploy dir and the shared kiri-edge network
+        run: >
+          ssh -o StrictHostKeyChecking=accept-new ${{ vars.VPS_USER }}@${{ vars.VPS_HOST }}
+          "mkdir -p ${{ env.DEPLOY_DIR }}
+          && (docker network inspect kiri-edge >/dev/null 2>&1 || docker network create kiri-edge 2>/dev/null || docker network inspect kiri-edge >/dev/null)"
+
+      - name: Copy compose to vps2
+        run: >
+          scp -o StrictHostKeyChecking=accept-new
+          explorador/compose.prod.yaml
+          ${{ vars.VPS_USER }}@${{ vars.VPS_HOST }}:${{ env.DEPLOY_DIR }}/
+
+      # Login con una config de Docker propia de este run (DOCKER_CONFIG), no con ~/.docker/config.json: el usuario ci
+      # es el mismo que despliega ontologyLearning, y un login o logout de un deploy no le pisa el del otro si se solapan.
+      - name: Log vps2 into GHCR with the job token
+        env:
+          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: >
+          printf "%s" "$GHCR_TOKEN" |
+          ssh -o StrictHostKeyChecking=accept-new ${{ vars.VPS_USER }}@${{ vars.VPS_HOST }}
+          "export DOCKER_CONFIG=\$HOME/${{ env.DOCKER_CONFIG_VPS }}
+          && mkdir -p -m 700 \$DOCKER_CONFIG
+          && docker login ghcr.io -u ${{ github.actor }} --password-stdin"
+
+      - name: Pull and start the new image
+        run: >
+          ssh -o StrictHostKeyChecking=accept-new ${{ vars.VPS_USER }}@${{ vars.VPS_HOST }}
+          "export DOCKER_CONFIG=\$HOME/${{ env.DOCKER_CONFIG_VPS }}
+          && cd ${{ env.DEPLOY_DIR }}
+          && export IMAGE_TAG=${{ github.sha }}
+          && docker compose -f compose.prod.yaml pull ontology-explorador
+          && docker compose -f compose.prod.yaml up -d --no-build --remove-orphans;
+          s=\$?; rm -rf \$DOCKER_CONFIG; exit \$s"
+
+      # Si el paso de arriba no llegó a correr, la credencial no queda en vps2.
+      - name: Remove the run's Docker config from vps2
+        if: always()
+        run: >
+          ssh -o StrictHostKeyChecking=accept-new ${{ vars.VPS_USER }}@${{ vars.VPS_HOST }}
+          "rm -rf \$HOME/${{ env.DOCKER_CONFIG_VPS }}"
+
+      - name: Report the status through Cloudflare
+        continue-on-error: true
+        run: >
+          curl -s -o /dev/null -w "through Cloudflare: HTTP %{http_code}\n"
+          https://ontology.kiri231.com/explorador/
+
+      # El origen, sin Cloudflare: el index del explorador y su JS por el Caddy del borde. No mira la API: si /jobs da 503
+      # por datos viejos, eso no es de este deploy.
+      - name: Check the origin directly
+        run: |
+          origen() { curl -sf --connect-timeout 5 --max-time 10 --resolve ontology.kiri231.com:443:${{ vars.VPS_PUBLIC_IP }} "https://ontology.kiri231.com$1"; }
+          for _ in $(seq 1 24); do
+            html="$(origen /explorador/ || true)"
+            js="$(grep -o '/explorador/assets/[^"]*\.js' <<<"$html" | head -1 || true)"
+            if grep -q 'id="raiz"' <<<"$html" && [ -n "$js" ] && origen "$js" >/dev/null; then
+              echo "el origen sirve /explorador/ y $js"
+              exit 0
+            fi
+            sleep 5
+          done
+          echo "the origin never served /explorador/ and its JS"
+          exit 1

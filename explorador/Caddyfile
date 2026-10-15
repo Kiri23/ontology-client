@@ -1,0 +1,28 @@
+# El servidor estático del explorador, dentro de su contenedor. kiri-edge (el Caddy del borde, con TLS) le manda
+# /explorador* de ontology.kiri231.com; el resto del sitio es de ontology-web y ontology-grlc. TLS y admin son del
+# borde: acá no hay ninguno de los dos, ni config persistida.
+{
+	admin off
+	auto_https off
+	persist_config off
+}
+
+:8080 {
+	root * /srv
+	encode zstd gzip
+
+	# Los assets cuelgan de /explorador/: sin la barra, el navegador los pediría a /assets/.
+	redir /explorador /explorador/ 308
+
+	# La página guarda tokens en sessionStorage: solo corre el JS propio y solo le habla a su origen (la API).
+	header {
+		Content-Security-Policy "default-src 'self'; img-src 'self' data:; style-src 'self'; font-src 'self'; connect-src 'self'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'"
+		X-Content-Type-Options nosniff
+		Referrer-Policy no-referrer
+	}
+	# Los assets llevan hash en el nombre; el index no, así un deploy nuevo se ve al recargar.
+	header /explorador/assets/* Cache-Control "public, max-age=31536000, immutable"
+	header /explorador/ Cache-Control "no-cache"
+
+	file_server
+}
