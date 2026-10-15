@@ -16,10 +16,13 @@ services:
     restart: unless-stopped
     env_file: .env
     environment:
-      NEO4J_server_memory_heap_initial__size: 128m
-      NEO4J_server_memory_heap_max__size: 192m
-      NEO4J_server_memory_pagecache_size: 32m
+      NEO4J_server_memory_heap_initial__size: 64m
+      NEO4J_server_memory_heap_max__size: 96m
+      NEO4J_server_memory_pagecache_size: 16m
       NEO4J_db_memory_transaction_total_max: 64m
+      # Fuera del heap: el JIT solo en C1 (menos code cache y menos memoria de compilación), stacks y direct
+      # memory con tope. En una línea: el entrypoint de la imagen no acepta una por flag.
+      NEO4J_server_jvm_additional: -XX:-UseG1GC -XX:+UseSerialGC -XX:TieredStopAtLevel=1 -XX:ReservedCodeCacheSize=48m -XX:MaxDirectMemorySize=64m -Xss512k
       NEO4J_dbms_usage__report_enabled: "false"
       # n10s escribe con procedimientos propios; sin esto el server no los deja correr.
       NEO4J_dbms_security_procedures_unrestricted: n10s.*
@@ -29,7 +32,7 @@ services:
       - "127.0.0.1:7474:7474"
     volumes:
       - datos:/data
-    mem_limit: 512m
+    mem_limit: 448m
 
 volumes:
   datos:
