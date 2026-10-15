@@ -147,8 +147,9 @@ await driver.close(); // el driver es tuyo: el motor no lo cierra
 - `configurar({ motor })` — `motorHttp` (el default) o `motorNeo4j(driver)`. Tira `TypeError` si no es un `Motor`.
 - `motorNeo4j(driver, { database? })` vive en `@kiri23/ontology-client/neo4j`, un entry point aparte: quien usa solo
   HTTP no baja `neo4j-driver`. No envuelve al driver: lo creás vos (URL, auth, config) y lo inyectás.
-- Neo4j es una **vista de solo lectura** del RDF (`neo4j/README.md`): el motor lee en `executeRead` y las acciones
-  (`descartar`, `marcarAplicado`) van siempre por HTTP a la fuente, con cualquier motor.
+- Neo4j es una **vista de solo lectura** de los datos del RDF, sin esquema (`neo4j/README.md`): sale entera del
+  `/sparql` público, cada dato con su clase como label; el motor lee en `executeRead` y las acciones (`descartar`,
+  `marcarAplicado`) van siempre por HTTP a la fuente, con cualquier motor.
 - Con Neo4j, `url` y `fetch` de `jobs.get` no se usan; `timeoutMs` acota la espera entera (conexión y reintentos del
   driver incluidos, que con el túnel caído son 30 s) y también es el timeout de la transacción. Todo error (Neo4j caído,
   password, un puesto que no calza con `JobPost`) es `ErrorServidor` con `status: null` y el error del driver en
@@ -273,7 +274,7 @@ deno task test        # tests: fetch falso, anotaciones, workflow commands, time
 ONTOLOGY_PRODUCCION=1 deno task test   # además, jobs.get() contra producción (solo lee)
 ONTOLOGY_ACCIONES_URL=http://127.0.0.1:8800 ONTOLOGY_ACCIONES_TOKEN=prueba-local deno task test   # acciones, server local
 NEO4J_URL=bolt://localhost:7687 doppler run -p ontology -c dev -- deno task test   # además, paridad Neo4j == producción
-doppler run -p ontology -c dev -- deno task neo4j:cargar --domain <ontologyLearning>/domain   # rehace la vista Neo4j
+doppler run -p ontology -c dev -- deno task neo4j:cargar   # rehace la vista Neo4j desde /sparql
 deno fmt --check && deno lint && deno task generar --check
 deno run --allow-net --allow-read tests/servidor-falso.ts --puerto 8787 --token prueba
 ```

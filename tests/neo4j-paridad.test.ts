@@ -2,7 +2,7 @@
 // solo si se le da una vista Neo4j (opt-in, como el test de producción de jobs.test.ts):
 //
 //   ssh -N -L 7687:localhost:7687 neo4j-ontology.exe.xyz &
-//   doppler run -p ontology -c dev -- deno task neo4j:cargar --domain <ontologyLearning>/domain
+//   doppler run -p ontology -c dev -- deno task neo4j:cargar
 //   NEO4J_URL=bolt://localhost:7687 doppler run -p ontology -c dev -- deno task test tests/neo4j-paridad.test.ts
 //
 // La password es NEO4J_PASSWORD (de Doppler); el usuario, NEO4J_USER o neo4j. Si producción trajo puestos nuevos
