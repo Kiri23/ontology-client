@@ -47,6 +47,22 @@ Con el túnel abierto:
   conecta, cuenta nodos por clase en Cypher, muestra un puesto con lo que pide y después hace
   `jobs.get({ tecnologia: "python" })` por el SDK con el motor Neo4j.
 
+**Sin túnel, en exe.dev:** el proxy privado de exe.dev publica el puerto 8000 de la VM en
+`https://neo4j-ontology.exe.xyz/`, detrás del login de exe.dev. `Caddyfile` y `compose.exe-dev.yaml` ponen ahí un Caddy
+que une los dos puertos en un origen: el WebSocket de bolt va a 7687 y lo demás, el Browser, a 7474. Neo4j sigue
+escuchando solo en `127.0.0.1`.
+
+```sh
+scp Caddyfile neo4j-ontology.exe.xyz:neo4j/ && scp compose.exe-dev.yaml neo4j-ontology.exe.xyz:neo4j/compose.override.yaml
+ssh neo4j-ontology.exe.xyz 'cd ~/neo4j && docker compose up -d'
+```
+
+Abrí `https://neo4j-ontology.exe.xyz/browser/` y conectá con **`bolt+s://neo4j-ontology.exe.xyz:443`**. Con `neo4j+s://`
+falla: pide la tabla de routing y Neo4j se anuncia como `localhost:7687`. Exponer 7474 y 7687 por separado
+(`https://…:7474` y `:7687`) tampoco anda: el WebSocket a `:7687` falla
+(`ServiceUnavailable: WebSocket connection
+failure`).
+
 ## Cargarla (y refrescarla)
 
 ```sh
