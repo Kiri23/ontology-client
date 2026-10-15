@@ -63,6 +63,27 @@ falla: pide la tabla de routing y Neo4j se anuncia como `localhost:7687`. Expone
 (`ServiceUnavailable: WebSocket connection
 failure`).
 
+**Por la tailnet (apps del teléfono):** la VM está en la tailnet como `neo4j-ontology.tailc0560d.ts.net`, con el tag
+`tag:exec`. Entró con la integración "Tailscale Workload Identity Federation" de exe.dev (`tailscale-wif`, sin auth key
+en la VM). `tailscale serve` publica dos cosas, solo dentro de la tailnet y con certificado válido:
+
+- `https://neo4j-ontology.tailc0560d.ts.net`: el Caddy de 8000, o sea el Browser, el Query API (`/db/neo4j/query/v2`) y
+  el WebSocket de bolt.
+- `bolt+s://neo4j-ontology.tailc0560d.ts.net:7687`: bolt nativo con TLS.
+
+```sh
+# el join, una vez (el token dura 5 minutos y no se imprime)
+ssh neo4j-ontology.exe.xyz 'W=https://tailscale-wif.int.exe.xyz; M="$(curl -fsS $W/metadata)";
+  T="$(curl -fsS $W/token | jq -er .token)"; sudo tailscale up --hostname=neo4j-ontology \
+  --client-id="$(echo "$M" | jq -er .client_id)?ephemeral=false&preauthorized=true" --id-token="$T" \
+  --advertise-tags="$(echo "$M" | jq -r .tags)"'
+ssh neo4j-ontology.exe.xyz 'sudo tailscale serve --bg --https=443 http://localhost:8000;
+  sudo tailscale serve --bg --tls-terminated-tcp=7687 tcp://localhost:7687'
+```
+
+Probado desde el teléfono: `POST /db/neo4j/query/v2` con `MATCH (j:j__JobPost) RETURN count(j)` da `[[131]]`. Termux no
+resuelve MagicDNS (tiene su propio DNS): ahí va la IP de la tailnet, `100.123.48.55`. Chrome y las apps la resuelven.
+
 ## Cargarla (y refrescarla)
 
 ```sh
