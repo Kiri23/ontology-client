@@ -36,7 +36,13 @@ function Datos({ datos }: { datos: unknown }) {
     <>
       <div className="vistas" role="tablist" aria-label="Cómo ver la respuesta">
         {(["tabla", "json"] as const).map((v) => (
-          <button key={v} type="button" role="tab" aria-selected={vista === v} onClick={() => setVista(v)}>
+          <button
+            key={v}
+            type="button"
+            role="tab"
+            aria-selected={vista === v}
+            onClick={() => setVista(v)}
+          >
             {v === "tabla" ? "Tabla" : "JSON"}
           </button>
         ))}

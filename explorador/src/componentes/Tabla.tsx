@@ -1,5 +1,5 @@
 // Una lista de objetos como tabla. Muestra las primeras filas: el JSON de al lado tiene todas.
-import { celda, type Celda, columnas, type Fila } from "../logica/tabla.ts";
+import { type Celda, celda, columnas, type Fila } from "../logica/tabla.ts";
 
 const TOPE = 100;
 

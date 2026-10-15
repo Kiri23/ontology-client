@@ -16,7 +16,7 @@ export function leerRuta(hash: string): Ruta {
   const i = sinPrefijo.indexOf("?");
   const id = decodeURIComponent(i < 0 ? sinPrefijo : sinPrefijo.slice(0, i));
   const valores: Valores = {};
-  if (i >= 0) for (const [k, v] of new URLSearchParams(sinPrefijo.slice(i + 1))) valores[k] = v;
+  if (i >= 0) { for (const [k, v] of new URLSearchParams(sinPrefijo.slice(i + 1))) valores[k] = v; }
   return { id, valores };
 }
 

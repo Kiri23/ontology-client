@@ -16,12 +16,10 @@ export function Prosa({ texto }: { texto: string }) {
   return (
     <div className="prosa">
       {bloques.map((bloque, i) =>
-        i % 2 === 1
-          ? <pre key={i} className="prosa-codigo">{bloque.trimEnd()}</pre>
-          : bloque
-            .split(/\n\s*\n/)
-            .filter((p) => p.trim())
-            .map((p, j) => <p key={`${i}-${j}`}>{enLinea(p.replace(/\s*\n\s*/g, " ").trim())}</p>)
+        i % 2 === 1 ? <pre key={i} className="prosa-codigo">{bloque.trimEnd()}</pre> : bloque
+          .split(/\n\s*\n/)
+          .filter((p) => p.trim())
+          .map((p, j) => <p key={`${i}-${j}`}>{enLinea(p.replace(/\s*\n\s*/g, " ").trim())}</p>)
       )}
     </div>
   );

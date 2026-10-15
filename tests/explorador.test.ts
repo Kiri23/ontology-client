@@ -30,7 +30,7 @@ Deno.test("explorador: cada función de mod.ts tiene su historia", () => {
     faltan,
     [],
     `sin historia en el explorador: ${faltan.join(", ")}. Agregala en explorador/src/historias/ ` +
-      "(ver explorador/README.md, \"Agregar una historia\").",
+      '(ver explorador/README.md, "Agregar una historia").',
   );
 });
 

@@ -25,8 +25,7 @@ export function columnas(filas: Fila[], muestra = 50): string[] {
 }
 
 // Lo que se lee de un objeto anidado: un Technology es su `nombre`.
-const nombreDe = (v: unknown) =>
-  esObjeto(v) ? String(v.nombre ?? v.name ?? v.titulo ?? JSON.stringify(v)) : String(v);
+const nombreDe = (v: unknown) => esObjeto(v) ? String(v.nombre ?? v.name ?? v.titulo ?? JSON.stringify(v)) : String(v);
 
 /** https://news.ycombinator.com/item?id=1 → news.ycombinator.com/item?id=1, cortado a `largo`. */
 export function linkCorto(href: string, largo = 48): string {

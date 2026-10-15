@@ -6,8 +6,7 @@ import { PanelHistoria } from "./componentes/PanelHistoria.tsx";
 import { buscarHistoria, CLASES, type Historia, HISTORIAS, type Valores } from "./historias/index.ts";
 import { useRuta } from "./hooks/useRuta.ts";
 
-const iniciales = (h: Historia): Valores =>
-  Object.fromEntries(h.controles.map((c) => [c.nombre, c.inicial ?? ""]));
+const iniciales = (h: Historia): Valores => Object.fromEntries(h.controles.map((c) => [c.nombre, c.inicial ?? ""]));
 
 interface Props {
   /** La URL base del servidor: el mismo origen que la página (en producción, el de la API). */

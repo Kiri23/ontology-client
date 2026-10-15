@@ -1,7 +1,7 @@
 // La barra lateral: las clases del SDK y sus historias, como el árbol de Storybook. En el teléfono se pliega y la
 // cabecera muestra la historia elegida.
 import { useState } from "react";
-import { type Clase, type Historia } from "../historias/index.ts";
+import type { Clase, Historia } from "../historias/index.ts";
 import { escribirRuta } from "../logica/ruta.ts";
 
 interface Props {

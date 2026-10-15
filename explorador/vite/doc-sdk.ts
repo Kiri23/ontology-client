@@ -20,12 +20,14 @@ export interface DocFuncion {
 /** Cada función exportada por mod.ts, por su nombre de acceso: "validarProyecto", "jobs.get". */
 export type DocSdk = Record<string, DocFuncion>;
 
-const RAIZ_SDK = new URL("../../", import.meta.url);
+// La raíz del repo, como ruta: explorador/vite/doc-sdk.ts → ../../. Con texto y no con `new URL(…, import.meta.url)`:
+// en vitest con happy-dom, URL es la del DOM falso y resuelve contra http://localhost.
+const RAIZ_SDK = decodeURIComponent(import.meta.url.replace(/^file:\/\//, "")).replace(/explorador\/vite\/[^/]+$/, "");
 const ID = "virtual:doc-sdk";
 
-export function leerDocSdk(raiz: URL = RAIZ_SDK): DocSdk {
+export function leerDocSdk(raiz: string = RAIZ_SDK): DocSdk {
   const leer = (archivo: string) => {
-    const texto = ts.sys.readFile(new URL(archivo, raiz).pathname);
+    const texto = ts.sys.readFile(raiz + archivo);
     if (texto === undefined) throw new Error(`doc-sdk: no puedo leer ${archivo}`);
     return ts.createSourceFile(archivo, texto, ts.ScriptTarget.Latest, true);
   };
@@ -87,7 +89,7 @@ export function docSdk(): Plugin {
     load(id) {
       if (id !== `\0${ID}`) return;
       for (const archivo of ["mod.ts", "jobs.ts", "cliente.ts"]) {
-        this.addWatchFile(new URL(archivo, RAIZ_SDK).pathname);
+        this.addWatchFile(RAIZ_SDK + archivo);
       }
       return `export default ${JSON.stringify(leerDocSdk())};`;
     },

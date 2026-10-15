@@ -21,7 +21,9 @@
   --barra: 17rem;
 }
 
-*, *::before, *::after {
+*,
+*::before,
+*::after {
   box-sizing: border-box;
 }
 
@@ -33,7 +35,8 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
-code, pre {
+code,
+pre {
   font-family: var(--f-mono);
   font-size: 0.82em;
 }
@@ -284,7 +287,8 @@ a {
   border-radius: 3px;
 }
 
-.prosa-codigo, .firma pre {
+.prosa-codigo,
+.firma pre {
   margin: 0 0 1rem;
   padding: 0.85rem 1rem;
   overflow-x: auto;
@@ -363,7 +367,8 @@ a {
   overflow-wrap: anywhere;
 }
 
-.controles, .token {
+.controles,
+.token {
   display: grid;
   gap: 1.15rem;
   margin-top: 1.15rem;
@@ -374,7 +379,8 @@ a {
   border-bottom: 1px dashed var(--regla);
 }
 
-.control label, .token label {
+.control label,
+.token label {
   display: flex;
   align-items: baseline;
   justify-content: space-between;
@@ -386,7 +392,8 @@ a {
   font: 600 0.82rem var(--f-mono);
 }
 
-.control-req, .control-opc {
+.control-req,
+.control-opc {
   font-size: 0.7rem;
   color: var(--tinta-suave);
 }
@@ -395,7 +402,8 @@ a {
   color: var(--rojo);
 }
 
-input, textarea {
+input,
+textarea {
   width: 100%;
   font: 400 0.92rem/1.5 var(--f-mono);
   color: var(--tinta);
@@ -407,11 +415,13 @@ input, textarea {
   transition: border-color 160ms var(--salida);
 }
 
-input:hover, textarea:hover {
+input:hover,
+textarea:hover {
   border-bottom-color: var(--tinta-suave);
 }
 
-input:focus-visible, textarea:focus-visible {
+input:focus-visible,
+textarea:focus-visible {
   outline: none;
   border-bottom-color: var(--rojo);
 }
@@ -456,7 +466,8 @@ button {
   cursor: pointer;
 }
 
-.boton-correr, .boton-peligro {
+.boton-correr,
+.boton-peligro {
   padding: 0.62rem 1.6rem;
   border: 0;
   border-radius: 3px;
@@ -467,7 +478,8 @@ button {
   transition: transform 120ms var(--salida), opacity 160ms;
 }
 
-.boton-correr[data-escribe], .boton-peligro {
+.boton-correr[data-escribe],
+.boton-peligro {
   background: var(--rojo);
   color: oklch(0.98 0.01 80);
 }
@@ -616,7 +628,8 @@ button {
   border-bottom-color: var(--rojo);
 }
 
-.tabla-scroll, .json {
+.tabla-scroll,
+.json {
   max-height: 72vh;
   overflow: auto;
   border: 1px solid var(--regla);
@@ -656,7 +669,8 @@ tbody tr:hover td {
   background: color-mix(in oklch, var(--papel-hundido) 60%, transparent);
 }
 
-td[data-tipo="numero"], .col-n {
+td[data-tipo="numero"],
+.col-n {
   text-align: right;
   font-family: var(--f-mono);
   font-size: 0.76rem;
@@ -782,7 +796,9 @@ td[data-tipo="link"] a {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  *, *::before, *::after {
+  *,
+  *::before,
+  *::after {
     animation: none !important;
     transition: none !important;
   }

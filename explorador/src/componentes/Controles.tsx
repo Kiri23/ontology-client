@@ -28,7 +28,9 @@ export function Controles({ idHistoria, controles, valores, cambiar }: Props) {
           <div key={c.nombre} className="control" data-tipo={c.tipo}>
             <label htmlFor={id}>
               <span className="control-nombre">{c.nombre}</span>
-              {c.requerido ? <span className="control-req">requerido</span> : <span className="control-opc">opcional</span>}
+              {c.requerido
+                ? <span className="control-req">requerido</span>
+                : <span className="control-opc">opcional</span>}
             </label>
             {c.tipo === "texto"
               ? <input {...comun} type="text" list={lista} onChange={(e) => cambiar(c.nombre, e.target.value)} />
