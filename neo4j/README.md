@@ -78,8 +78,8 @@ tailnet:
 ```sh
 # el join, una vez (el token dura 5 minutos y no se imprime)
 ssh neo4j-ontology.exe.xyz 'W=https://tailscale-wif.int.exe.xyz; M="$(curl -fsS $W/metadata)";
-  T="$(curl -fsS $W/token | jq -er .token)"; sudo tailscale up --hostname=neo4j-ontology \\
-  --client-id="$(echo "$M" | jq -er .client_id)?ephemeral=false&preauthorized=true" --id-token="$T" \\
+  T="$(curl -fsS $W/token | jq -er .token)"; sudo tailscale up --hostname=neo4j-ontology \
+  --client-id="$(echo "$M" | jq -er .client_id)?ephemeral=false&preauthorized=true" --id-token="$T" \
   --advertise-tags="$(echo "$M" | jq -r .tags)"'
 ssh neo4j-ontology.exe.xyz 'sudo tailscale serve --bg --tcp=80 tcp://localhost:8000;
   sudo tailscale serve --bg --tcp=7687 tcp://localhost:7687'
