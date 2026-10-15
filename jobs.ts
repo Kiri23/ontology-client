@@ -1,15 +1,20 @@
 // jobs.ts — la clase JobPost de la ontología, como módulo: `import { jobs } from "@kiri23/ontology-client"`
-// y `jobs.get()`. Un módulo por clase, no por endpoint: lo que el SDK sepa hacer con los puestos vive acá.
+// y `jobs.get()`, `jobs.descartar()`, `jobs.marcarAplicado()`. Un módulo por clase, no por endpoint: lo que
+// el SDK sepa hacer con los puestos vive acá.
 //
 // El tipo no se escribe a mano. La cadena es: j:JobPostShape (SHACL, en el servidor) → el schema JobPost
 // de contrato/openapi.json → components["schemas"]["JobPost"] en generado/api.ts → JobPost acá.
+//
+// Las acciones (descartar, marcarAplicado) son los action types del servidor: cada una es un
+// dash:ModifyAction declarado en su domain/, con su operación en el contrato (jobs_descartar,
+// jobs_marcar_aplicado). Los parámetros y el 200 salen de ahí.
 //
 // POST /jobs (traer puestos nuevos con kiri-jobs) no tiene método: su 200 no declara schema, así que
 // devolvería `unknown`. Mientras tanto va por crearCliente().POST("/jobs", ...).
 
 import type { ClientOptions } from "openapi-fetch";
 import type { components, operations } from "./generado/api.ts";
-import { crearCliente, ErrorServidor, mensajeDeError, TIMEOUT_MS } from "./cliente.ts";
+import { type Forma, pedir, URL_PRODUCCION } from "./cliente.ts";
 
 /** Un puesto de trabajo, con la forma de j:JobPostShape: el schema JobPost del contrato. */
 export type JobPost = components["schemas"]["JobPost"];
@@ -20,6 +25,9 @@ export type Technology = components["schemas"]["Technology"];
 /** Los filtros de GET /jobs, del contrato: `tecnologia` (python, ts, node…) y `fuente` (remotive, hn). */
 export type FiltrosJobs = NonNullable<operations["jobs_get"]["parameters"]["query"]>;
 
+/** El puesto sobre el que corre una acción: el JobPost entero (o cualquier cosa con su `link`), o el link solo. */
+export type ReferenciaJob = Pick<JobPost, "link"> | JobPost["link"];
+
 /** Opciones de {@link get}. */
 export interface OpcionesJobs {
   /** La URL base del servidor; default https://ontology.kiri231.com. */
@@ -28,6 +36,16 @@ export interface OpcionesJobs {
   fetch?: ClientOptions["fetch"];
   /** Cuánto esperar la respuesta entera, en milisegundos; default 30 000. */
   timeoutMs?: number;
+}
+
+/** Opciones de {@link descartar} y {@link marcarAplicado}: las de {@link get} más el token. */
+export interface OpcionesAcciones extends OpcionesJobs {
+  /**
+   * El token de las acciones (Authorization: Bearer). Sin él, y solo si `url` es la de producción (o no se
+   * pasa), la variable de entorno `ONTOLOGY_ACCIONES_TOKEN` si Deno tiene permiso para leerla. Si no hay
+   * ninguno, el pedido va sin token y el servidor responde 401.
+   */
+  token?: string;
 }
 
 /**
@@ -41,50 +59,110 @@ export interface OpcionesJobs {
  * Tira {@link ErrorServidor} si el servidor no los da: 503 cuando sus datos son de una forma vieja (el
  * mensaje dice cómo rehacerlos), 400, un 200 que no es una lista, red caída o timeout (`status: null`).
  */
-export async function get(filtros: FiltrosJobs = {}, opciones: OpcionesJobs = {}): Promise<JobPost[]> {
-  // El status de la última respuesta: openapi-fetch tira si un 2xx no es JSON, y ahí el status se pierde.
-  let status: number | null = null;
-  const base = opciones.fetch ?? globalThis.fetch;
-  const timeoutMs = opciones.timeoutMs ?? TIMEOUT_MS;
-  // Como en validarProyecto: un AbortController con su setTimeout, que se limpia al terminar.
-  const corte = new AbortController();
-  const reloj = setTimeout(
-    () => corte.abort(new DOMException(`sin respuesta en ${timeoutMs} ms`, "TimeoutError")),
-    timeoutMs,
+export function get(filtros: FiltrosJobs = {}, opciones: OpcionesJobs = {}): Promise<JobPost[]> {
+  return pedir(
+    opciones,
+    (cliente, signal) => cliente.GET("/jobs", { params: { query: filtros }, signal }),
+    { es: Array.isArray, motivo: "no es una lista de JobPost" },
+    "GET /jobs",
   );
-  const cliente = crearCliente({
-    baseUrl: opciones.url,
-    fetch: async (pedido: Request) => {
-      const respuesta = await base(pedido);
-      status = respuesta.status;
-      return respuesta;
-    },
-  });
+}
+
+/**
+ * Descarta un puesto: no interesa, y `porque` dice por qué. Devuelve el puesto como queda, con
+ * `descartadoEl` y `porque`.
+ *
+ * ```ts
+ * const [puesto] = await jobs.get({ tecnologia: "python" });
+ * const descartado = await jobs.descartar(puesto, "pide 5 años de Java", { token });
+ * descartado.descartadoEl; // string | undefined: el contrato lo declara opcional
+ * ```
+ *
+ * Tira {@link ErrorServidor}: 400 si el puesto no existe, `porque` está vacío o no se cumple la
+ * precondición (`"Ya lo descartaste."`, `"Ya aplicaste a este puesto."`), 401 sin token o con otro, 503 si
+ * el servidor no tiene token configurado, `status: null` si no hubo respuesta. Tira `TypeError`, sin pedir
+ * nada, si `url` no es https (http solo a localhost) o no es una URL.
+ */
+export async function descartar(
+  job: ReferenciaJob,
+  porque: CuerpoDescartar["porque"],
+  opciones: OpcionesAcciones = {},
+): Promise<JobPost> {
+  const headers = autorizacion(opciones); // antes del pedido: un error de configuración no se disfraza de red
+  const body: CuerpoDescartar = { link: linkDe(job), porque };
+  return await pedir(
+    opciones,
+    (cliente, signal) => cliente.POST("/jobs/descartar", { body, headers, signal }),
+    ES_JOB_POST,
+    "POST /jobs/descartar",
+  );
+}
+
+/**
+ * Marca que se aplicó a un puesto. Devuelve el puesto como queda, con `aplicadoEl`. Uno descartado también
+ * se puede marcar.
+ *
+ * ```ts
+ * const aplicado = await jobs.marcarAplicado("https://remotive.com/remote-jobs/…", { token });
+ * aplicado.aplicadoEl;
+ * ```
+ *
+ * Tira {@link ErrorServidor} como {@link descartar}: 400 si ya estaba marcado o el puesto no existe, 401,
+ * 503, `status: null`; y `TypeError` con la misma `url` que {@link descartar} rechaza.
+ */
+export async function marcarAplicado(job: ReferenciaJob, opciones: OpcionesAcciones = {}): Promise<JobPost> {
+  const headers = autorizacion(opciones);
+  const body: CuerpoMarcarAplicado = { link: linkDe(job) };
+  return await pedir(
+    opciones,
+    (cliente, signal) => cliente.POST("/jobs/marcar-aplicado", { body, headers, signal }),
+    ES_JOB_POST,
+    "POST /jobs/marcar-aplicado",
+  );
+}
+
+// Los bodies de las acciones, del contrato.
+type CuerpoDescartar = operations["jobs_descartar"]["requestBody"]["content"]["application/json"];
+type CuerpoMarcarAplicado = operations["jobs_marcar_aplicado"]["requestBody"]["content"]["application/json"];
+
+const ES_JOB_POST: Forma = {
+  es: (data) =>
+    typeof data === "object" && data !== null && !Array.isArray(data) &&
+    typeof (data as { link?: unknown }).link === "string",
+  motivo: "no es un JobPost",
+};
+
+function linkDe(job: ReferenciaJob): string {
+  return typeof job === "string" ? job : job.link;
+}
+
+const VARIABLE_TOKEN = "ONTOLOGY_ACCIONES_TOKEN";
+const LOCALES = new Set(["localhost", "127.0.0.1", "[::1]"]);
+
+// El header Authorization de una acción. Corre antes del pedido y tira TypeError si la url no sirve: https,
+// o http solo a localhost (el token no viaja en claro). El token es `opciones.token`; la variable de entorno
+// solo para producción, así el token de producción no sale hacia una url que pasó el llamador.
+function autorizacion(opciones: OpcionesAcciones): Record<string, string> {
+  const destino = new URL(opciones.url || URL_PRODUCCION);
+  const local = destino.protocol === "http:" && LOCALES.has(destino.hostname);
+  if (destino.protocol !== "https:" && !local) {
+    throw new TypeError(
+      `${destino.origin}: las acciones van por https (http solo a localhost): el token iría en claro`,
+    );
+  }
+  const deProduccion = destino.origin === new URL(URL_PRODUCCION).origin;
+  const token = opciones.token?.trim() || (deProduccion ? tokenDelEntorno() : undefined);
+  return token ? { Authorization: `Bearer ${token}` } : {};
+}
+
+// ONTOLOGY_ACCIONES_TOKEN si Deno puede leerla sin preguntar; si no (sin permiso, sin Deno, o un Deno a medias
+// sin `permissions`, como un shim), undefined. querySync y no get directo: sin --allow-env, get abre un prompt.
+function tokenDelEntorno(): string | undefined {
   try {
-    const { data, error, response } = await cliente.GET("/jobs", {
-      params: { query: filtros },
-      signal: corte.signal,
-    });
-    if (!response.ok) {
-      throw new ErrorServidor(response.status, `GET /jobs: ${mensajeDeError(error, response.status)}`);
-    }
-    if (!Array.isArray(data)) {
-      throw new ErrorServidor(
-        response.status,
-        "GET /jobs: la respuesta no es una lista de JobPost: fuera del contrato",
-      );
-    }
-    return data;
-  } catch (e) {
-    if (e instanceof ErrorServidor) throw e;
-    if (corte.signal.aborted) {
-      throw new ErrorServidor(null, `GET /jobs: el servidor no respondió en ${timeoutMs / 1000} s (timeout)`);
-    }
-    if (status !== null) {
-      throw new ErrorServidor(status, `GET /jobs: la respuesta no es JSON: fuera del contrato`, { cause: e });
-    }
-    throw new ErrorServidor(null, `GET /jobs: sin respuesta del servidor: ${(e as Error).message}`, { cause: e });
-  } finally {
-    clearTimeout(reloj);
+    const deno = (globalThis as { Deno?: typeof Deno }).Deno;
+    if (deno?.permissions?.querySync?.({ name: "env", variable: VARIABLE_TOKEN }).state !== "granted") return undefined;
+    return deno.env?.get?.(VARIABLE_TOKEN)?.trim() || undefined;
+  } catch {
+    return undefined;
   }
 }

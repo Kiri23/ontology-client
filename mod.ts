@@ -7,18 +7,20 @@
 //                                 (generado/api.ts). Es la librería tal cual: .POST, .GET, .use(middleware).
 //   validarProyecto(turtle, o)    POST /proyectos con la ficha, y la respuesta reducida a un Resultado.
 //   jobs.get(filtros?, o?)        GET /jobs: los puestos como JobPost[] (jobs.ts).
+//   jobs.descartar(job, porque)   POST /jobs/descartar y POST /jobs/marcar-aplicado (jobs.marcarAplicado):
+//                                 las acciones sobre un puesto; devuelven el JobPost como queda.
 //
 // Los tipos salen del contrato (contrato/openapi.json, que genera el servidor): nada de acá describe
 // el endpoint a mano. El motor y las reglas son privados; por HTTP sale solo el reporte.
 
 import type { ClientOptions } from "openapi-fetch";
 import type { paths } from "./generado/api.ts";
-import { crearCliente, mensajeDeError, TIMEOUT_MS } from "./cliente.ts";
+import { ErrorServidor, type Forma, pedir } from "./cliente.ts";
 
 export type { components, operations, paths } from "./generado/api.ts";
 export { crearCliente, ErrorServidor, TIMEOUT_MS, URL_PRODUCCION } from "./cliente.ts";
 export * as jobs from "./jobs.ts";
-export type { FiltrosJobs, JobPost, OpcionesJobs, Technology } from "./jobs.ts";
+export type { FiltrosJobs, JobPost, OpcionesAcciones, OpcionesJobs, ReferenciaJob, Technology } from "./jobs.ts";
 
 /** Lo que responde POST /proyectos con 200, tal como lo declara el contrato. */
 export type Validacion = paths["/proyectos"]["post"]["responses"][200]["content"]["application/json"];
@@ -47,53 +49,30 @@ export interface OpcionesValidar {
 
 /** Valida una ficha Turtle contra el servidor. Nunca tira: todo lo que pasa vuelve como {@link Resultado}. */
 export async function validarProyecto(turtle: string, opciones: OpcionesValidar): Promise<Resultado> {
-  // El status de la última respuesta: openapi-fetch tira si un 2xx no es JSON, y ahí el status se pierde.
-  let status: number | null = null;
-  const base = opciones.fetch ?? globalThis.fetch;
-  const timeoutMs = opciones.timeoutMs ?? TIMEOUT_MS;
-  // Un AbortController con su setTimeout, y no AbortSignal.timeout: el timer se limpia al terminar y no
-  // queda vivo en el proceso (ni en los tests).
-  const corte = new AbortController();
-  const reloj = setTimeout(
-    () => corte.abort(new DOMException(`sin respuesta en ${timeoutMs} ms`, "TimeoutError")),
-    timeoutMs,
-  );
-  const cliente = crearCliente({
-    baseUrl: opciones.url,
-    fetch: async (pedido: Request) => {
-      const respuesta = await base(pedido);
-      status = respuesta.status;
-      return respuesta;
-    },
-  });
   try {
-    const { data, error, response } = await cliente.POST("/proyectos", {
-      body: turtle,
-      // openapi-fetch serializa el body a JSON por default: la ficha saldría entre comillas.
-      bodySerializer: (ficha: string) => ficha,
-      headers: { "Content-Type": "text/turtle; charset=utf-8", Authorization: `Bearer ${opciones.token}` },
-      signal: corte.signal,
-    });
-    if (response.ok) {
-      if (typeof data?.conforma === "boolean" && typeof data.reporte === "string") {
-        return { ok: true, conforma: data.conforma, reporte: data.reporte };
-      }
-      return {
-        ok: false,
-        status: response.status,
-        error: "la respuesta no trae {conforma, reporte}: fuera del contrato",
-      };
-    }
-    return { ok: false, status: response.status, error: mensajeDeError(error, response.status) };
+    const data = await pedir(
+      opciones,
+      (cliente, signal) =>
+        cliente.POST("/proyectos", {
+          body: turtle,
+          // openapi-fetch serializa el body a JSON por default: la ficha saldría entre comillas.
+          bodySerializer: (ficha: string) => ficha,
+          headers: { "Content-Type": "text/turtle; charset=utf-8", Authorization: `Bearer ${opciones.token}` },
+          signal,
+        }),
+      ES_VALIDACION,
+    );
+    return { ok: true, conforma: data.conforma, reporte: data.reporte };
   } catch (e) {
-    if (corte.signal.aborted) {
-      return { ok: false, status: null, error: `el servidor no respondió en ${timeoutMs / 1000} s (timeout)` };
-    }
-    if (status !== null) {
-      return { ok: false, status, error: `la respuesta no es JSON: fuera del contrato (${(e as Error).message})` };
-    }
-    return { ok: false, status: null, error: `sin respuesta del servidor: ${(e as Error).message}` };
-  } finally {
-    clearTimeout(reloj);
+    // pedir() solo tira ErrorServidor; sin etiqueta, su mensaje es el error tal cual.
+    if (e instanceof ErrorServidor) return { ok: false, status: e.status, error: e.message };
+    throw e;
   }
 }
+
+const ES_VALIDACION: Forma = {
+  es: (data) =>
+    typeof (data as Partial<Validacion> | undefined)?.conforma === "boolean" &&
+    typeof (data as Partial<Validacion>).reporte === "string",
+  motivo: "no trae {conforma, reporte}",
+};
