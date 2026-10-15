@@ -31,8 +31,9 @@ function motorFalso() {
   return { motor, visto };
 }
 
-// Un Driver que responde `filas` (o tira `error`) y guarda cómo le abrieron la sesión y la transacción.
-function driverFalso(respuesta: { filas?: Fila[]; error?: Error }) {
+// Un Driver que responde `filas` con `cargas` centinelas (default 1: cargada), tira `error`, o no contesta nunca
+// (`colgado`), y guarda cómo le abrieron la sesión y la transacción.
+function driverFalso(respuesta: { filas?: Fila[]; cargas?: number; error?: Error; colgado?: boolean }) {
   const visto: { sesion?: unknown; tx?: unknown; cerrada?: boolean; cypher?: string } = {};
   const driver = {
     session: (config: unknown) => {
@@ -43,8 +44,13 @@ function driverFalso(respuesta: { filas?: Fila[]; error?: Error }) {
           return trabajo({
             run: (cypher: string) => {
               visto.cypher = cypher;
+              if (respuesta.colgado) return new Promise(() => {});
               if (respuesta.error) return Promise.reject(respuesta.error);
-              return Promise.resolve({ records: (respuesta.filas ?? []).map((f) => ({ toObject: () => f })) });
+              const fila: Record<string, unknown> = {
+                cargas: neo4j.int(respuesta.cargas ?? 1),
+                filas: respuesta.filas ?? [],
+              };
+              return Promise.resolve({ records: [{ get: (k: string) => fila[k] }] });
             },
           });
         },
@@ -122,7 +128,7 @@ Deno.test("motorNeo4j: lee en una sesión READ con executeRead, con timeoutMs de
   assertEquals(visto.sesion, { database: "neo4j", defaultAccessMode: neo4j.session.READ });
   assertEquals(visto.tx, { timeout: 1234 });
   assertEquals(visto.cerrada, true);
-  assertEquals(visto.cypher?.includes("MATCH (p:j__JobPost)"), true);
+  assertEquals(visto.cypher?.includes("OPTIONAL MATCH (c:_Carga {completa: true})"), true);
 });
 
 Deno.test("motorNeo4j: sin timeoutMs usa el de HTTP (30 s)", async () => {
@@ -147,4 +153,18 @@ Deno.test("motorNeo4j: un puesto que no calza con JobPost es ErrorServidor (el s
   assertEquals(e.status, null);
   assertEquals(e.message, `neo4j jobs.get: ${PUESTO.link} tiene 2 titulo; la forma JobPost pide uno`);
   assertInstanceOf(e.cause, Error);
+});
+
+Deno.test("motorNeo4j: una vista sin el centinela de carga completa (vacía o cortada) es un error, no una lista vacía", async () => {
+  const { driver, visto } = driverFalso({ cargas: 0, filas: [] });
+  const e = await assertRejects(() => motorNeo4j(driver).jobs.get({}, {}), ErrorServidor);
+  assertEquals(e.status, null);
+  assertEquals(e.message, "neo4j jobs.get: la vista Neo4j no está cargada: deno task neo4j:cargar");
+  assertEquals(visto.cerrada, true);
+});
+
+Deno.test("motorNeo4j: timeoutMs acota la espera entera, aunque el driver no conteste (túnel caído)", async () => {
+  const { driver } = driverFalso({ colgado: true });
+  const e = await assertRejects(() => motorNeo4j(driver).jobs.get({}, { timeoutMs: 50 }), ErrorServidor);
+  assertEquals([e.status, e.message], [null, "neo4j jobs.get: Neo4j no respondió en 0.05 s (timeout)"]);
 });

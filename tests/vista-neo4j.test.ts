@@ -125,3 +125,11 @@ Deno.test("porCodePoint: compara como Python, no por unidades UTF-16", () => {
   assert(porCodePoint(astral, alto) > 0);
   assertEquals(["b", "a", "ab", ""].sort(porCodePoint), ["", "a", "ab", "b"]);
 });
+
+Deno.test("aPuestos: tecnologia filtra antes de armar el puesto, como jobs.rq: uno que no calza y no pide eso no tira", () => {
+  const malo = { ...fila(FIXTURE[0]), titulo: ["uno", "otro"] }; // pide MCP, no Python
+  assertEquals(aPuestos([malo, fila(FIXTURE[1])], { tecnologia: "python" }).map((p) => p.link), [FIXTURE[1].link]);
+  assertThrows(() => aPuestos([malo, fila(FIXTURE[1])], { tecnologia: "mcp" }), PuestoQueNoCalza, "tiene 2 titulo");
+  // fuente filtra después, como jobs_get.py: el puesto malo tira aunque sea de otra fuente.
+  assertThrows(() => aPuestos([malo, fila(FIXTURE[1])], { fuente: "remotive" }), PuestoQueNoCalza, "tiene 2 titulo");
+});

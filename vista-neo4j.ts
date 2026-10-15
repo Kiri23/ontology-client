@@ -9,7 +9,7 @@
 //   fechas      el xsd:dateTime como lo escribe Python (isoformat): 2026-10-13T21:03:57+00:00, con microsegundos
 //               solo si no son cero
 //   orden       fecha desc (el instante), después titulo; texto comparado por code point, como Python
-//   tecnologia  prefLabel o altLabel de algo que pide, sin mayúsculas (LCASE en jobs.rq)
+//   tecnologia  prefLabel o altLabel de algo que pide, sin mayúsculas (LCASE en jobs.rq), antes de armar el puesto
 //   fuente      igual al campo fuente, sin mayúsculas (casefold en jobs_get.py; acá toLowerCase)
 //   forma       un puesto con dos titulos, sin fecha, o una tecnología sin nombre no calza: el servidor
 //               responde 503 y acá tira PuestoQueNoCalza
@@ -41,19 +41,32 @@ export const PREFIJOS: Readonly<Record<string, string>> = {
   prov: "http://www.w3.org/ns/prov#",
 };
 
-/** Cada JobPost con título (jobs.rq pide rdfs:label) y lo que pide. Una fila por puesto; los campos, listas. */
+/**
+ * El nodo que deja scripts/neo4j-cargar.ts al final de una carga completa. La carga lo borra antes que nada, así una
+ * carga que se cortó a la mitad (la fuente se cayó, un import falló) deja la vista sin él, y el motor no la lee.
+ */
+export const CENTINELA = "_Carga";
+
+/**
+ * Una sola fila: `cargas`, cuántos centinelas de carga completa hay (0: la vista está vacía o a medias), y `filas`,
+ * cada JobPost con título (jobs.rq pide rdfs:label) y lo que pide, con los campos como listas. Va todo en una
+ * consulta para que el chequeo del centinela no cueste otro viaje.
+ */
 export const CONSULTA_JOBS = `
-MATCH (p:j__JobPost) WHERE p.rdfs__label IS NOT NULL
+OPTIONAL MATCH (c:${CENTINELA} {completa: true})
+WITH count(c) AS cargas
+OPTIONAL MATCH (p:j__JobPost) WHERE cargas > 0 AND p.rdfs__label IS NOT NULL
 OPTIONAL MATCH (p)-[:j__pide]->(t:Resource)
-WITH p, collect(t { .uri, .skos__prefLabel, .skos__altLabel }) AS pide
-RETURN p.uri AS link, p.rdfs__label AS titulo, p.j__empresa AS empresa, p.dct__source AS fuente,
-       p.prov__generatedAtTime AS fecha, p.j__descartadoEl AS descartadoEl, p.j__porque AS porque,
-       p.j__aplicadoEl AS aplicadoEl, pide`;
+WITH cargas, p, collect(t { .uri, .skos__prefLabel, .skos__altLabel }) AS pide
+RETURN cargas, collect(CASE WHEN p IS NULL THEN null ELSE {
+  link: p.uri, titulo: p.rdfs__label, empresa: p.j__empresa, fuente: p.dct__source,
+  fecha: p.prov__generatedAtTime, descartadoEl: p.j__descartadoEl, porque: p.j__porque,
+  aplicadoEl: p.j__aplicadoEl, pide: pide } END) AS filas`;
 
 /** Un valor de propiedad como lo devuelve el driver con handleMultival ARRAY: una lista, o null si no está. */
 type Valores = readonly unknown[] | null | undefined;
 
-/** Una fila de CONSULTA_JOBS. */
+/** Un puesto de `filas` de CONSULTA_JOBS. */
 export interface Fila {
   link: string;
   titulo: Valores;
@@ -71,13 +84,18 @@ export class PuestoQueNoCalza extends Error {
   override name: string = "PuestoQueNoCalza";
 }
 
-/** Las filas de CONSULTA_JOBS como las devuelve GET /jobs con esos filtros: forma, filtros y orden. */
+/**
+ * Las filas de CONSULTA_JOBS como las devuelve GET /jobs con esos filtros: forma, filtros y orden. Los filtros van
+ * donde los aplica el servidor: tecnologia sobre el dato crudo, antes de armar el puesto (en jobs.rq, antes de
+ * formas.objeto), y fuente sobre el puesto ya armado (jobs_get.py). Así un puesto que no calza tira acá cuando tira
+ * allá: si el filtro tecnologia lo deja afuera, no.
+ */
 export function aPuestos(filas: readonly Fila[], filtros: FiltrosJobs = {}): JobPost[] {
-  const conInstante = filas.map((f) => ({ puesto: puesto(f), instante: instante(uno(f, "fecha", f.fecha)) }));
   const tecnologia = filtros.tecnologia?.toLowerCase();
   const fuente = filtros.fuente?.toLowerCase();
-  return conInstante
-    .filter(({ puesto }) => !tecnologia || puesto.pide.some((t) => nombres(t).includes(tecnologia)))
+  return filas
+    .filter((f) => !tecnologia || pide(f, tecnologia))
+    .map((f) => ({ puesto: puesto(f), instante: instante(uno(f, "fecha", f.fecha)) }))
     .filter(({ puesto }) => !fuente || puesto.fuente.toLowerCase() === fuente)
     .sort((a, b) => compararInstantes(b.instante, a.instante) || porCodePoint(a.puesto.titulo, b.puesto.titulo))
     .map(({ puesto }) => puesto);
@@ -112,9 +130,11 @@ function tecnologia(link: string, t: Fila["pide"][number]): Technology {
   };
 }
 
-// Los nombres de una tecnología sin mayúsculas: lo que el filtro tecnologia compara.
-function nombres(t: Technology): string[] {
-  return [t.nombre, ...t.sinonimos].map((n) => n.toLowerCase());
+// Si la fila pide algo con ese prefLabel o altLabel, sin mayúsculas (LCASE en jobs.rq): el filtro tecnologia.
+function pide(f: Fila, tecnologia: string): boolean {
+  return f.pide.some((t) =>
+    [...(t.skos__prefLabel ?? []), ...(t.skos__altLabel ?? [])].some((n) => texto(n).toLowerCase() === tecnologia)
+  );
 }
 
 function uno(f: Fila, nombre: string, valores: Valores): unknown {

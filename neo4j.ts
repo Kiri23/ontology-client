@@ -32,9 +32,10 @@ export interface OpcionesNeo4j {
  * Un motor que lee los puestos de la vista Neo4j, con la forma y el orden de GET /jobs. Cada lectura va en una
  * transacción de solo lectura (executeRead): una escritura ahí la rechaza el servidor.
  *
- * `jobs.get()` tira {@link ErrorServidor} con `status: null` si Neo4j no responde, rechaza la auth, se pasa de
- * `timeoutMs`, o si un puesto de la vista no calza con JobPost (el servidor, con ese dato, daría 503). El error
- * del driver va en `cause`.
+ * `jobs.get()` tira {@link ErrorServidor} con `status: null` si Neo4j no responde, rechaza la auth, no contesta en
+ * `timeoutMs` (la espera entera, conexión y reintentos del driver incluidos), si la vista no tiene el centinela de
+ * una carga completa (vacía o con una carga cortada a la mitad), o si un puesto no calza con JobPost (el servidor,
+ * con ese dato, daría 503). El error del driver va en `cause`.
  */
 export function motorNeo4j(driver: Driver, opciones: OpcionesNeo4j = {}): Motor {
   return {
@@ -42,7 +43,7 @@ export function motorNeo4j(driver: Driver, opciones: OpcionesNeo4j = {}): Motor 
     jobs: {
       get: async (filtros, { timeoutMs = TIMEOUT_MS } = {}) => {
         try {
-          return aPuestos(await leer(driver, opciones, timeoutMs), filtros);
+          return aPuestos(await conTope(leer(driver, opciones, timeoutMs), timeoutMs), filtros);
         } catch (e) {
           throw new ErrorServidor(null, `neo4j jobs.get: ${(e as Error).message}`, { cause: e });
         }
@@ -51,12 +52,32 @@ export function motorNeo4j(driver: Driver, opciones: OpcionesNeo4j = {}): Motor 
   };
 }
 
+// Las filas de la vista, o un error si no tiene el centinela de una carga completa.
 async function leer(driver: Driver, opciones: OpcionesNeo4j, timeoutMs: number): Promise<Fila[]> {
   const sesion = driver.session({ database: opciones.database, defaultAccessMode: neo4j.session.READ });
   try {
-    const resultado = await sesion.executeRead((tx) => tx.run(CONSULTA_JOBS), { timeout: timeoutMs });
-    return resultado.records.map((r) => r.toObject() as unknown as Fila);
+    const { records } = await sesion.executeRead((tx) => tx.run(CONSULTA_JOBS), { timeout: timeoutMs });
+    if (!(Number(records[0]?.get("cargas")) > 0)) {
+      throw new Error("la vista Neo4j no está cargada: deno task neo4j:cargar");
+    }
+    return records[0].get("filas") as Fila[];
   } finally {
     await sesion.close();
+  }
+}
+
+// La promesa, o un error si no termina en `ms`. El timeout de la transacción no cubre la conexión: con el túnel
+// caído, el driver reintenta 30 s antes de tirar. El timer se limpia al terminar, como en pedir() (cliente.ts); la
+// promesa que pierde la carrera queda con un catch, así su error tardío no es un rechazo sin atender.
+async function conTope<T>(promesa: Promise<T>, ms: number): Promise<T> {
+  let reloj: ReturnType<typeof setTimeout> | undefined;
+  const tope = new Promise<never>((_, rechazar) => {
+    reloj = setTimeout(() => rechazar(new Error(`Neo4j no respondió en ${ms / 1000} s (timeout)`)), ms);
+  });
+  promesa.catch(() => {});
+  try {
+    return await Promise.race([promesa, tope]);
+  } finally {
+    clearTimeout(reloj);
   }
 }
