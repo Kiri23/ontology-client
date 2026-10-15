@@ -31,10 +31,17 @@ export const CONFIG_N10S = {
   applyNeo4jNaming: false,
 } as const;
 
-/** Los prefijos que CONSULTA_JOBS nombra: van antes de importar nada, así no les toca un nsN. */
+/**
+ * Los prefijos de la vista: los que nombra CONSULTA_JOBS (j, t, rdfs, skos, dct, prov) y los del resto de los datos
+ * (k, doap, rdf). Van antes de importar nada, así ningún namespace queda como nsN. Uno nuevo en los datos que no
+ * esté acá sí quedaría nsN: se suma acá.
+ */
 export const PREFIJOS: Readonly<Record<string, string>> = {
   j: "https://kiri23.dev/jobs#",
   t: "https://kiri23.dev/tech#",
+  k: "https://kiri23.dev/catalogo#",
+  doap: "http://usefulinc.com/ns/doap#",
+  rdf: "http://www.w3.org/1999/02/22-rdf-syntax-ns#",
   rdfs: "http://www.w3.org/2000/01/rdf-schema#",
   skos: "http://www.w3.org/2004/02/skos/core#",
   dct: "http://purl.org/dc/terms/",
