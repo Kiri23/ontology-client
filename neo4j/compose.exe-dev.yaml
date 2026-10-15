@@ -9,3 +9,7 @@ services:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
     depends_on: [neo4j]
     mem_limit: 64m
+  neo4j:
+    environment:
+      # neo4j+s:// pide la tabla de routing: que anuncie la IP de la tailnet (sin MagicDNS) y no localhost.
+      NEO4J_server_default__advertised__address: 100.123.48.55
