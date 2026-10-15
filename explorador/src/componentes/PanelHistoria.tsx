@@ -1,19 +1,25 @@
 // Una historia: qué hace (el JSDoc de su función), su firma, los controles, el botón Correr y la respuesta.
 // Una historia que escribe no corre sin token y, con token, pide confirmación antes de tocar producción.
+// El orden en pantalla lo decide el grid de panel.css: en el teléfono, controles y respuesta antes que la documentación.
 import { type FormEvent, useState } from "react";
 import type { DocFuncion } from "../../vite/doc-sdk.ts";
 import type { Historia, Valores } from "../historias/index.ts";
 import { useLlamada } from "../hooks/useLlamada.ts";
 import { useToken } from "../hooks/useToken.ts";
 import { CampoToken } from "./CampoToken.tsx";
+import { Confirmar } from "./Confirmar.tsx";
 import { Controles } from "./Controles.tsx";
 import { Prosa } from "./Prosa.tsx";
 import { Respuesta } from "./Respuesta.tsx";
+import "../estilos/panel.css";
+import "../estilos/ficha.css";
 
 interface Props {
   historia: Historia;
   representa: string;
   doc?: DocFuncion;
+  /** El JSDoc es de una función que corren varias historias (crearCliente): genérico, va plegado. */
+  docGenerico?: boolean;
   valores: Valores;
   cambiar: (nombre: string, valor: string) => void;
   /** La URL base del servidor. */
@@ -32,12 +38,47 @@ function motivoParaNoCorrer(historia: Historia, token: string, valores: Valores)
   return faltan.length ? `Falta ${faltan.join(" y ")}.` : undefined;
 }
 
-export function PanelHistoria({ historia, representa, doc, valores, cambiar, url, fetch }: Props) {
+function Documentacion({ historia, doc, generico }: { historia: Historia; doc?: DocFuncion; generico: boolean }) {
+  if (!doc) return null;
+  const prosa = <Prosa texto={doc.descripcion} soloLee={!historia.escribe} />;
+  return (
+    <section className="panel-doc" aria-label="Documentación">
+      <h2 className="seccion-titulo">Documentación</h2>
+      {doc.descripcion && (generico
+        ? (
+          <details className="doc-generico">
+            <summary>
+              JSDoc de <code>{historia.funcion}</code>
+              <small>Es el de la función entera: sus ejemplos usan otros paths.</small>
+            </summary>
+            {prosa}
+          </details>
+        )
+        : (
+          <>
+            <p className="doc-origen">
+              JSDoc de <code>{historia.funcion}</code>
+            </p>
+            {prosa}
+          </>
+        ))}
+      <figure className="firma">
+        <figcaption>
+          firma · <span>{doc.archivo}</span>
+        </figcaption>
+        <pre>{doc.firma}</pre>
+      </figure>
+    </section>
+  );
+}
+
+export function PanelHistoria(
+  { historia, representa, doc, docGenerico = false, valores, cambiar, url, fetch }: Props,
+) {
   const [token, guardarToken] = useToken(historia.token);
   const { estado, correr, corriendo } = useLlamada(historia, { url, token: token || undefined, fetch });
   const [confirmando, setConfirmando] = useState(false);
   const motivo = motivoParaNoCorrer(historia, token, valores);
-  const host = new URL(url).host;
 
   const enviar = (e: FormEvent) => {
     e.preventDefault();
@@ -58,33 +99,16 @@ export function PanelHistoria({ historia, representa, doc, valores, cambiar, url
           {historia.token && <span className="insignia">pide token de {historia.token}</span>}
           {!historia.escribe && <span className="insignia">solo lee</span>}
         </p>
+        {historia.nota && <p className="nota">{historia.nota}</p>}
       </header>
 
-      <div className="panel-cuerpo">
-        <div className="panel-doc">
-          {historia.nota && <p className="nota">{historia.nota}</p>}
-          {doc?.descripcion && (
-            <>
-              <p className="doc-origen">
-                JSDoc de <code>{historia.funcion}</code>
-              </p>
-              <Prosa texto={doc.descripcion} />
-            </>
-          )}
-          {doc && (
-            <figure className="firma">
-              <figcaption>
-                firma · <span>{doc.archivo}</span>
-              </figcaption>
-              <pre>{doc.firma}</pre>
-            </figure>
-          )}
-        </div>
+      <Documentacion historia={historia} doc={doc} generico={docGenerico} />
 
-        <form className="ficha" onSubmit={enviar} noValidate>
-          <h2 className="seccion-titulo">Controles</h2>
-          <code className="llamada">{historia.llamada}</code>
-          {historia.token && <CampoToken tipo={historia.token} valor={token} guardar={guardarToken} />}
+      <div className="ficha">
+        <h2 className="seccion-titulo">Controles</h2>
+        <code className="llamada">{historia.llamada}</code>
+        {historia.token && <CampoToken tipo={historia.token} valor={token} guardar={guardarToken} />}
+        <form onSubmit={enviar} noValidate>
           <Controles idHistoria={historia.id} controles={historia.controles} valores={valores} cambiar={cambiar} />
           <div className="ficha-pie">
             <button
@@ -98,33 +122,22 @@ export function PanelHistoria({ historia, representa, doc, valores, cambiar, url
             </button>
             {motivo && <p className="motivo" id={`${historia.id}-motivo`}>{motivo}</p>}
           </div>
-          {confirmando && (
-            <div className="confirmar" role="alert">
-              <p className="confirmar-titulo">Esto escribe en producción</p>
-              <p>
-                <code>{historia.llamada}</code> cambia los datos de <strong>{host}</strong>. No se deshace desde acá.
-              </p>
-              <div className="confirmar-botones">
-                <button
-                  type="button"
-                  className="boton-peligro"
-                  onClick={() => {
-                    setConfirmando(false);
-                    correr(valores);
-                  }}
-                >
-                  Sí, escribir
-                </button>
-                <button type="button" className="boton-texto" onClick={() => setConfirmando(false)}>
-                  Cancelar
-                </button>
-              </div>
-            </div>
-          )}
         </form>
+        {confirmando && (
+          <Confirmar
+            historia={historia}
+            valores={valores}
+            host={new URL(url).host}
+            confirmar={() => {
+              setConfirmando(false);
+              correr(valores);
+            }}
+            cancelar={() => setConfirmando(false)}
+          />
+        )}
       </div>
 
-      <Respuesta estado={estado} corriendo={corriendo} />
+      <Respuesta estado={estado} corriendo={corriendo} columnas={historia.columnas} />
     </article>
   );
 }

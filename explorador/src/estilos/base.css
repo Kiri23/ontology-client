@@ -1,0 +1,129 @@
+/* Tokens, el marco de la página y la cabecera. Lo demás vive en un archivo por sección. */
+/* El explorador como un fichero de biblioteca: la barra es el cajón con sus guías por clase, cada historia es una
+   ficha con su renglón rojo, y la respuesta es el recibo de lo que pasó. Papel y tinta, rojo para lo que escribe. */
+
+:root {
+  color-scheme: light dark;
+  --papel: light-dark(oklch(0.963 0.016 83), oklch(0.205 0.012 70));
+  --papel-ficha: light-dark(oklch(0.985 0.009 88), oklch(0.245 0.013 70));
+  --papel-hundido: light-dark(oklch(0.93 0.02 80), oklch(0.17 0.01 70));
+  --tinta: light-dark(oklch(0.26 0.022 58), oklch(0.93 0.014 82));
+  --tinta-suave: light-dark(oklch(0.46 0.022 60), oklch(0.74 0.016 80));
+  --regla: light-dark(oklch(0.84 0.022 76), oklch(0.36 0.012 70));
+  --renglon: light-dark(oklch(0.9 0.025 235), oklch(0.29 0.02 235));
+  --rojo: light-dark(oklch(0.53 0.17 33), oklch(0.72 0.15 36));
+  --rojo-fondo: light-dark(oklch(0.94 0.035 40), oklch(0.29 0.06 33));
+  --verde: light-dark(oklch(0.47 0.1 152), oklch(0.78 0.12 152));
+  --azul: light-dark(oklch(0.47 0.12 258), oklch(0.78 0.09 258));
+  --f-ui: "Schibsted Grotesk Variable", system-ui, sans-serif;
+  --f-prosa: "Literata Variable", Georgia, serif;
+  --f-mono: "Martian Mono Variable", ui-monospace, monospace;
+  --salida: cubic-bezier(0.25, 1, 0.5, 1);
+  --barra: 17rem;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--papel);
+  color: var(--tinta);
+  font: 400 1rem/1.5 var(--f-ui);
+  -webkit-font-smoothing: antialiased;
+}
+
+code,
+pre {
+  font-family: var(--f-mono);
+  font-size: 0.82em;
+}
+
+a {
+  color: inherit;
+}
+
+:focus-visible {
+  outline: 2px solid var(--rojo);
+  outline-offset: 2px;
+}
+
+/* ---- marco ---- */
+
+.marco {
+  display: grid;
+  grid-template-columns: var(--barra) minmax(0, 1fr);
+  grid-template-rows: auto 1fr;
+  min-height: 100dvh;
+}
+
+.cabecera {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.25rem 1.5rem;
+  padding: 0.9rem clamp(1rem, 3vw, 2rem);
+  border-bottom: 1px solid var(--regla);
+}
+
+.marca {
+  margin: 0;
+  display: flex;
+  align-items: baseline;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+}
+
+.marca-paquete {
+  font: 500 0.72rem var(--f-mono);
+  color: var(--tinta-suave);
+}
+
+.marca-app {
+  font: italic 600 1.65rem/1 var(--f-prosa);
+  letter-spacing: -0.02em;
+}
+
+.cabecera-meta {
+  margin: 0;
+  display: flex;
+  gap: 1rem;
+  font-size: 0.85rem;
+  color: var(--tinta-suave);
+}
+
+.cabecera-meta a {
+  text-underline-offset: 3px;
+}
+
+@keyframes entrar {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+}
+
+@media (max-width: 52rem) {
+  .marco {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto auto 1fr;
+  }
+
+  .marca-app {
+    font-size: 1.35rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation: none !important;
+    transition: none !important;
+  }
+}

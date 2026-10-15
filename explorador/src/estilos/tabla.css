@@ -1,0 +1,203 @@
+/* ---- la respuesta como tabla y JSON ---- */
+
+.vistas {
+  display: flex;
+  gap: 1.25rem;
+  margin: 0.9rem 0 0.75rem;
+}
+
+.vistas button {
+  padding: 0.2rem 0;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  background: none;
+  color: var(--tinta-suave);
+  font-weight: 600;
+  font-size: 0.88rem;
+}
+
+.vistas button[aria-selected="true"] {
+  color: var(--tinta);
+  border-bottom-color: var(--rojo);
+}
+
+.tabla-scroll,
+.json {
+  max-height: 72vh;
+  overflow: auto;
+  border: 1px solid var(--regla);
+  border-radius: 3px;
+  background: var(--papel-ficha);
+}
+
+/* Sombras de scroll: un degradado del color del fondo tapa la sombra cuando no hay más contenido de ese lado
+   (background-attachment local), así la sombra solo se ve donde la tabla sigue. */
+.tabla-scroll {
+  background:
+    linear-gradient(to right, var(--papel-ficha) 30%, transparent) left / 2.5rem 100% no-repeat local,
+    linear-gradient(to left, var(--papel-ficha) 30%, transparent) right / 2.5rem 100% no-repeat local,
+    radial-gradient(farthest-side at 0 50%, oklch(0.3 0.03 60 / 0.22), transparent) left / 0.9rem 100% no-repeat scroll,
+    radial-gradient(farthest-side at 100% 50%, oklch(0.3 0.03 60 / 0.22), transparent) right / 0.9rem 100% no-repeat
+    scroll,
+    var(--papel-ficha);
+}
+
+.tabla-pista {
+  margin: 0 0 0.4rem;
+  text-align: right;
+  font-size: 0.78rem;
+  color: var(--tinta-suave);
+}
+
+table {
+  border-collapse: collapse;
+  font-size: 0.82rem;
+  min-width: 100%;
+}
+
+th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  padding: 0.55rem 0.75rem;
+  background: var(--papel-hundido);
+  border-bottom: 1px solid var(--regla);
+  text-align: left;
+  font: 600 0.7rem var(--f-mono);
+  white-space: nowrap;
+}
+
+td {
+  padding: 0.45rem 0.75rem;
+  border-bottom: 1px solid color-mix(in oklch, var(--regla) 55%, transparent);
+  max-width: 18rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  vertical-align: top;
+}
+
+tbody tr:hover td {
+  background: color-mix(in oklch, var(--papel-hundido) 60%, transparent);
+}
+
+td[data-tipo="fecha"] {
+  font-variant-numeric: tabular-nums;
+}
+
+td[data-tipo="numero"],
+.col-n {
+  text-align: right;
+  font-family: var(--f-mono);
+  font-size: 0.76rem;
+}
+
+.col-n {
+  color: var(--tinta-suave);
+  width: 1%;
+}
+
+td[data-tipo="link"] a {
+  font-family: var(--f-mono);
+  font-size: 0.74rem;
+  text-underline-offset: 2px;
+}
+
+.celda-vacia {
+  color: var(--regla);
+}
+
+.etiquetas {
+  display: inline-flex;
+  gap: 0.25rem;
+}
+
+.etiqueta {
+  padding: 0.02rem 0.4rem;
+  border: 1px solid var(--regla);
+  border-radius: 3px;
+  font-size: 0.72rem;
+}
+
+.tabla-pie {
+  margin: 0.5rem 0 0;
+  font-size: 0.8rem;
+  color: var(--tinta-suave);
+}
+
+/* ---- tarjetas: la misma lista en un ancho angosto ---- */
+
+.tarjetas,
+.solo-tarjetas {
+  display: none;
+}
+
+.tarjetas {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  gap: 0.6rem;
+}
+
+.tarjeta {
+  padding: 0.75rem 0.85rem;
+  background: var(--papel-ficha);
+  border: 1px solid var(--regla);
+  border-radius: 3px;
+  font-size: 0.85rem;
+}
+
+.tarjeta-titulo {
+  margin: 0 0 0.45rem;
+  font: 600 0.95rem/1.35 var(--f-ui);
+  overflow-wrap: anywhere;
+}
+
+.tarjeta-n {
+  font: 400 0.72rem var(--f-mono);
+  color: var(--tinta-suave);
+}
+
+.tarjeta dl {
+  display: grid;
+  gap: 0.2rem;
+  margin: 0;
+}
+
+.tarjeta dl > div {
+  display: grid;
+  grid-template-columns: 5.5rem minmax(0, 1fr);
+  gap: 0.5rem;
+}
+
+.tarjeta dt {
+  font: 500 0.7rem/1.6 var(--f-mono);
+  color: var(--tinta-suave);
+}
+
+.tarjeta dd {
+  margin: 0;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.tarjeta .etiquetas {
+  flex-wrap: wrap;
+}
+
+/* La respuesta es un contenedor (recibo.css): en su ancho angosto, tarjetas en vez de tabla. */
+@container recibo (max-width: 40rem) {
+  .tabla-scroll,
+  .tabla-pista {
+    display: none;
+  }
+
+  .tarjetas {
+    display: grid;
+  }
+
+  .solo-tarjetas {
+    display: inline;
+    margin-right: 0.3em;
+  }
+}

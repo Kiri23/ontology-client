@@ -1,0 +1,187 @@
+/* ---- panel de la historia ---- */
+
+.principal {
+  padding: clamp(1.25rem, 3.5vw, 3rem) clamp(1rem, 4vw, 3.5rem) 4rem;
+  min-width: 0;
+}
+
+.aviso {
+  margin: 0 0 1.5rem;
+  padding: 0.6rem 0.9rem;
+  border: 1px dashed var(--regla);
+  font-size: 0.9rem;
+}
+
+/* Un grid con áreas: en el teléfono va primero lo que se usa (controles y respuesta) y la documentación al final; en
+   pantalla ancha, documentación y controles lado a lado y la respuesta abajo, a todo el ancho. */
+.panel {
+  display: grid;
+  /* minmax(0, …): sin esto la pista toma el ancho de la línea más larga de un <pre> y la página se desborda. */
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-areas: "cabecera" "ficha" "respuesta" "doc";
+  gap: 2.25rem 3rem;
+  align-items: start;
+}
+
+.panel-cabecera {
+  grid-area: cabecera;
+}
+
+.panel-doc {
+  grid-area: doc;
+}
+
+.ficha {
+  grid-area: ficha;
+}
+
+.recibo {
+  grid-area: respuesta;
+}
+
+@media (min-width: 72rem) {
+  .panel {
+    grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr);
+    grid-template-areas: "cabecera cabecera" "doc ficha" "respuesta respuesta";
+  }
+}
+
+.panel > * {
+  animation: entrar 520ms var(--salida) both;
+}
+
+.panel > :nth-child(2) {
+  animation-delay: 60ms;
+}
+
+.panel > :nth-child(3) {
+  animation-delay: 120ms;
+}
+
+.miga {
+  margin: 0;
+  font: 500 0.75rem var(--f-mono);
+  color: var(--tinta-suave);
+}
+
+.panel-cabecera h1 {
+  margin: 0.2rem 0 0.6rem;
+  font: 600 clamp(2rem, 1.4rem + 2.6vw, 3.4rem)/1.05 var(--f-prosa);
+  letter-spacing: -0.025em;
+  overflow-wrap: anywhere;
+}
+
+.insignias {
+  margin: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.insignia {
+  padding: 0.12rem 0.55rem;
+  border: 1px solid var(--regla);
+  border-radius: 99px;
+  font-size: 0.75rem;
+  color: var(--tinta-suave);
+}
+
+.insignia-escribe {
+  border-color: var(--rojo);
+  color: var(--rojo);
+  font-weight: 600;
+}
+
+.nota {
+  margin: 1rem 0 0;
+  max-width: 60ch;
+  font: 500 1.15rem/1.45 var(--f-prosa);
+}
+
+.panel-doc .seccion-titulo {
+  margin-bottom: 0.9rem;
+}
+
+.doc-generico summary {
+  cursor: pointer;
+  font-size: 0.82rem;
+  color: var(--tinta-suave);
+  margin-bottom: 0.75rem;
+}
+
+.doc-generico summary small {
+  display: block;
+  margin-top: 0.1rem;
+  font-size: 0.75rem;
+}
+
+.prosa-ejemplo {
+  margin: 0;
+}
+
+.prosa-ejemplo figcaption {
+  margin-bottom: 0.3rem;
+  font: 600 0.7rem var(--f-ui);
+  color: var(--rojo);
+}
+
+.doc-origen {
+  margin: 0 0 0.4rem;
+  font-size: 0.75rem;
+  color: var(--tinta-suave);
+}
+
+.prosa {
+  font: 400 1rem/1.62 var(--f-prosa);
+  max-width: 62ch;
+}
+
+.prosa p {
+  margin: 0 0 0.85rem;
+}
+
+.prosa code {
+  padding: 0.05rem 0.3rem;
+  background: var(--papel-hundido);
+  border-radius: 3px;
+}
+
+.prosa-codigo,
+.firma pre {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.prosa-codigo,
+.firma pre {
+  margin: 0 0 1rem;
+  padding: 0.85rem 1rem;
+  overflow-x: auto;
+  background: var(--papel-hundido);
+  border-radius: 4px;
+  font-size: 0.74rem;
+  line-height: 1.6;
+}
+
+.firma {
+  margin: 1.5rem 0 0;
+}
+
+.firma figcaption {
+  margin-bottom: 0.35rem;
+  font: 600 0.68rem var(--f-ui);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--tinta-suave);
+}
+
+.firma figcaption span {
+  font: 400 0.7rem var(--f-mono);
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.firma pre {
+  border-left: 0;
+  box-shadow: inset 0 0 0 1px var(--regla);
+}

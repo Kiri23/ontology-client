@@ -104,4 +104,48 @@ describe("App", () => {
     expect(screen.getByText("400")).toBeTruthy();
     expect(screen.getByText("ErrorServidor")).toBeTruthy();
   });
+
+  it("la confirmación muestra los valores que se van a mandar", () => {
+    const link = "https://news.ycombinator.com/item?id=1";
+    history.replaceState(null, "", `/explorador/#/jobs.descartar?link=${encodeURIComponent(link)}&porque=pide+Java`);
+    sessionStorage.setItem("ontology-explorador.token.acciones", "secreto");
+    const { fetch, vistos } = fetchFalso(() => json(JOBS[0]));
+    render(<App url={URL_BASE} fetch={fetch} />);
+    fireEvent.click(screen.getByRole("button", { name: "Correr" }));
+    const alerta = screen.getByRole("alert");
+    expect(alerta.textContent).toContain(link);
+    expect(alerta.textContent).toContain("pide Java");
+    expect(alerta.textContent).not.toContain("secreto");
+    expect(vistos).toHaveLength(0);
+  });
+
+  it("el token no está en el form y les dice a los gestores de contraseñas que no lo guarden", () => {
+    history.replaceState(null, "", "/explorador/#/jobs.marcarAplicado");
+    render(<App url={URL_BASE} fetch={fetchFalso(() => json([])).fetch} />);
+    const token = screen.getByLabelText(/token de acciones/) as HTMLInputElement;
+    expect(token.closest("form")).toBeNull();
+    expect(token.getAttribute("autocomplete")).toBe("off");
+    expect(token.hasAttribute("data-1p-ignore")).toBe(true);
+    expect(token.getAttribute("data-lpignore")).toBe("true");
+  });
+
+  it("una historia que solo lee pliega el JSDoc genérico y marca el ejemplo que escribe", () => {
+    history.replaceState(null, "", "/explorador/#/cliente.GET/reportes/demanda");
+    const { container } = render(<App url={URL_BASE} fetch={fetchFalso(() => json([])).fetch} />);
+    const plegado = container.querySelector("details.doc-generico") as HTMLDetailsElement;
+    expect(plegado).toBeTruthy();
+    expect(plegado.open).toBe(false);
+    expect(plegado.textContent).toContain("Este ejemplo escribe en el servidor; esta historia solo lee.");
+  });
+
+  it("la respuesta en lista trae la tabla y las tarjetas, con las columnas preferidas de la historia primero", async () => {
+    history.replaceState(null, "", "/explorador/#/jobs.get");
+    const { fetch } = fetchFalso(() => json(JOBS));
+    render(<App url={URL_BASE} fetch={fetch} />);
+    fireEvent.click(screen.getByRole("button", { name: "Correr" }));
+    await screen.findByRole("table");
+    const cabeceras = screen.getAllByRole("columnheader").map((th) => th.textContent);
+    expect(cabeceras.slice(0, 5)).toEqual(["#", "titulo", "empresa", "fuente", "link"]);
+    expect(screen.getByRole("list", { name: "Respuesta como tarjetas" }).children).toHaveLength(JOBS.length);
+  });
 });

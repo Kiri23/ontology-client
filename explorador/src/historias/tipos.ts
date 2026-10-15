@@ -57,6 +57,8 @@ export interface Historia {
   token?: Token;
   /** Escribe en el servidor: la app pide confirmación antes de correrla. */
   escribe?: boolean;
+  /** Si la respuesta es una tabla, estas columnas van primero (las que existan), en este orden. */
+  columnas?: string[];
   /** Corre `fn` con los valores del formulario. Lo arma {@link historia}: no se escribe a mano. */
   correr(valores: Valores, contexto: Contexto): Promise<unknown>;
 }

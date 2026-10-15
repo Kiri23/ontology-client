@@ -40,6 +40,17 @@ describe("tabla", () => {
     expect(columnas(filas)).toEqual(["titulo", "empresa", "fecha", "link"]);
   });
 
+  it("columnas: las preferidas de la historia van primero, en su orden; las que no existen se ignoran", () => {
+    const filas = [{ link: "https://x.dev/1", empresa: "Close", fecha: "2026-10-13", fuente: "hn", titulo: "Backend" }];
+    expect(columnas(filas, ["titulo", "empresa", "fuente", "link", "no-existe"])).toEqual([
+      "titulo",
+      "empresa",
+      "fuente",
+      "link",
+      "fecha",
+    ]);
+  });
+
   it("una fecha ISO se lee como fecha y guarda el original", () => {
     const c = celda("2026-10-13T21:03:57+00:00");
     expect(c.tipo).toBe("fecha");

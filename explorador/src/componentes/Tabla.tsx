@@ -1,33 +1,70 @@
-// Una lista de objetos como tabla. Muestra las primeras filas: el JSON de al lado tiene todas.
-import { type Celda, celda, columnas, type Fila } from "../logica/tabla.ts";
+// Una lista de objetos como tabla y, en un ancho angosto, como tarjetas (el CSS elige por el ancho del contenedor).
+// Muestra las primeras filas: el JSON de al lado tiene todas.
+import { useLayoutEffect, useRef, useState } from "react";
+import { celda, columnas, type Fila } from "../logica/tabla.ts";
+import { Celda } from "./Celda.tsx";
+import "../estilos/tabla.css";
 
 const TOPE = 100;
+/** Cuántos campos además del título muestra cada tarjeta. */
+const CAMPOS_TARJETA = 4;
 
-function Contenido({ c }: { c: Celda }) {
-  switch (c.tipo) {
-    case "vacia":
-      return <span className="celda-vacia">—</span>;
-    case "link":
-      return <a href={c.href} target="_blank" rel="noreferrer" title={c.href}>{c.texto}</a>;
-    case "fecha":
-      return <time dateTime={c.iso} title={c.iso}>{c.texto}</time>;
-    case "etiquetas":
-      return (
-        <span className="etiquetas">
-          {c.etiquetas.map((e, i) => <span key={i} className="etiqueta">{e}</span>)}
-        </span>
-      );
-    default:
-      return <span title={c.texto.length > 60 ? c.texto : undefined}>{c.texto}</span>;
-  }
+// true si el contenido es más ancho que la caja: la tabla sigue a la derecha.
+function useDesborda<T extends HTMLElement>(dependencia: unknown) {
+  const ref = useRef<T>(null);
+  const [desborda, setDesborda] = useState(false);
+  useLayoutEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const medir = () => setDesborda(el.scrollWidth > el.clientWidth + 1);
+    medir();
+    if (typeof ResizeObserver === "undefined") return;
+    const observador = new ResizeObserver(medir);
+    observador.observe(el);
+    return () => observador.disconnect();
+  }, [dependencia]);
+  return [ref, desborda] as const;
 }
 
-export function Tabla({ filas }: { filas: Fila[] }) {
-  const claves = columnas(filas);
-  const visibles = filas.slice(0, TOPE);
+function Tarjetas({ filas, claves }: { filas: Fila[]; claves: string[] }) {
+  const [titulo, ...resto] = claves;
+  const campos = resto.slice(0, CAMPOS_TARJETA);
   return (
-    <div className="tabla-marco">
-      <div className="tabla-scroll" tabIndex={0} role="region" aria-label="Respuesta como tabla">
+    <ol className="tarjetas" aria-label="Respuesta como tarjetas">
+      {filas.map((fila, i) => (
+        <li key={i} className="tarjeta">
+          <p className="tarjeta-titulo">
+            <span className="tarjeta-n">{i + 1}</span> <Celda c={celda(fila[titulo])} />
+          </p>
+          <dl>
+            {campos.map((k) => (
+              <div key={k}>
+                <dt>{k}</dt>
+                <dd>
+                  <Celda c={celda(fila[k])} />
+                </dd>
+              </div>
+            ))}
+          </dl>
+        </li>
+      ))}
+    </ol>
+  );
+}
+
+export function Tabla({ filas, preferidas }: { filas: Fila[]; preferidas?: string[] }) {
+  const claves = columnas(filas, preferidas);
+  const visibles = filas.slice(0, TOPE);
+  const [ref, desborda] = useDesborda<HTMLDivElement>(filas);
+  const enTarjeta = Math.min(claves.length, CAMPOS_TARJETA + 1);
+  return (
+    <div className="tabla-marco" data-desborda={desborda}>
+      {desborda && (
+        <p className="tabla-pista" aria-hidden="true">
+          {claves.length} columnas: la tabla sigue a la derecha →
+        </p>
+      )}
+      <div ref={ref} className="tabla-scroll" tabIndex={0} role="region" aria-label="Respuesta como tabla">
         <table>
           <thead>
             <tr>
@@ -43,7 +80,7 @@ export function Tabla({ filas }: { filas: Fila[] }) {
                   const c = celda(fila[k]);
                   return (
                     <td key={k} data-tipo={c.tipo}>
-                      <Contenido c={c} />
+                      <Celda c={c} />
                     </td>
                   );
                 })}
@@ -52,9 +89,14 @@ export function Tabla({ filas }: { filas: Fila[] }) {
           </tbody>
         </table>
       </div>
-      {filas.length > TOPE && (
-        <p className="tabla-pie">Las primeras {TOPE} de {filas.length}. El JSON las tiene todas.</p>
-      )}
+      <Tarjetas filas={visibles} claves={claves} />
+      <p className="tabla-pie">
+        {filas.length > TOPE ? `Las primeras ${TOPE} de ${filas.length}. ` : ""}
+        {enTarjeta < claves.length && (
+          <span className="solo-tarjetas">Cada tarjeta muestra {enTarjeta} de {claves.length} campos.</span>
+        )}
+        El JSON trae todo.
+      </p>
     </div>
   );
 }

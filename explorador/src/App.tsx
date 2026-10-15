@@ -49,6 +49,7 @@ export function App({ url = globalThis.location.origin, fetch }: Props) {
           historia={historia}
           representa={clase.representa}
           doc={doc[historia.funcion]}
+          docGenerico={clase.historias.filter((h) => h.funcion === historia.funcion).length > 1}
           valores={valores}
           cambiar={cambiar}
           url={url}

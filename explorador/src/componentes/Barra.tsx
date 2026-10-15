@@ -3,6 +3,7 @@
 import { useState } from "react";
 import type { Clase, Historia } from "../historias/index.ts";
 import { escribirRuta } from "../logica/ruta.ts";
+import "../estilos/barra.css";
 
 interface Props {
   clases: Clase[];

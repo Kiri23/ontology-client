@@ -5,6 +5,7 @@ import type { Estado, Pedido } from "../hooks/useLlamada.ts";
 import { esListaDeObjetos } from "../logica/tabla.ts";
 import { Json } from "./Json.tsx";
 import { Tabla } from "./Tabla.tsx";
+import "../estilos/recibo.css";
 
 const tono = (status: number | null | undefined) =>
   status === undefined ? "neutro" : status === null || status >= 400 ? "mal" : "bien";
@@ -28,7 +29,7 @@ function Cabecera({ status, ms, pedido, extra }: {
   );
 }
 
-function Datos({ datos }: { datos: unknown }) {
+function Datos({ datos, columnas }: { datos: unknown; columnas?: string[] }) {
   const lista = esListaDeObjetos(datos);
   const [vista, setVista] = useState<"tabla" | "json">("tabla");
   if (!lista) return <Json datos={datos} />;
@@ -47,21 +48,30 @@ function Datos({ datos }: { datos: unknown }) {
           </button>
         ))}
       </div>
-      {vista === "tabla" ? <Tabla filas={datos} /> : <Json datos={datos} />}
+      {vista === "tabla" ? <Tabla filas={datos} preferidas={columnas} /> : <Json datos={datos} />}
     </>
   );
 }
 
-export function Respuesta({ estado, corriendo }: { estado: Estado; corriendo: boolean }) {
+interface Props {
+  estado: Estado;
+  corriendo: boolean;
+  /** Las columnas que la historia pone primero en la tabla. */
+  columnas?: string[];
+}
+
+export function Respuesta({ estado, corriendo, columnas }: Props) {
   return (
     <section className="recibo" aria-live="polite" aria-busy={corriendo} data-corriendo={corriendo}>
       <h2 className="seccion-titulo">Respuesta</h2>
       {estado.fase === "quieto" && (
-        <p className="recibo-vacio">
-          {corriendo
-            ? "Corriendo…"
-            : "Todavía no corrió. Llená los controles y apretá Correr: acá sale el status, el tiempo y lo que devolvió la función."}
-        </p>
+        <div className="recibo-vacio">
+          <p>
+            {corriendo
+              ? "Corriendo…"
+              : "Todavía no corrió. Llená los controles y apretá Correr: acá sale el status, el tiempo y lo que devolvió la función."}
+          </p>
+        </div>
       )}
       {estado.fase === "ok" && (
         <>
@@ -71,7 +81,7 @@ export function Respuesta({ estado, corriendo }: { estado: Estado; corriendo: bo
             pedido={estado.pedido}
             extra={Array.isArray(estado.datos) ? `${estado.datos.length} elementos` : undefined}
           />
-          <Datos datos={estado.datos} />
+          <Datos datos={estado.datos} columnas={columnas} />
         </>
       )}
       {estado.fase === "error" && (

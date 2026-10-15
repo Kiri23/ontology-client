@@ -22,18 +22,22 @@ const TITULOS = new Set(["titulo", "nombre", "puesto", "title", "name"]);
 const esUrl = (v: unknown) => typeof v === "string" && /^https?:\/\/\S+$/.test(v);
 
 /**
- * Las claves de las filas, en el orden en que se leen: primero lo que nombra la fila (titulo, nombre), después el resto
- * como aparece, y al final las que son links (largas y poco legibles). Mira las primeras `muestra` filas.
+ * Las claves de las filas, en el orden en que se leen. Primero las `preferidas` que existan (la historia sabe qué
+ * importa: título, empresa, fuente, link). Después lo que nombra la fila (titulo, nombre), el resto como aparece, y al
+ * final las que son links (largas y poco legibles). Mira las primeras `muestra` filas.
  */
-export function columnas(filas: Fila[], muestra = 50): string[] {
+export function columnas(filas: Fila[], preferidas: string[] = [], muestra = 50): string[] {
   const vistas = new Set<string>();
   for (const fila of filas.slice(0, muestra)) for (const clave of Object.keys(fila)) vistas.add(clave);
+  const primero = preferidas.filter((c) => vistas.has(c));
   const peso = (clave: string) => {
     if (TITULOS.has(clave)) return 0;
     const ejemplo = filas.slice(0, muestra).find((f) => f[clave] !== undefined && f[clave] !== "")?.[clave];
     return esUrl(ejemplo) ? 2 : 1;
   };
-  return [...vistas].sort((a, b) => peso(a) - peso(b)); // sort es estable: dentro de cada peso, el orden de aparición
+  // sort es estable: dentro de cada peso queda el orden de aparición.
+  const resto = [...vistas].filter((c) => !primero.includes(c)).sort((a, b) => peso(a) - peso(b));
+  return [...primero, ...resto];
 }
 
 const ISO = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/;

@@ -21,6 +21,7 @@ export const JOBS: Clase = {
       funcion: "jobs.get",
       nombre: "get",
       llamada: "jobs.get({ tecnologia, fuente })",
+      columnas: ["titulo", "empresa", "fuente", "link", "pide", "fecha"],
       controles: [
         {
           nombre: "tecnologia",

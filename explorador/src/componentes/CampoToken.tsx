@@ -1,10 +1,20 @@
-// El token de una historia que lo pide. Tipo password, sin autocompletar, y guardado solo en sessionStorage.
+// El token de una historia que lo pide, guardado solo en sessionStorage. Que no termine en el gestor de contraseñas:
+//
+// - Va fuera del <form> de los controles (PanelHistoria): los navegadores ofrecen guardar un password al enviar el
+//   form que lo contiene.
+// - Donde el navegador enmascara un campo de texto (-webkit-text-security: Chrome, Edge, Safari) es type="text" con
+//   máscara: los gestores solo miran los type="password", y Chrome ignora autocomplete="off" en esos. Donde no (algún
+//   Firefox), queda type="password" y lo de arriba más autocomplete="off".
+// - data-1p-ignore, data-lpignore, data-bwignore y data-form-type: la forma de 1Password, LastPass, Bitwarden y Dashlane
+//   de decir "este campo no".
 import type { Token } from "../historias/index.ts";
 
 const SECRET: Record<Token, string> = {
   acciones: "ONTOLOGY_ACCIONES_TOKEN",
   proyectos: "ONTOLOGY_PROYECTOS_TOKEN",
 };
+
+const MASCARA = typeof CSS !== "undefined" && !!CSS.supports?.("-webkit-text-security", "disc");
 
 interface Props {
   tipo: Token;
@@ -23,10 +33,17 @@ export function CampoToken({ tipo, valor, guardar }: Props) {
       <div className="token-fila">
         <input
           id={id}
-          type="password"
+          type={MASCARA ? "text" : "password"}
+          className={MASCARA ? "token-mascara" : undefined}
           value={valor}
           autoComplete="off"
+          autoCapitalize="off"
+          autoCorrect="off"
           spellCheck={false}
+          data-1p-ignore=""
+          data-lpignore="true"
+          data-bwignore="true"
+          data-form-type="other"
           placeholder="pegalo acá"
           onChange={(e) => guardar(e.target.value.trim())}
         />
@@ -34,7 +51,7 @@ export function CampoToken({ tipo, valor, guardar }: Props) {
       </div>
       <p className="control-ayuda">
         Vive en el sessionStorage de esta pestaña y sale solo en el header Authorization del pedido. Al cerrar la
-        pestaña se va.
+        pestaña se va. La página no le ofrece al navegador guardarlo.
       </p>
     </div>
   );
