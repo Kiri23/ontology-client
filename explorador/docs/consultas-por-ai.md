@@ -5,28 +5,51 @@ produjo.
 
 ## Decisión
 
-1. **Primero: API externa detrás de un proxy en el mismo origen.** `POST /ai/sparql` en ontology-web llama a los
-   Inference Providers de Hugging Face (`https://router.huggingface.co/v1/chat/completions`, API compatible con OpenAI)
-   con `google/gemma-4-26B-A4B-it`. La key ya existe: `HUGGING_FACE` en Doppler, proyecto `global`, config `dev`, con
-   scope `inference.serverless.write` (verificado el 2026-10-16 con `/api/whoami-v2`). Queda en el servidor, con rate
-   limit por IP. OpenRouter era la primera opción antes de saber que esa key existía; cuesta lo mismo y queda como
-   alternativa.
-2. **Por qué 26B-A4B y no 31B:** cuesta un tercio ($0.0765 / $0.255 por 1M contra $0.20 / $0.40) y en código queda cerca
-   (LiveCodeBench 77.1 % contra 80.0 %).
-3. **Costo:** ~$0.00027 por consulta (2 500 tokens de entrada y 300 de salida). Unas 3 700 consultas por dólar.
-4. **La CSP no cambia:** `connect-src 'self'` alcanza, porque el navegador solo le habla a `/ai/sparql`.
-5. **La AI propone y el validador decide.** Corre en el navegador antes de `/sparql`, y otra vez en el proxy. Usa
-   `sparqljs` y la lista de IRIs que da el propio endpoint (8 clases, 21 propiedades).
-6. **Few-shot obligatorio:** los 4 `.rq` de `consultas/` más el esquema RDFS del grafo. Son ~2 250 tokens, medidos con
-   el tokenizer de Gemma 4.
-7. **Después:** E2B en el navegador por WebGPU, como botón opcional (2.0 GB de descarga). En el Pixel 10 de Christian el
-   WebGPU de PowerVR todavía falla. Además abre la CSP.
-8. **No:** Gemma en vps2 por CPU. Tiene 2 vCPU y 7.9 GB, y ya se colgó por RAM una vez. Solo entra E2B, a 10–20 tok/s
-   estimados.
-9. **PR aparte, no el del explorador-grafo.** El endpoint vive en ontologyLearning y la función del SDK más su historia,
-   en ontology-client. El validador puede ir antes, solo si el PR del grafo ya trae un editor SPARQL libre.
-10. **Necesita a Christian:** la key de OpenRouter con su límite de gasto, y comprar créditos. Más abajo hay una
-    alternativa gratis con AI Studio.
+Reescrita el 2026-10-16 después de verificar la vía gratis: `gemma-en-el-navegador.md` tiene la
+prueba.`de`explorador/docs/consultas-por-ai.md`:
+
+## Decisión
+
+1. **Primero: Gemma 4 E2B en el navegador, por WebGPU, con Transformers.js, como ya lo hizo Christian en
+   DocsifyTemplate** (`packages/chat/core/worker.js`:
+   `Gemma4ForConditionalGeneration.from_pretrained(
+   'onnx-community/gemma-4-E2B-it-ONNX', { dtype: 'q4f16', device: 'webgpu' })`
+   en un Worker de módulo). Cuesta $0 y no tiene key: el modelo baja de Hugging Face al navegador y queda en la Cache
+   API. Cambios respecto a lo de Docsify: fijar `@huggingface/transformers@4.3.1` (allá es `@4` sin fijar), usar
+   `Gemma4ForCausalLM` (texto solo: baja 3.1 GB en vez de 3.4) y empaquetar la lib y el wasm de onnxruntime con Vite en
+   vez de jsdelivr.
+2. **Es un botón opcional con aviso de tamaño, no el default.** La primera visita baja 3.1 GB (decoder 1 520 MB +
+   embed_tokens 1 591 MB + tokenizer 19 MB, `api/models/…/tree/main`), después lee del disco. Solo con WebGPU: si
+   `navigator.gpu.requestAdapter()` da null, el botón no aparece. **No hay fallback a WASM**: con `q4` son 3.6 GB que
+   onnxruntime-web copia al heap de wasm32 (tope 4 GB); en una máquina de 8 GB el proceso llegó a 7.4 GB y se colgó
+   (verificación 2026-10-16, chromium-box).
+3. **La CSP se abre así y nada más:** `connect-src 'self' https://huggingface.co https://*.hf.co` (los pesos redirigen a
+   `us.aws.cdn.hf.co`), `script-src 'self' 'wasm-unsafe-eval' blob:`, `worker-src 'self' blob:`. El `.wasm` de
+   onnxruntime se sirve desde el propio origen (`env.backends.onnx.wasm.wasmPaths`), para no sumar jsdelivr. Alternativa
+   que no abre nada: servir los pesos desde `/explorador/modelos/` (3.1 GB en vps2).
+4. **La AI propone y el validador decide.** Corre en el navegador antes de `/sparql`. El PR del grafo ya trae Traqula
+   (`@traqula/parser-sparql-1-1` 1.4.0 en `explorador/package.json`): el validador parsea con eso (o con `sparqljs`
+   3.7.4, el que probé) y compara predicados, clases y grafos con la lista que da el endpoint. Rechaza update, SERVICE,
+   FROM, IRIs desconocidos, cartesianos y sin LIMIT; detalle en la sección Validador.
+5. **Few-shot obligatorio:** el esquema RDFS sacado del grafo más 3 consultas de ejemplo (~1 500 tokens; el prompt
+   completo ~2 500). Medido con los mismos pesos por CPU: zero-shot 0/1 válida; few-shot con ~2 100 tokens de prompt
+   tarda ~90 s por CPU (la GPU lo baja a segundos). Build2SPARQL da E4B 60.9 % con 3 ejemplos; E2B queda por debajo, y
+   por eso el validador es la guarda, no el modelo.
+6. **Pendiente de Christian, y es lo único que frena:** medir WebGPU en el Pixel 10 Pro XL (`chrome://gpu` o
+   <https://webgpureport.org>): PowerVR tiene fallas conocidas (PlayCanvas #8874). Si falla en el teléfono, el camino
+   gratis solo sirve en escritorio, y eso es aceptable para un botón opcional.
+7. **Si algún día quisiera pagar: API externa detrás de un proxy en el mismo origen.** `POST /ai/sparql` en
+   ontologyLearning llamando a los Inference Providers de HF (`router.huggingface.co/v1/chat/completions`,
+   `google/gemma-4-26B-A4B-it`; la key `HUGGING_FACE` ya existe en Doppler pero hoy contesta
+   `402 You have no remaining credits`) u OpenRouter al mismo precio. ~$0.00027 por consulta, no toca la CSP, responde
+   en segundos y usa un modelo mejor (LiveCodeBench 77 % contra 44 % de E2B). Es alternativa, no plan.
+8. **No:** Gemma en vps2 por CPU (2 vCPU, 7.9 GB, ya se colgó por RAM). Tampoco Node con Transformers.js en Termux:
+   `onnxruntime-node` no tiene binario para android/arm64 (verificado con `npm i … --force`).
+9. **PR aparte, no el del explorador-grafo:** la historia "Indagar con AI" del explorador (Worker, botón, aviso de
+   descarga, validador) y la CSP del Caddyfile. El validador puede ir antes, en cuanto haya un editor SPARQL libre.
+10. **Qué cambia respecto a la versión anterior de este doc:** el orden. Antes iba primero el proxy pago y el navegador
+    quedaba "para después"; Christian no paga y ya tiene el camino gratis hecho en DocsifyTemplate. Lo que sigue igual:
+    el validador, el few-shot y el no a vps2.
 
 ## Qué existe hoy (inventario)
 
@@ -352,15 +375,9 @@ Por qué este orden:
 
 ## Necesita a Christian
 
-- **Créditos de inferencia en Hugging Face.** La key `HUGGING_FACE` funciona, pero el router contestó
-  `402 You have no remaining credits` el 2026-10-16. Hacen falta créditos pre-pagos o PRO en
-  <https://huggingface.co/settings/billing>. Verificación, sin ver la key:
-  `doppler run -p global -c dev --enable-dns-resolver -- sh -c 'curl -s https://router.huggingface.co/v1/chat/completions -H "Authorization: Bearer $HUGGING_FACE" -H "Content-Type: application/json" -d "{\"model\":\"google/gemma-4-26B-A4B-it\",\"max_tokens\":60,\"messages\":[{\"role\":\"user\",\"content\":\"hola\"}]}"'`
-- **O, si prefiere $0:** crear una key de Gemini API en AI Studio y mirar los límites de Gemma 4 en
-  `aistudio.google.com/usage`. Las preguntas van a quedar como "Unpaid Service".
-- **Decidir si un endpoint público puede gastar plata**, aunque sea con tope.
-- **Para el nivel 2:** medir WebGPU en el Pixel (`chrome://gpu` o <https://webgpureport.org>, o prender la depuración
-  inalámbrica para `kiri-ojos`) y aprobar la apertura de la CSP.
+- **Medir WebGPU en el Pixel 10 Pro XL:** abrir `chrome://gpu` o <https://webgpureport.org> y ver si hay adaptador. Es
+  lo único que frena la vía gratis en el teléfono; en escritorio ya corre.
+- **Nada que pagar.** Los créditos de HF y la key de OpenRouter quedan solo para la alternativa del punto 7.
 
 ## Fuentes
 
