@@ -67,12 +67,14 @@ MB comprimido) ni el chunk de la vista (~260 kB comprimido).
 - **Mapa** (`#/grafo/mapa?clase=k:Action`): las instancias como nodos (235; los literales son atributos, `rdf:type` es
   el color y la forma, el esquema no se dibuja). La leyenda cuenta por clase y resalta una. Se ven dos islas que no se
   tocan, los puestos y los repos, más los nodos sueltos.
-- **Indagar** (`#/grafo/nodo?iri=…&saltos=…&foco=…`): la ficha de un nodo con sus relaciones agrupadas por predicado, en
-  las dos direcciones. Tocar una relación agrega esos vecinos al lienzo sin mover los que ya estaban. El SPARQL del
-  camino (un CONSTRUCT) se arma solo, con Copiar y Abrir en consulta libre. Los saltos van en la URL.
+- **Indagar** (`#/grafo/nodo?iri=…&saltos=…&foco=…`; la barra vuelve al último abierto): la ficha de un nodo con sus
+  relaciones agrupadas por predicado, en las dos direcciones. Tocar una relación agrega esos vecinos al lienzo sin mover
+  los que ya estaban. El SPARQL del camino (un CONSTRUCT) se arma solo, con Copiar y Abrir en consulta libre. Los saltos
+  van en la URL.
 - **Consultas prearmadas** (`#/grafo/huecos`…): corren al abrir, muestran la tabla y resaltan sus nodos.
 - **Consulta libre** (`#/grafo/consulta?sparql=…`): SELECT y ASK dan tabla o sí/no; CONSTRUCT se dibuja. Un link con
-  `?sparql=` abre ya corrida.
+  `?sparql=` solo llena el editor: corre al tocar Correr (una consulta cara congelaría la pestaña al abrir el link, y de
+  nuevo al recargar).
 
 **Agregar una consulta prearmada:** un objeto más en `PREARMADAS` (`src/grafo/logica/consultas.ts`) con `id` (va en la
 URL), `nombre`, `pregunta` (una línea) y `sparql` (sin los PREFIX: `declaraciones()` agrega los que use). La barra la
@@ -82,10 +84,11 @@ filas; si sabés cuántas, sumá un test con el número.
 **El validador** (`src/grafo/logica/validador.ts`) corre antes de cada consulta libre. Parsea con Traqula 1.4.0 (el
 sucesor de sparqljs, que está deprecado) y mira el álgebra. Rechaza lo que no parsea (un prefijo sin declarar dice qué
 línea falta), lo que cambia datos (INSERT, DELETE, LOAD…), lo que no es SELECT, ASK o CONSTRUCT, `SERVICE` y `FROM`, y
-las clases (objetos de `rdf:type`) y propiedades que el grafo no tiene, con la más parecida: "La clase k:Accion no
-existe en el grafo; parecida: k:Action.". Las conocidas salen del Store (usadas y declaradas en el esquema). La
-plantilla de un CONSTRUCT puede inventar predicados; el WHERE no. Es la costura donde va a entrar la AI
-(`docs/consultas-por-ai.md`): lo que proponga un modelo pasa por acá antes de correr.
+lo caro (`costo.ts`: patrones sin variables en común, que son un producto cartesiano, y un `?s ?p ?o` suelto), y las
+clases (objetos de `rdf:type`) y propiedades que el grafo no tiene, con la más parecida: "La clase k:Accion no existe en
+el grafo; parecida: k:Action.". Las conocidas salen del Store (usadas y declaradas en el esquema). La plantilla de un
+CONSTRUCT puede inventar predicados; el WHERE no. Es la costura donde va a entrar la AI (`docs/consultas-por-ai.md`): lo
+que proponga un modelo pasa por acá antes de correr.
 
 **La CSP** suma `script-src 'self' 'wasm-unsafe-eval'`: sin eso el navegador no compila el WASM de oxigraph
 (`WebAssembly.instantiateStreaming` cae por `default-src 'self'`). `'wasm-unsafe-eval'` habilita solo WebAssembly, no
@@ -134,7 +137,7 @@ Caddyfile pone una CSP que solo deja correr el JS propio y hablar con el mismo o
 
 - En un PR: construye la etapa de node, corre `npm test` adentro, construye la imagen final y le pasa
   `scripts/humo-imagen` (que levanta la imagen y revisa el redirect de `/explorador`, el index, cada asset y fuente, la
-  CSP, el cache y que no corra como root).
+  CSP con `'wasm-unsafe-eval'`, el wasm del Grafo como `application/wasm`, el cache y que no corra como root).
 - En `main`: además publica `ghcr.io/kiri23/ontology-explorador` y la levanta en vps2 con `compose.prod.yaml`, detrás de
   kiri-edge. Las labels `caddy.reverse_proxy_0: "/explorador …"` y `_1: "/explorador/* …"` se suman al sitio
   `ontology.kiri231.com` que arman ontology-web y ontology-grlc; el comentario de `compose.prod.yaml` explica por qué no
