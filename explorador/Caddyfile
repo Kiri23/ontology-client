@@ -26,5 +26,25 @@
 	header /explorador/assets/* Cache-Control "public, max-age=31536000, immutable"
 	header /explorador/ Cache-Control "no-cache"
 
+	# Preview de un PR (.github/workflows/preview.yml): el contenedor corre solo en una VM, sin kiri-edge ni la API al
+	# lado. Con API_UPSTREAM, la raíz lleva al explorador y los GET de la API (lo que el SDK pide por el mismo origen)
+	# van al servidor real. Solo GET: una acción corrida desde un preview no escribe en producción. Sin la variable
+	# (producción, humo-imagen) nada de esto matchea: / y /jobs dan 404 como siempre.
+	@preview-raiz {
+		expression `{env.API_UPSTREAM} != ""`
+		path /
+	}
+	redir @preview-raiz /explorador/ 308
+	@preview-api {
+		expression `{env.API_UPSTREAM} != ""`
+		method GET
+		path /sparql /sparql/* /jobs /jobs/* /proyectos /preguntar /reportes/* /openapi.json
+	}
+	handle @preview-api {
+		reverse_proxy {$API_UPSTREAM} {
+			header_up Host {upstream_hostport}
+		}
+	}
+
 	file_server
 }

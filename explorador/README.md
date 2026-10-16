@@ -133,6 +133,15 @@ la URL, en el bundle ni en un log. El campo va fuera del `<form>` y, donde el na
 en vez de `type="password"`, para que el gestor de contraseñas no ofrezca guardarlo (detalle en `CampoToken.tsx`). El
 Caddyfile pone una CSP que solo deja correr el JS propio y hablar con el mismo origen.
 
+## Preview de un PR
+
+Cada PR tiene su preview en una VM desechable de exe.dev: `https://pr-ontology-client-<n>.exe.xyz/` (privada, pide login
+de exe.dev). Lo arma `.github/workflows/preview.yml` con el reusable de Kiri23/kiriInfra: construye esta imagen, la
+manda por ssh a la VM y deja un comentario en el PR con la URL y el commit; cerrar el PR borra la VM. La imagen corre
+con `API_UPSTREAM=https://ontology.kiri231.com`: el Caddyfile manda los GET de la API y de `/sparql` al servidor real y
+la raíz redirige a `/explorador/`. Solo GET: una acción corrida desde el preview no escribe en producción. En producción
+la variable no existe y ese bloque no matchea.
+
 ## Deploy
 
 `.github/workflows/deploy.yml`, con la receta de Kiri23/ontologyLearning:
