@@ -38,7 +38,8 @@ function motivoParaNoCorrer(historia: Historia, token: string, valores: Valores)
   return faltan.length ? `Falta ${faltan.join(" y ")}.` : undefined;
 }
 
-// En pantalla ancha arranca abierta, al lado de los controles; en el teléfono va plegada al final, a un toque.
+// En pantalla ancha arrancan abiertas (la documentación, al lado de los controles, y la ayuda del token); en el
+// teléfono van plegadas, a un toque.
 const docAbierta = () => globalThis.matchMedia?.("(min-width: 72rem)").matches ?? true;
 
 function Documentacion({ historia, doc, generico }: { historia: Historia; doc?: DocFuncion; generico: boolean }) {
@@ -108,7 +109,9 @@ export function PanelHistoria(
       <div className="ficha">
         <h2 className="seccion-titulo">Controles</h2>
         <code className="llamada">{historia.llamada}</code>
-        {historia.token && <CampoToken tipo={historia.token} valor={token} guardar={guardarToken} />}
+        {historia.token && (
+          <CampoToken tipo={historia.token} valor={token} guardar={guardarToken} ayudaAbierta={docAbierta()} />
+        )}
         <form onSubmit={enviar} noValidate>
           <Controles idHistoria={historia.id} controles={historia.controles} valores={valores} cambiar={cambiar} />
           <div className="ficha-pie">

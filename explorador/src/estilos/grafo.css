@@ -334,10 +334,12 @@
   font-weight: 650;
 }
 
+/* pre-wrap: una IRI larga se parte en vez de quedar cortada contra el borde sin aviso. */
 .sparql pre {
   margin: 0 0 0.6rem;
   padding: 0.85rem 1rem;
-  overflow-x: auto;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
   background: var(--papel-hundido);
   border-radius: 3px;
   font-size: 0.74rem;
