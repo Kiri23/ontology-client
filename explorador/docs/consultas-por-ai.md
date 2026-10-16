@@ -1,5 +1,7 @@
 # Consultas SPARQL por AI en el explorador: qué Gemma 4, dónde y con qué validador
 
+Superado el 2026-10-16: el explorador usa Gemma 3 270M; ver modelo-chico-para-el-pixel.md.
+
 Investigación R2, 2026-10-16. Sin código: solo la decisión y sus fuentes. Cada número trae el comando o la URL que lo
 produjo.
 

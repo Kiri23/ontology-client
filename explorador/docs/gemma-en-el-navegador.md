@@ -1,5 +1,7 @@
 # Explorador: Gemma 4 E2B gratis en el navegador, como en DocsifyTemplate — verificación
 
+Superado el 2026-10-16: el explorador usa Gemma 3 270M; ver modelo-chico-para-el-pixel.md.
+
 Verificación del 2026-10-16, agente de sesión (no toqué `~/wt/ontology-client-grafo`). Cada afirmación lleva el comando
 que la produjo. Scratch: `$TMPDIR/claude-10417/.../scratchpad/prueba/` (pagina.js, worker.js, correr.mjs, nodo-vm.mjs,
 fewshot.json) y `.../scratchpad/validador/validar.mjs`.

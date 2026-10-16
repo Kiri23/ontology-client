@@ -100,27 +100,28 @@ bloquea: `Lienzo.tsx` ocupa antes su id con un `<meta>` y su única regla (`posi
 ## Indagar con AI
 
 En la consulta libre (`#/grafo/consulta`), **Preguntar con AI** escribe el SPARQL a partir de una pregunta en
-castellano. El modelo es Gemma 4 E2B (`onnx-community/gemma-4-E2B-it-ONNX`, `q4f16` o `q4` sin f16, texto solo con
-`Gemma4ForCausalLM`) y corre en el dispositivo, por WebGPU, con Transformers.js 4.3.1 dentro de un worker
-(`src/grafo/ai/worker.ts`). Cuesta $0, no hay key y no hay servidor. Es la receta de DocsifyTemplate; la decisión y sus
-mediciones están en `docs/consultas-por-ai.md` y `docs/gemma-en-el-navegador.md`.
+castellano. El modelo es Gemma 3 270M (`onnx-community/gemma-3-270m-it-ONNX`, `q4f16` o `q4` sin f16, texto solo con
+`Gemma3ForCausalLM` y `AutoTokenizer`) y corre en el dispositivo, por WebGPU, con Transformers.js 4.3.1 dentro de un
+worker (`src/grafo/ai/worker.ts`). Cuesta $0, no hay key y no hay servidor. Es el Gemma más chico: Gemma 4 E2B (3,6 GB)
+no entra en la GPU del Pixel 10 ([docs/modelo-chico-para-el-pixel.md](docs/modelo-chico-para-el-pixel.md)). Cómo se
+llegó, con E2B y la receta de DocsifyTemplate: `docs/consultas-por-ai.md` y `docs/gemma-en-el-navegador.md`.
 
-- **Qué baja:** 3,1 GB la primera vez con f16 (decoder 1 520 MB, embed_tokens 1 591 MB y tokenizer 19 MB), 3,6 sin f16
-  (`q4`: decoder 1 864 MB, embed_tokens 1 763 MB), desde Hugging Face. Quedan en la Cache API del navegador
+- **Qué baja:** 293 MB la primera vez con f16 (`onnx/model_q4f16.onnx` y su `.onnx_data`, 273 MB, más el tokenizer, 20
+  MB), 343 MB sin f16 (`model_q4`, 323 MB más el tokenizer), desde Hugging Face. Quedan en la Cache API del navegador
   (`transformers-cache`, con `navigator.storage.persist()`), y las próximas veces se leen del disco. Antes de bajar
   nada, un aviso dice el tamaño y espera Continuar. Después muestra el progreso por archivo y compila los shaders con un
   token de prueba.
 - **Al salir de la consulta libre** el worker se termina y el modelo sale de la memoria: en el teléfono la memoria es
-  compartida, y ~3 GB no pueden quedar tomados mientras se leen otras historias. Volver lo carga de nuevo desde la Cache
-  API, sin bajarlo (tarda la creación de las sesiones, no la descarga). Si la GPU se pierde ("device lost"), pasa lo
-  mismo y el error queda a la vista.
+  compartida, y ~300 MB no tienen por qué quedar tomados mientras se leen otras historias. Volver lo carga de nuevo
+  desde la Cache API, sin bajarlo (tarda la creación de las sesiones, no la descarga). Si la GPU se pierde ("device
+  lost"), pasa lo mismo y el error queda a la vista.
 - **Solo WebGPU.** El botón aparece solo si `navigator.gpu.requestAdapter()` da un adaptador en el worker, en modo core
   o, si no, en modo compatibilidad: es lo único que da Chrome en el Pixel 10 Pro XL, sin f16
-  ([docs/webgpu-en-el-pixel-10.md](docs/webgpu-en-el-pixel-10.md)). Sin WebGPU, una línea lo explica. No hay fallback a
-  WASM: con `q4` son 3,6 GB que onnxruntime copia al heap de wasm32, y en chromium-box (8 GB) colgó la VM entera. Ni
-  siquiera los embeddings solos: su op (`GatherBlockQuantized`) no tiene kernel de CPU en este onnxruntime-web. En el
-  Pixel la tabla de embeddings (1 174 MB) supera el buffer más grande de la GPU (256 MB), y la descarga avisa que puede
-  fallar al cargar.
+  ([docs/webgpu-en-el-pixel-10.md](docs/webgpu-en-el-pixel-10.md); el driver PowerVR 25.1 está en la blocklist de WebGPU
+  de Chromium). Sin WebGPU, una línea lo explica. No hay fallback a WASM: el op de los embeddings
+  (`GatherBlockQuantized`) no tiene kernel de CPU en este onnxruntime-web. La tabla de embeddings (84 MB) entra en el
+  buffer más grande del Pixel (256 MB en compatibilidad, 128 MB en core); si una GPU acepta menos, la descarga avisa que
+  puede fallar al cargar.
 - **Nunca corre sola.** El prompt (`src/grafo/ai/prompt.ts`) lleva el esquema sacado del Store: los prefijos, las clases
   con cuántas instancias tienen y cada propiedad con su `rdfs:domain`, `rdfs:range` y `rdfs:comment`, o con las clases
   que la usan. También lleva tres prearmadas como ejemplo, sin las líneas PREFIX. `extraer.ts` saca el bloque
@@ -132,9 +133,9 @@ mediciones están en `docs/consultas-por-ai.md` y `docs/gemma-en-el-navegador.md
   y se le pasa a `env.backends.onnx.wasm.wasmPaths`, así no se baja de jsdelivr. Esto lo verifica
   `scripts/chunks-ai.mjs`, que corre en cada `npm run build` y sale 1 si la AI entra en el bundle principal.
 - **La CSP** se abre así, y nada más:
-  `connect-src 'self' https://huggingface.co/onnx-community/gemma-4-E2B-it-ONNX/ https://*.hf.co`. Va la ruta del modelo
-  y no el host entero, porque la API de huggingface.co acepta escrituras y sería un canal para sacar tokens. Los pesos
-  redirigen a `us.aws.cdn.hf.co`, y CSP3 no mira la ruta después de un redirect. Además:
+  `connect-src 'self' https://huggingface.co/onnx-community/gemma-3-270m-it-ONNX/ https://*.hf.co`. Va la ruta del
+  modelo y no el host entero, porque la API de huggingface.co acepta escrituras y sería un canal para sacar tokens. Los
+  pesos redirigen a `us.aws.cdn.hf.co`, y CSP3 no mira la ruta después de un redirect. Además:
   `script-src 'self' 'wasm-unsafe-eval' blob:` (Transformers.js importa la fábrica del wasm como Blob) y
   `worker-src 'self' blob:`. **Pendiente:** el revisor del PR #11 cree que los dos `blob:` sobran. Sin COOP/COEP
   onnxruntime no crea workers, y pasando solo `wasmPaths.wasm` usaría su fábrica embebida. Quedan hasta que el modelo
@@ -144,10 +145,11 @@ mediciones están en `docs/consultas-por-ai.md` y `docs/gemma-en-el-navegador.md
 **Cómo probarlo.** Con el modelo de verdad, solo en un dispositivo con WebGPU: Chrome de Android 12+ o de escritorio
 (que `navigator.gpu.requestAdapter` dé un adaptador, en core o en compatibilidad: lo dice
 `public/diagnostico-webgpu.html`). Se abre el preview del PR en `#/grafo/consulta`, se toca Preguntar con AI y después
-Continuar, se espera la descarga y se pregunta. **Nunca en chromium-box ni en Node**: no tienen GPU y el camino WASM no
-entra en memoria. El resto lo cubren los tests con un worker falso: `pruebas/ai.test.ts` (prompt, extractor y cliente) y
-`pruebas/ai-vista.test.tsx` (sin WebGPU no hay botón, el aviso va antes de la descarga, y lo generado pasa por el
-validador y no corre). La captura `grafo-consulta-sin-webgpu` muestra la línea sin el botón.
+Continuar, se espera la descarga y se pregunta. **Nunca en chromium-box ni en Node**: no tienen GPU, y sin GPU el modelo
+no corre (no hay kernel de CPU para sus embeddings). El resto lo cubren los tests con un worker falso:
+`pruebas/ai.test.ts` (prompt, extractor y cliente) y `pruebas/ai-vista.test.tsx` (sin WebGPU no hay botón, el aviso va
+antes de la descarga, y lo generado pasa por el validador y no corre). La captura `grafo-consulta-sin-webgpu` muestra la
+línea sin el botón.
 
 ## Correrlo
 
