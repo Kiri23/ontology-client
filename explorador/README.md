@@ -122,10 +122,15 @@ $0, no hay key y no hay servidor. Es la receta de DocsifyTemplate; la decisión 
   Continuar. El wasm de onnxruntime (27 MB, `ort-wasm-simd-threaded.asyncify`) sale como asset propio con hash (`?url`)
   y se le pasa a `env.backends.onnx.wasm.wasmPaths`, así no se baja de jsdelivr. Esto lo verifica
   `scripts/chunks-ai.mjs`, que corre en cada `npm run build` y sale 1 si la AI entra en el bundle principal.
-- **La CSP** se abre así, y nada más: `connect-src 'self' https://huggingface.co https://*.hf.co` (los pesos redirigen a
-  `us.aws.cdn.hf.co`), `script-src 'self' 'wasm-unsafe-eval' blob:` (Transformers.js importa la fábrica del wasm como
-  Blob) y `worker-src 'self' blob:`. `scripts/humo-imagen` exige las tres, y además que los dos wasm salgan como
-  `application/wasm`. El costo es que la página que guarda tokens puede hablar con un origen más.
+- **La CSP** se abre así, y nada más:
+  `connect-src 'self' https://huggingface.co/onnx-community/gemma-4-E2B-it-ONNX/ https://*.hf.co`. Va la ruta del modelo
+  y no el host entero, porque la API de huggingface.co acepta escrituras y sería un canal para sacar tokens. Los pesos
+  redirigen a `us.aws.cdn.hf.co`, y CSP3 no mira la ruta después de un redirect. Además:
+  `script-src 'self' 'wasm-unsafe-eval' blob:` (Transformers.js importa la fábrica del wasm como Blob) y
+  `worker-src 'self' blob:`. **Pendiente:** el revisor del PR #11 cree que los dos `blob:` sobran. Sin COOP/COEP
+  onnxruntime no crea workers, y pasando solo `wasmPaths.wasm` usaría su fábrica embebida. Quedan hasta que el modelo
+  haya corrido una vez en el Pixel; después se prueba sacarlos. `scripts/humo-imagen` exige las tres, y además que los
+  dos wasm salgan como `application/wasm`. El costo es que la página que guarda tokens puede hablar con un origen más.
 
 **Cómo probarlo.** Con el modelo de verdad, solo en un dispositivo con WebGPU: Chrome de Android 12+ o de escritorio
 (`chrome://gpu` dice "WebGPU: Hardware accelerated"). Se abre el preview del PR en `#/grafo/consulta`, se toca Preguntar

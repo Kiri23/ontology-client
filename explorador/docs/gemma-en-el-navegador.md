@@ -19,7 +19,8 @@ fewshot.json) y `.../scratchpad/validador/validar.mjs`.
 5. **Calidad:** zero-shot 0/1 válida (inventó `FROM <clase>` y `WHERE {}`); few-shot 1/1 válida y correcta hasta ahora
    (COUNT de k:Action → 10), las otras dos se estaban generando en la VM al cerrar (comando en 2b). El validador
    (`sparqljs` + IRIs del endpoint) está hecho y probado.
-6. **CSP:** `connect-src 'self' https://huggingface.co https://*.hf.co`, `script-src 'self' 'wasm-unsafe-eval' blob:`,
+6. **CSP:** `connect-src 'self' https://huggingface.co https://*.hf.co` (en el PR #11 se acotó a
+   `https://huggingface.co/onnx-community/gemma-4-E2B-it-ONNX/`), `script-src 'self' 'wasm-unsafe-eval' blob:`,
    `worker-src 'self' blob:`; el wasm de onnxruntime servido propio. Sin violaciones en el harness.
 7. **Pixel 10 Pro XL:** sigue sin medir WebGPU (PowerVR); si falla, en el teléfono no hay camino gratis (estimado).
 8. **Node en Termux no corre** (`onnxruntime-node` sin binario android/arm64; `sharp` tampoco).

@@ -20,7 +20,9 @@ Reescrita el 2026-10-16 después de verificar la vía gratis: `gemma-en-el-naveg
    `navigator.gpu.requestAdapter()` da null, el botón no aparece. **No hay fallback a WASM**: con `q4` son 3.6 GB que
    onnxruntime-web copia al heap de wasm32 (tope 4 GB); en una máquina de 8 GB el proceso llegó a 7.4 GB y se colgó
    (verificación 2026-10-16, chromium-box).
-3. **La CSP se abre así y nada más:** `connect-src 'self' https://huggingface.co https://*.hf.co` (los pesos redirigen a
+3. **La CSP se abre así y nada más:**
+   `connect-src 'self' https://huggingface.co/onnx-community/gemma-4-E2B-it-ONNX/ https://*.hf.co` (la ruta del modelo,
+   no el host entero: la revisión del PR #11 notó que la API de HF acepta escrituras; los pesos redirigen a
    `us.aws.cdn.hf.co`), `script-src 'self' 'wasm-unsafe-eval' blob:`, `worker-src 'self' blob:`. El `.wasm` de
    onnxruntime se sirve desde el propio origen (`env.backends.onnx.wasm.wasmPaths`), para no sumar jsdelivr. Alternativa
    que no abre nada: servir los pesos desde `/explorador/modelos/` (3.1 GB en vps2).

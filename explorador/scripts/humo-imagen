@@ -13,7 +13,7 @@ for _ in $(seq 1 30); do curl -sf -o /dev/null "$B/explorador/" && break; sleep 
 tiene '^location: /explorador/$' "$(cabeceras "$B/explorador")" || fallo "/explorador no redirige a /explorador/"
 html="$(curl -sf "$B/explorador/")" || fallo "/explorador/ no contesta"
 tiene 'id="raiz"' "$html" || fallo "/explorador/ no es el index del explorador"
-tiene "^content-security-policy: default-src 'self'; script-src 'self' 'wasm-unsafe-eval' blob:; worker-src 'self' blob:;.* connect-src 'self' https://huggingface.co https://\*.hf.co;" "$(cabeceras "$B/explorador/")" || fallo "CSP sin lo que piden el Grafo y la AI"
+tiene "^content-security-policy: default-src 'self'; script-src 'self' 'wasm-unsafe-eval' blob:; worker-src 'self' blob:;.* connect-src 'self' https://huggingface.co/onnx-community/gemma-4-E2B-it-ONNX/ https://\*.hf.co;" "$(cabeceras "$B/explorador/")" || fallo "CSP sin lo que piden el Grafo y la AI"
 assets="$(grep -o '/explorador/assets/[^"]*' <<<"$html")" || fallo "el index no referencia assets"
 js="$(grep '\.js$' <<<"$assets")" || fallo "el index no trae el JS"
 css="$(grep '\.css$' <<<"$assets")" || fallo "el index no trae el CSS"
