@@ -13,7 +13,8 @@ WORKDIR /repo/explorador
 COPY explorador/package.json explorador/package-lock.json ./
 RUN npm ci --no-audit --no-fund
 
-# El SDK que importa el explorador, y los datos de prueba que usan sus tests (tests/datos/jobs.json).
+# El SDK que importa el explorador, y los datos de prueba que usan sus tests (tests/datos/jobs.json). Un archivo nuevo
+# del SDK va en esta lista: tests/dockerfile.test.ts falla si el explorador importa algo de la raíz que no se copia.
 WORKDIR /repo
 COPY mod.ts cliente.ts jobs.ts sparql.ts motor.ts ./
 COPY generado ./generado
