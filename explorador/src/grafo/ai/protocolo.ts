@@ -10,10 +10,14 @@ export const MODELO = "onnx-community/gemma-4-E2B-it-ONNX";
  */
 export type ModoWebGpu = "core" | "compatibility";
 
-/** Lo que el worker sabe de la GPU después del `check`: con qué modo dio adaptador y si los shaders tienen f16. */
+/**
+ * Lo que el worker sabe de la GPU después del `check`: con qué modo dio adaptador, si los shaders tienen f16 y el
+ * buffer más grande que acepta un shader (de eso depende dónde corren los embeddings).
+ */
 export interface Gpu {
   modo: ModoWebGpu;
   f16: boolean;
+  maxStorageBufferBindingSize: number;
 }
 
 /**
@@ -24,12 +28,47 @@ export interface Gpu {
  * - `q4` (pesos de 4 bits, cuentas en f32): decoder 1 864 MB + embed_tokens 1 763 MB = 3,65 GB. Es la que queda sin
  *   `shader-f16`: un shader de f16 en una GPU sin f16 no compila.
  */
-export function eleccionDeCarga({ f16 }: { f16: boolean }): { dtype: "q4f16" | "q4"; bytes: number } {
-  return f16 ? { dtype: "q4f16", bytes: 3_130_000_000 } : { dtype: "q4", bytes: 3_646_000_000 };
+const VARIANTES = {
+  q4f16: 3_130_000_000,
+  q4: 3_646_000_000,
+} as const;
+
+/**
+ * El tensor más grande de `embed_tokens`: `model_embed_tokens_per_layer_weight_quant`, u8 [262144, 4480] = 1 174 MB.
+ * Pesa lo mismo en `q4` y en `q4f16` (los pesos cuantizados son u8 en los dos). Lo usa `GatherBlockQuantized`, que en
+ * WebGPU lo ata entero a un binding; si la GPU no acepta un buffer así (el Pixel acepta 256 MB), la sesión no se crea
+ * ("exceeding maxStorageBufferBindingSize of"). Después viene `per_layer_weight_scales`, f32, 293,6 MB. El decoder no
+ * pasa de 201 MB (`lm_head`). Revisión del PR #11, con los .onnx de Hugging Face.
+ */
+export const TENSOR_MAS_GRANDE_DE_EMBED = 262_144 * 4_480;
+
+/** Dónde corre cada archivo del modelo: todo en la GPU, o los embeddings en CPU (wasm) y el decoder en la GPU. */
+export type DispositivoDeCarga = "webgpu" | { embed_tokens: "wasm"; decoder_model_merged: "webgpu" };
+
+/**
+ * Qué variante baja, cuánto pesa y dónde corre. Sin f16 baja `q4` (un shader de f16 no compila en esa GPU). Si la GPU
+ * no acepta el tensor más grande de los embeddings, `embed_tokens` corre en wasm: es un lookup por token, no necesita la
+ * GPU. Lo que baja es lo mismo: cambia dónde corre, no qué archivo.
+ */
+export function opcionesDeCarga(
+  { f16, maxStorageBufferBindingSize }: Pick<Gpu, "f16" | "maxStorageBufferBindingSize">,
+): { dtype: keyof typeof VARIANTES; bytes: number; device: DispositivoDeCarga } {
+  const dtype = f16 ? "q4f16" : "q4";
+  const device: DispositivoDeCarga = maxStorageBufferBindingSize < TENSOR_MAS_GRANDE_DE_EMBED
+    ? { embed_tokens: "wasm", decoder_model_merged: "webgpu" }
+    : "webgpu";
+  return { dtype, bytes: VARIANTES[dtype], device };
 }
 
-/** Lo que baja la primera vez, según haya f16 o no. */
-export const bytesDelModelo = (f16: boolean) => eleccionDeCarga({ f16 }).bytes;
+/** Lo que baja la primera vez, según haya f16 o no: para el aviso, antes de cargar. */
+export const bytesDelModelo = (f16: boolean) => VARIANTES[f16 ? "q4f16" : "q4"];
+
+/** La variante que eligió el worker al empezar la carga: el tamaño real y si los embeddings van a CPU. */
+export interface Variante {
+  dtype: keyof typeof VARIANTES;
+  bytes: number;
+  embedEnCpu: boolean;
+}
 
 export interface Mensaje {
   role: "system" | "user" | "assistant";
@@ -40,6 +79,8 @@ export type APagina =
   /** Si hay adaptador WebGPU en el worker, y cuál. Sin WebGPU no hay plan B: por WASM no entra en memoria. */
   | ({ tipo: "check"; webgpu: true } & Gpu)
   | { tipo: "check"; webgpu: false; motivo: string }
+  /** Al empezar `load`: qué variante baja y dónde corre. */
+  | ({ tipo: "variante" } & Variante)
   /** `cargado` y `total` suman todos los archivos que empezaron a bajar; `archivo` es el último que avanzó. */
   | { tipo: "progreso"; archivo: string; cargado: number; total: number }
   /** Bajado: compila los shaders con un token de prueba. */

@@ -1,7 +1,7 @@
 // La AI vista desde la página: el worker y un estado que React lee con useSyncExternalStore. Uno solo por pestaña
 // (clienteCompartido). Al salir de la consulta libre, cerrar() termina el worker: los ~3 GB del modelo no quedan
 // tomados en la GPU mientras se leen otras historias. Volver lo carga de nuevo desde la Cache API, sin bajarlo.
-import type { AlWorker, APagina, Gpu, Mensaje } from "./protocolo.ts";
+import type { AlWorker, APagina, Gpu, Mensaje, Variante } from "./protocolo.ts";
 
 export interface Progreso {
   archivo: string;
@@ -15,11 +15,13 @@ export type EstadoAi =
   /** El worker no arrancó (la CSP o la red bloquearon su script): no es que falte WebGPU. */
   | { fase: "sin-worker"; motivo: string }
   /**
-   * De acá en adelante, `gpu` es lo que dijo el check: con qué modo dio adaptador y si hay f16 (de eso sale cuánto baja).
+   * De acá en adelante, `gpu` es lo que dijo el check: con qué modo dio adaptador, si hay f16 (de eso sale cuánto
+   * baja) y el buffer más grande que acepta.
    * `error`: se perdió la GPU y el modelo se descargó de la memoria; hay que cargarlo de nuevo.
    */
   | { fase: "disponible"; gpu: Gpu; error?: string }
-  | { fase: "bajando"; gpu: Gpu; progreso?: Progreso }
+  /** `variante`: la que eligió el worker al empezar (tamaño real y si los embeddings van a CPU). */
+  | { fase: "bajando"; gpu: Gpu; variante?: Variante; progreso?: Progreso }
   | { fase: "preparando"; gpu: Gpu }
   /** `error`: la última generación falló; el modelo sigue cargado. */
   | { fase: "listo"; gpu: Gpu; error?: string }
@@ -41,7 +43,10 @@ export interface WorkerAi {
 export const porcentaje = ({ cargado, total }: Progreso, esperado: number) =>
   Math.min(100, Math.floor((cargado / Math.max(total, esperado)) * 100));
 
-/** Qué hacer después de un error de carga, en una frase. */
+/**
+ * Qué hacer después de un error de carga, en una frase. Probar de nuevo abre un worker nuevo: lo que ya bajó queda en
+ * la Cache API, pero un error de la GPU (un buffer que no acepta, un kernel que no compila) se repite igual.
+ */
 export function pistaDeCarga(mensaje: string, nombre = ""): string {
   if (/quota/i.test(nombre + mensaje)) {
     return "No queda lugar en el navegador para el modelo: liberá espacio en el teléfono y probá de nuevo.";
@@ -49,8 +54,9 @@ export function pistaDeCarga(mensaje: string, nombre = ""): string {
   if (/fetch|network|load failed/i.test(mensaje)) {
     return "Se cortó la descarga. Con conexión, Probar de nuevo retoma: los archivos que ya bajaron quedan guardados.";
   }
-  if (/gpu|device|adapter|webgpu/i.test(mensaje)) {
-    return "La GPU no pudo con el modelo. Cerrá otras pestañas y probá de nuevo; si sigue, este dispositivo no alcanza.";
+  if (/gpu|device|adapter|webgpu|buffer|shader/i.test(mensaje)) {
+    return "La GPU no pudo con el modelo. Probar de nuevo no vuelve a bajar nada, pero un error de la GPU suele " +
+      "repetirse: si pasa otra vez, este dispositivo no alcanza.";
   }
   return "Probá de nuevo; si sigue, recargá la página.";
 }
@@ -103,7 +109,10 @@ export class ClienteAi {
       if (e.fase === "revisando") {
         this.#poner(
           m.webgpu
-            ? { fase: "disponible", gpu: { modo: m.modo, f16: m.f16 } }
+            ? {
+              fase: "disponible",
+              gpu: { modo: m.modo, f16: m.f16, maxStorageBufferBindingSize: m.maxStorageBufferBindingSize },
+            }
             : { fase: "sin-webgpu", motivo: m.motivo },
         );
       }
@@ -112,8 +121,11 @@ export class ClienteAi {
     // Lo demás llega después de un check con WebGPU: el estado ya trae la GPU.
     if (!("gpu" in e)) return;
     const { gpu } = e;
-    if (m.tipo === "progreso") {
-      if (e.fase === "bajando") this.#poner({ fase: "bajando", gpu, progreso: m });
+    if (m.tipo === "variante") {
+      const { tipo: _, ...variante } = m;
+      if (e.fase === "bajando") this.#poner({ ...e, variante });
+    } else if (m.tipo === "progreso") {
+      if (e.fase === "bajando") this.#poner({ ...e, progreso: m });
     } else if (m.tipo === "preparando") this.#poner({ fase: "preparando", gpu });
     else if (m.tipo === "listo") this.#poner({ fase: "listo", gpu });
     else if (m.tipo === "token" && this.#pedido) {
@@ -131,7 +143,11 @@ export class ClienteAi {
         this.#pedido = undefined;
         this.#poner({ fase: "listo", gpu, error: m.mensaje });
         pedido?.rechazar(new Error(m.mensaje));
-      } else this.#poner({ fase: "fallo-carga", gpu, mensaje: m.mensaje, pista: pistaDeCarga(m.mensaje, m.nombre) });
+      } else {
+        // onnxruntime queda abortado en ese worker: Probar de nuevo abre uno limpio.
+        this.#terminar();
+        this.#poner({ fase: "fallo-carga", gpu, mensaje: m.mensaje, pista: pistaDeCarga(m.mensaje, m.nombre) });
+      }
     }
   }
 
@@ -145,7 +161,7 @@ export class ClienteAi {
     const e = this.#estado;
     if (e.fase !== "disponible" && e.fase !== "fallo-carga") return;
     this.#poner({ fase: "bajando", gpu: e.gpu });
-    // Que el navegador no desaloje los 3,1 GB cuando le falte lugar. Chrome lo concede sin preguntar.
+    // Que el navegador no desaloje el modelo cuando le falte lugar. Chrome lo concede sin preguntar.
     void navigator.storage?.persist?.().catch(() => {});
     this.#abrir().postMessage({ tipo: "load" });
   }
@@ -169,12 +185,18 @@ export class ClienteAi {
     this.#soltar();
   }
 
-  /** Termina el worker y vuelve a "disponible" (con el error, si lo hubo). Cargar después abre uno nuevo. */
-  #soltar(error?: string) {
+  /** Termina el worker, si hay uno: lo que diga después ya no cuenta (#abrir). Devuelve si había. */
+  #terminar(): boolean {
     const w = this.#worker;
-    if (!w) return;
+    if (!w) return false;
     w.terminate();
     this.#worker = undefined;
+    return true;
+  }
+
+  /** Termina el worker y vuelve a "disponible" (con el error, si lo hubo). Cargar después abre uno nuevo. */
+  #soltar(error?: string) {
+    if (!this.#terminar()) return;
     const pedido = this.#pedido;
     this.#pedido = undefined;
     pedido?.rechazar(new Error(error ?? "Se cerró la AI."));

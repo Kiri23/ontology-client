@@ -6,7 +6,7 @@ import type { Grafo } from "../motor.ts";
 import { type ClienteAi, type EstadoAi, porcentaje, type Progreso } from "./cliente.ts";
 import { consultaPropuesta } from "./extraer.ts";
 import { armarMensajes, type Consultar, type Esquema, leerEsquema } from "./prompt.ts";
-import { bytesDelModelo, type Gpu } from "./protocolo.ts";
+import { bytesDelModelo, type Gpu, type Variante } from "./protocolo.ts";
 import "../../estilos/ai.css";
 
 /** "El navegador no tiene WebGPU." → "el navegador no tiene WebGPU", para ir entre paréntesis. */
@@ -20,16 +20,25 @@ interface Props {
   alProponer: (sparql: string) => void;
 }
 
-function Descarga({ progreso, gpu }: { progreso?: Progreso; gpu: Gpu }) {
+/** La nota de CPU va debajo del progreso: la variante llega antes que el primer archivo. */
+function NotaDeCpu({ variante }: { variante?: Variante }) {
+  return variante?.embedEnCpu
+    ? <p className="ai-nota">Los embeddings corren en CPU: la GPU no acepta buffers tan grandes.</p>
+    : null;
+}
+
+function Descarga({ progreso, gpu, variante }: { progreso?: Progreso; gpu: Gpu; variante?: Variante }) {
   if (!progreso) {
     return (
       <div className="ai-carga" role="status">
         <p>Empezando la descarga…</p>
         <progress aria-label="Descarga del modelo" />
+        <NotaDeCpu variante={variante} />
       </div>
     );
   }
-  const esperado = bytesDelModelo(gpu.f16);
+  // La variante del worker manda; si todavía no llegó, la que dijo el check.
+  const esperado = variante?.bytes ?? bytesDelModelo(gpu.f16);
   const pct = porcentaje(progreso, esperado);
   return (
     <div className="ai-carga" role="status">
@@ -40,6 +49,7 @@ function Descarga({ progreso, gpu }: { progreso?: Progreso; gpu: Gpu }) {
       <p className="ai-nota">
         {gb(progreso.cargado)} de {gb(Math.max(progreso.total, esperado))} GB. Queda guardado en el navegador.
       </p>
+      <NotaDeCpu variante={variante} />
     </div>
   );
 }
@@ -174,7 +184,7 @@ export function PreguntarConAi({ cliente, grafo, alProponer }: Props) {
         );
       break;
     case "bajando":
-      cuerpo = <Descarga progreso={estado.progreso} gpu={estado.gpu} />;
+      cuerpo = <Descarga progreso={estado.progreso} gpu={estado.gpu} variante={estado.variante} />;
       break;
     case "preparando":
       cuerpo = (

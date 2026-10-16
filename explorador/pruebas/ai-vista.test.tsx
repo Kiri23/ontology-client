@@ -100,12 +100,26 @@ describe("Preguntar con AI", () => {
     expect(screen.getByText(/solo en modo compatibilidad: es la primera vez que la AI se prueba/)).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: "Continuar" }));
     expect(recibidos.at(-1)).toEqual({ tipo: "load" });
+    act(() => emitir({ tipo: "variante", dtype: "q4", bytes: 3_646_000_000, embedEnCpu: true }));
+    expect(screen.getByText("Los embeddings corren en CPU: la GPU no acepta buffers tan grandes.")).toBeTruthy();
     act(() =>
       emitir({ tipo: "progreso", archivo: "onnx/decoder_model_merged_q4.onnx_data", cargado: 1.3e9, total: 1.5e9 })
     );
     const estado = screen.getByRole("status");
     expect(estado.textContent).toContain("decoder_model_merged_q4.onnx_data · 35 %");
     expect(estado.textContent).toContain("1,3 de 3,6 GB");
+    expect(estado.textContent).toContain("Los embeddings corren en CPU");
+  });
+
+  it("el tamaño de la descarga lo dice la variante del worker, y sin embeddings en CPU no hay nota", () => {
+    const { emitir } = montar();
+    fireEvent.click(screen.getByRole("button", BOTON));
+    fireEvent.click(screen.getByRole("button", { name: "Continuar" }));
+    act(() => emitir({ tipo: "variante", dtype: "q4", bytes: 3_646_000_000, embedEnCpu: false }));
+    act(() => emitir({ tipo: "progreso", archivo: "onnx/embed_tokens_q4.onnx_data", cargado: 1.3e9, total: 1.5e9 }));
+    const estado = screen.getByRole("status");
+    expect(estado.textContent).toContain("1,3 de 3,6 GB");
+    expect(estado.textContent).not.toContain("CPU");
   });
 
   it("una consulta válida va al editor con sus PREFIX y el veredicto, pero no corre", async () => {

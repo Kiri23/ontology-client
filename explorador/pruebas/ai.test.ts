@@ -12,7 +12,7 @@ import {
   sinPrefijos,
   textoDelEsquema,
 } from "../src/grafo/ai/prompt.ts";
-import { bytesDelModelo, eleccionDeCarga } from "../src/grafo/ai/protocolo.ts";
+import { bytesDelModelo } from "../src/grafo/ai/protocolo.ts";
 import { validar } from "../src/grafo/logica/validador.ts";
 import type { Grafo } from "../src/grafo/motor.ts";
 import { grafoDePrueba } from "./grafo-de-prueba.ts";
@@ -146,14 +146,15 @@ describe("cliente", () => {
   });
 
   it("un error al generar deja el modelo cargado; uno al cargar trae su pista", async () => {
-    const f = workerFalso();
-    const cliente = new ClienteAi(() => f.worker, () => true);
+    const fakes: ReturnType<typeof workerFalso>[] = [];
+    const cliente = new ClienteAi(() => (fakes.push(workerFalso()), fakes.at(-1)!.worker), () => true);
     cliente.revisar();
-    f.conWebGpu();
+    fakes[0].conWebGpu();
     cliente.cargar();
-    f.emitir({ tipo: "error", cuando: "carga", mensaje: "QuotaExceededError", nombre: "QuotaExceededError" });
+    fakes[0].emitir({ tipo: "error", cuando: "carga", mensaje: "QuotaExceededError", nombre: "QuotaExceededError" });
     expect(cliente.estado()).toMatchObject({ fase: "fallo-carga", pista: expect.stringContaining("liberá espacio") });
     cliente.cargar();
+    const f = fakes[1];
     f.emitir({ tipo: "listo" });
     const texto = cliente.generar([{ role: "user", content: "hola" }]);
     f.emitir({ tipo: "error", cuando: "generacion", mensaje: "out of tokens" });
@@ -190,12 +191,6 @@ describe("cliente", () => {
     expect(pistaDeCarga("Failed to fetch")).toContain("retoma");
   });
 
-  it("con shader-f16 baja q4f16 (3,1 GB); sin f16, q4 (3,6 GB): un shader de f16 no compila en esa GPU", () => {
-    expect(eleccionDeCarga({ f16: true })).toEqual({ dtype: "q4f16", bytes: 3_130_000_000 });
-    expect(eleccionDeCarga({ f16: false })).toEqual({ dtype: "q4", bytes: 3_646_000_000 });
-    expect(bytesDelModelo(false)).toBeGreaterThan(bytesDelModelo(true));
-  });
-
   it("el check guarda el modo y el f16, y siguen ahí al cargar y al perder la GPU", () => {
     const f = workerFalso();
     const cliente = new ClienteAi(() => f.worker, () => true);
@@ -204,12 +199,39 @@ describe("cliente", () => {
     expect(cliente.estado()).toEqual({ fase: "disponible", gpu: GPU_DEL_PIXEL });
     cliente.cargar();
     expect(cliente.estado()).toEqual({ fase: "bajando", gpu: GPU_DEL_PIXEL });
+    f.emitir({ tipo: "variante", dtype: "q4", bytes: 3_646_000_000, embedEnCpu: true });
+    f.emitir({ tipo: "progreso", archivo: "onnx/embed_tokens_q4.onnx_data", cargado: 1e9, total: 2e9 });
+    expect(cliente.estado()).toEqual({
+      fase: "bajando",
+      gpu: GPU_DEL_PIXEL,
+      variante: { dtype: "q4", bytes: 3_646_000_000, embedEnCpu: true },
+      progreso: { tipo: "progreso", archivo: "onnx/embed_tokens_q4.onnx_data", cargado: 1e9, total: 2e9 },
+    });
     f.emitir({ tipo: "error", cuando: "carga", mensaje: "GPU device lost (unknown): pantalla apagada" });
     expect(cliente.estado()).toEqual({
       fase: "disponible",
       gpu: GPU_DEL_PIXEL,
       error: "GPU device lost (unknown): pantalla apagada",
     });
+  });
+
+  it("un error al cargar termina el worker: Probar de nuevo abre uno limpio, y la pista no promete que se arregle", () => {
+    const fakes: ReturnType<typeof workerFalso>[] = [];
+    const cliente = new ClienteAi(() => (fakes.push(workerFalso()), fakes.at(-1)!.worker), () => true);
+    cliente.revisar();
+    fakes[0].conWebGpu(GPU_DEL_PIXEL);
+    cliente.cargar();
+    const mensaje = "Buffer declares a size of 1174405120 bytes, exceeding maxStorageBufferBindingSize of 268435456";
+    fakes[0].emitir({ tipo: "error", cuando: "carga", mensaje });
+    expect(fakes[0].estado.terminado).toBe(true);
+    expect(cliente.estado()).toMatchObject({ fase: "fallo-carga", pista: expect.stringContaining("suele repetirse") });
+    // Lo que diga el worker terminado ya no cuenta.
+    fakes[0].emitir({ tipo: "listo" });
+    expect(cliente.estado().fase).toBe("fallo-carga");
+    cliente.cargar();
+    expect(fakes).toHaveLength(2);
+    expect(fakes[1].recibidos).toEqual([{ tipo: "load" }]);
+    expect(pistaDeCarga("Failed to fetch")).toContain("retoma");
   });
 
   it("un segundo cargar mientras baja no manda otro load", () => {
