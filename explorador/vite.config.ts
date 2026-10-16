@@ -30,6 +30,9 @@ export default defineConfig({
   // chunkSizeWarningLimit: el chunk de la vista Grafo (Cytoscape, fcose y Traqula, ~870 kB) se carga perezoso con
   // import(); el WASM de oxigraph sale aparte, como asset con hash (oxigraph/web_bg.wasm?url).
   build: { outDir: "dist", emptyOutDir: true, assetsInlineLimit: 0, chunkSizeWarningLimit: 1000 },
+  // El worker de la AI (src/grafo/ai/worker.ts) como módulo: así su import() de Transformers.js sale en un chunk
+  // aparte, que se baja recién al tocar Continuar.
+  worker: { format: "es" },
   test: {
     environment: "happy-dom",
     include: ["pruebas/**/*.test.{ts,tsx}"],

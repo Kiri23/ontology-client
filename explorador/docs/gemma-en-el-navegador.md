@@ -1,5 +1,7 @@
 # Explorador: Gemma 4 E2B gratis en el navegador, como en DocsifyTemplate — verificación
 
+Superado el 2026-10-16: el explorador usa Gemma 3 270M; ver modelo-chico-para-el-pixel.md.
+
 Verificación del 2026-10-16, agente de sesión (no toqué `~/wt/ontology-client-grafo`). Cada afirmación lleva el comando
 que la produjo. Scratch: `$TMPDIR/claude-10417/.../scratchpad/prueba/` (pagina.js, worker.js, correr.mjs, nodo-vm.mjs,
 fewshot.json) y `.../scratchpad/validador/validar.mjs`.
@@ -19,9 +21,12 @@ fewshot.json) y `.../scratchpad/validador/validar.mjs`.
 5. **Calidad:** zero-shot 0/1 válida (inventó `FROM <clase>` y `WHERE {}`); few-shot 1/1 válida y correcta hasta ahora
    (COUNT de k:Action → 10), las otras dos se estaban generando en la VM al cerrar (comando en 2b). El validador
    (`sparqljs` + IRIs del endpoint) está hecho y probado.
-6. **CSP:** `connect-src 'self' https://huggingface.co https://*.hf.co`, `script-src 'self' 'wasm-unsafe-eval' blob:`,
+6. **CSP:** `connect-src 'self' https://huggingface.co https://*.hf.co` (en el PR #11 se acotó a
+   `https://huggingface.co/onnx-community/gemma-4-E2B-it-ONNX/`), `script-src 'self' 'wasm-unsafe-eval' blob:`,
    `worker-src 'self' blob:`; el wasm de onnxruntime servido propio. Sin violaciones en el harness.
-7. **Pixel 10 Pro XL:** sigue sin medir WebGPU (PowerVR); si falla, en el teléfono no hay camino gratis (estimado).
+7. **Pixel 10 Pro XL:** al escribir esto, WebGPU estaba sin medir (PowerVR). Se midió después, el mismo día:
+   `chrome://gpu` dice "WebGPU: Hardware accelerated" (`consultas-por-ai.md`, Decisión 6). Pero solo en modo
+   compatibilidad y sin f16: ver "Pixel 10 Pro XL, 2026-10-16" al final. Falta correr el modelo ahí.
 8. **Node en Termux no corre** (`onnxruntime-node` sin binario android/arm64; `sharp` tampoco).
 9. **Qué cambia respecto al doc:** el orden de la Decisión: primero el navegador gratis como botón opcional y solo con
    WebGPU; el proxy pago (HF 402 hoy / OpenRouter) pasa a alternativa. Validador, few-shot y "no vps2" quedan igual.
@@ -215,3 +220,19 @@ frame-ancestors 'none'`,
   debajo.
 - **Costo por consulta en el navegador (estimado con lo medido):** ~2 100 tokens de prompt. Para que WebGPU en el
   teléfono responda en segundos y no en minutos, el prefill tiene que ir a cientos de tok/s; eso solo lo da la GPU.
+
+## Pixel 10 Pro XL, 2026-10-16
+
+Detalle, comandos y fuentes en [webgpu-en-el-pixel-10.md](webgpu-en-el-pixel-10.md). En corto:
+
+- **Medido** (Chrome 155, PowerVR `img-tec`/`rogue`, con `public/diagnostico-webgpu.html` y webgpureport.org; página y
+  worker dan lo mismo): `requestAdapter()` en modo core da `null`; con `{ featureLevel: "compatibility" }` da un
+  adaptador, `requestDevice()` con los límites por defecto anda y un compute shader mínimo escribe bien. Sin
+  `shader-f16` ni `subgroups`. `maxBufferSize` 2 GB, `maxStorageBufferBindingSize` 256 MB.
+- **Por qué no arrancaba:** Transformers.js y onnxruntime piden el adaptador en modo core.
+- **Qué hace el worker ahora:** reemplaza `navigator.gpu.requestAdapter` en el worker (antes del `import()` de
+  Transformers.js) para que, si core da `null`, reintente en compatibilidad; onnxruntime crea su device como siempre.
+  Sin f16 baja `q4` (3,6 GB) en vez de `q4f16` (3,1 GB). La tabla de embeddings (1 174 MB) supera el buffer más grande
+  del Pixel (256 MB) y no puede ir a wasm (este onnxruntime-web no trae el kernel de CPU de `GatherBlockQuantized`): la
+  UI avisa que puede fallar al cargar. Plan B, trabajo aparte: un lookup propio de los embeddings con Range requests.
+  Sin probar todavía con el modelo real.

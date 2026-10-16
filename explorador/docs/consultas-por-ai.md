@@ -1,5 +1,7 @@
 # Consultas SPARQL por AI en el explorador: qué Gemma 4, dónde y con qué validador
 
+Superado el 2026-10-16: el explorador usa Gemma 3 270M; ver modelo-chico-para-el-pixel.md.
+
 Investigación R2, 2026-10-16. Sin código: solo la decisión y sus fuentes. Cada número trae el comando o la URL que lo
 produjo.
 
@@ -20,7 +22,9 @@ Reescrita el 2026-10-16 después de verificar la vía gratis: `gemma-en-el-naveg
    `navigator.gpu.requestAdapter()` da null, el botón no aparece. **No hay fallback a WASM**: con `q4` son 3.6 GB que
    onnxruntime-web copia al heap de wasm32 (tope 4 GB); en una máquina de 8 GB el proceso llegó a 7.4 GB y se colgó
    (verificación 2026-10-16, chromium-box).
-3. **La CSP se abre así y nada más:** `connect-src 'self' https://huggingface.co https://*.hf.co` (los pesos redirigen a
+3. **La CSP se abre así y nada más:**
+   `connect-src 'self' https://huggingface.co/onnx-community/gemma-4-E2B-it-ONNX/ https://*.hf.co` (la ruta del modelo,
+   no el host entero: la revisión del PR #11 notó que la API de HF acepta escrituras; los pesos redirigen a
    `us.aws.cdn.hf.co`), `script-src 'self' 'wasm-unsafe-eval' blob:`, `worker-src 'self' blob:`. El `.wasm` de
    onnxruntime se sirve desde el propio origen (`env.backends.onnx.wasm.wasmPaths`), para no sumar jsdelivr. Alternativa
    que no abre nada: servir los pesos desde `/explorador/modelos/` (3.1 GB en vps2).
@@ -32,8 +36,11 @@ Reescrita el 2026-10-16 después de verificar la vía gratis: `gemma-en-el-naveg
    completo ~2 500). Medido con los mismos pesos por CPU: zero-shot 0/1 válida; few-shot con ~2 100 tokens de prompt
    tarda ~90 s por CPU (la GPU lo baja a segundos). Build2SPARQL da E4B 60.9 % con 3 ejemplos; E2B queda por debajo, y
    por eso el validador es la guarda, no el modelo.
-6. **WebGPU en el Pixel 10 Pro XL: medido, anda.** `chrome://gpu` dice "WebGPU: Hardware accelerated" (2026-10-16), así
-   que el botón gratis aparece también en el teléfono. Si en otro device no hay adaptador, el botón no aparece.
+6. **WebGPU en el Pixel 10 Pro XL: solo en modo compatibilidad.** `chrome://gpu` dice "WebGPU: Hardware accelerated"
+   (2026-10-16), pero `requestAdapter()` en modo core da `null`; con `featureLevel: "compatibility"` da un adaptador sin
+   `shader-f16` y con buffers de 256 MB. El worker cae a compatibilidad y baja `q4`; la tabla de embeddings (1 174 MB)
+   no entra en un buffer, así que puede fallar al cargar ([webgpu-en-el-pixel-10.md](webgpu-en-el-pixel-10.md)). El
+   modelo todavía no corrió ahí. Si en otro device no hay adaptador en ningún modo, el botón no aparece.
 7. **Si algún día quisiera pagar: API externa detrás de un proxy en el mismo origen.** `POST /ai/sparql` en
    ontologyLearning llamando a los Inference Providers de HF (`router.huggingface.co/v1/chat/completions`,
    `google/gemma-4-26B-A4B-it`; la key `HUGGING_FACE` ya existe en Doppler pero hoy contesta
@@ -41,8 +48,10 @@ Reescrita el 2026-10-16 después de verificar la vía gratis: `gemma-en-el-naveg
    en segundos y usa un modelo mejor (LiveCodeBench 77 % contra 44 % de E2B). Es alternativa, no plan.
 8. **No:** Gemma en vps2 por CPU (2 vCPU, 7.9 GB, ya se colgó por RAM). Tampoco Node con Transformers.js en Termux:
    `onnxruntime-node` no tiene binario para android/arm64 (verificado con `npm i … --force`).
-9. **PR aparte, no el del explorador-grafo:** la historia "Indagar con AI" del explorador (Worker, botón, aviso de
-   descarga, validador) y la CSP del Caddyfile. El validador puede ir antes, en cuanto haya un editor SPARQL libre.
+9. **Este PR (rama `explorador-ai`, apilado sobre `explorador-grafo`):** la historia "Indagar con AI" del explorador
+   (Worker, botón, aviso de descarga, prompt con el esquema y tres prearmadas) y la CSP del Caddyfile. El validador ya
+   venía en el PR del grafo, con la consulta libre; lo que propone la AI pasa por él. Detalle en el README del
+   explorador, sección "Indagar con AI".
 10. **Qué cambia respecto a la versión anterior de este doc:** el orden. Antes iba primero el proxy pago y el navegador
     quedaba "para después"; Christian no paga y ya tiene el camino gratis hecho en DocsifyTemplate. Lo que sigue igual:
     el validador, el few-shot y el no a vps2.
@@ -300,7 +309,8 @@ Es determinista y en TypeScript, con `sparqljs` 3.7.4
 1. Lo que no parsea. El error del parser vuelve al modelo como pista para un reintento, uno solo.
 2. `type === "update"`. Cubre INSERT, DELETE, LOAD, CLEAR, DROP y CREATE de una vez.
 3. `queryType` fuera de `SELECT` y `ASK`. La tabla del explorador muestra filas; CONSTRUCT y DESCRIBE quedan para
-   después.
+   después. (Diseño original. El validador del explorador también acepta CONSTRUCT, que la consulta libre dibuja en el
+   lienzo, y el prompt de la AI lo permite.)
 4. `SERVICE`, en cualquier profundidad, y `FROM` o `FROM NAMED`. El servidor ya los bloquea con `sin_red`; esto los
    frena antes.
 5. **IRIs desconocidos.** Recorre todo el árbol (group, optional, union, minus, graph, filter EXISTS, subconsultas y los
@@ -371,8 +381,9 @@ Por qué este orden:
 
 ## Necesita a Christian
 
-- **Nada.** WebGPU en el Pixel 10 Pro XL: medido el 2026-10-16 en `chrome://gpu`, "WebGPU: Hardware accelerated" (y
-  Vulkan Enabled). La vía gratis corre también en el teléfono.
+- **Probar la AI en el Pixel 10 Pro XL.** WebGPU ahí es solo modo compatibilidad (medido el 2026-10-16;
+  [webgpu-en-el-pixel-10.md](webgpu-en-el-pixel-10.md)). El worker ya cae a ese modo, pero el modelo no se puede cargar
+  en Node ni en chromium-box: si anda en el teléfono, solo lo dice el teléfono.
 - **Nada que pagar.** Los créditos de HF y la key de OpenRouter quedan solo para la alternativa del punto 7.
 
 ## Fuentes

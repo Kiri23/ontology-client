@@ -62,6 +62,9 @@ const CAPTURAS = [
   },
   { nombre: "grafo-acciones-mas-usadas", hash: "#/grafo/acciones-mas-usadas", esperar: LIENZO },
   { nombre: "grafo-huecos", hash: "#/grafo/huecos", esperar: LIENZO },
+  // chromium-box no tiene GPU (navigator.gpu no existe): "Preguntar con AI" no aparece y una línea lo explica. El
+  // modelo no se carga nunca acá: por WASM colgó la VM (docs/gemma-en-el-navegador.md §2a).
+  { nombre: "grafo-consulta-sin-webgpu", hash: "#/grafo/consulta", esperar: ".ai-sin-webgpu" },
   {
     nombre: "grafo-consulta-rechazo",
     hash: `#/grafo/consulta?${new URLSearchParams({ sparql: CON_ERROR })}`,
@@ -89,7 +92,8 @@ if (!salida) {
 const archivos = {
   "/explorador/": readFileSync(new URL("index.html", DIST)).toString("base64"),
 };
-for (const nombre of readdirSync(new URL("assets/", DIST))) {
+// Sin el wasm de onnxruntime (27 MB): solo lo pide la AI al cargar el modelo, y eso acá no pasa.
+for (const nombre of readdirSync(new URL("assets/", DIST)).filter((n) => !n.startsWith("ort-wasm"))) {
   archivos[`/explorador/assets/${nombre}`] = readFileSync(
     new URL(`assets/${nombre}`, DIST),
   ).toString("base64");

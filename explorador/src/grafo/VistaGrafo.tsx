@@ -61,7 +61,7 @@ export default function VistaGrafo({ ruta, navegar, url, fetch }: Props) {
         <h1>{nombreDeVista(vista)}</h1>
         <p className="grafo-bajada">{bajada(vista, grafo)}</p>
         {vista.tipo === "consulta" && (
-          <p className="grafo-costura">Acá va a entrar la AI: lo que proponga pasa por este mismo validador.</p>
+          <p className="grafo-costura">Lo que proponga la AI pasa por este mismo validador.</p>
         )}
       </header>
       {estado.fase === "cargando" && (
