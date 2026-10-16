@@ -225,10 +225,11 @@ Detalle, comandos y fuentes en [webgpu-en-el-pixel-10.md](webgpu-en-el-pixel-10.
 
 - **Medido** (Chrome 155, PowerVR `img-tec`/`rogue`, con `public/diagnostico-webgpu.html` y webgpureport.org; página y
   worker dan lo mismo): `requestAdapter()` en modo core da `null`; con `{ featureLevel: "compatibility" }` da un
-  adaptador, `requestDevice()` anda y un compute shader mínimo escribe bien. Sin `shader-f16` ni `subgroups`.
-  `maxBufferSize` 2 GB, `maxStorageBufferBindingSize` 256 MB.
+  adaptador, `requestDevice()` con los límites por defecto anda y un compute shader mínimo escribe bien. Sin
+  `shader-f16` ni `subgroups`. `maxBufferSize` 2 GB, `maxStorageBufferBindingSize` 256 MB.
 - **Por qué no arrancaba:** Transformers.js y onnxruntime piden el adaptador en modo core.
-- **Qué hace el worker ahora:** pide core y, si no da, compatibilidad; crea el device él y se lo pasa a onnxruntime por
-  `session_options.executionProviders` (y el adaptador por `env.webgpu.adapter`); sin f16 baja `q4` (3,6 GB) en vez de
-  `q4f16` (3,1 GB). Sin probar todavía con el modelo real: si el límite de 256 MB por binding rompe con `embed_tokens`,
-  la segunda vuelta es mandar esa tabla a wasm.
+- **Qué hace el worker ahora:** reemplaza `navigator.gpu.requestAdapter` en el worker (antes del `import()` de
+  Transformers.js) para que, si core da `null`, reintente en compatibilidad; onnxruntime crea su device como siempre.
+  Sin f16 baja `q4` (3,6 GB) en vez de `q4f16` (3,1 GB). Si la GPU no acepta el tensor más grande de `embed_tokens` (1
+  174 MB; el Pixel acepta 256 MB), los embeddings corren en wasm y el decoder en la GPU. Sin probar todavía con el
+  modelo real.

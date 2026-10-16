@@ -34,8 +34,11 @@ Reescrita el 2026-10-16 después de verificar la vía gratis: `gemma-en-el-naveg
    completo ~2 500). Medido con los mismos pesos por CPU: zero-shot 0/1 válida; few-shot con ~2 100 tokens de prompt
    tarda ~90 s por CPU (la GPU lo baja a segundos). Build2SPARQL da E4B 60.9 % con 3 ejemplos; E2B queda por debajo, y
    por eso el validador es la guarda, no el modelo.
-6. **WebGPU en el Pixel 10 Pro XL: medido, anda.** `chrome://gpu` dice "WebGPU: Hardware accelerated" (2026-10-16), así
-   que el botón gratis aparece también en el teléfono. Si en otro device no hay adaptador, el botón no aparece.
+6. **WebGPU en el Pixel 10 Pro XL: solo en modo compatibilidad.** `chrome://gpu` dice "WebGPU: Hardware accelerated"
+   (2026-10-16), pero `requestAdapter()` en modo core da `null`; con `featureLevel: "compatibility"` da un adaptador sin
+   `shader-f16` y con buffers de 256 MB. El worker cae a compatibilidad, baja `q4` y corre los embeddings en CPU
+   ([webgpu-en-el-pixel-10.md](webgpu-en-el-pixel-10.md)). El modelo todavía no corrió ahí. Si en otro device no hay
+   adaptador en ningún modo, el botón no aparece.
 7. **Si algún día quisiera pagar: API externa detrás de un proxy en el mismo origen.** `POST /ai/sparql` en
    ontologyLearning llamando a los Inference Providers de HF (`router.huggingface.co/v1/chat/completions`,
    `google/gemma-4-26B-A4B-it`; la key `HUGGING_FACE` ya existe en Doppler pero hoy contesta
@@ -376,8 +379,9 @@ Por qué este orden:
 
 ## Necesita a Christian
 
-- **Nada.** WebGPU en el Pixel 10 Pro XL: medido el 2026-10-16 en `chrome://gpu`, "WebGPU: Hardware accelerated" (y
-  Vulkan Enabled). La vía gratis corre también en el teléfono.
+- **Probar la AI en el Pixel 10 Pro XL.** WebGPU ahí es solo modo compatibilidad (medido el 2026-10-16;
+  [webgpu-en-el-pixel-10.md](webgpu-en-el-pixel-10.md)). El worker ya cae a ese modo, pero el modelo no se puede cargar
+  en Node ni en chromium-box: si anda en el teléfono, solo lo dice el teléfono.
 - **Nada que pagar.** Los créditos de HF y la key de OpenRouter quedan solo para la alternativa del punto 7.
 
 ## Fuentes

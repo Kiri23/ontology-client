@@ -117,7 +117,9 @@ mediciones están en `docs/consultas-por-ai.md` y `docs/gemma-en-el-navegador.md
 - **Solo WebGPU.** El botón aparece solo si `navigator.gpu.requestAdapter()` da un adaptador en el worker, en modo core
   o, si no, en modo compatibilidad: es lo único que da Chrome en el Pixel 10 Pro XL, sin f16
   ([docs/webgpu-en-el-pixel-10.md](docs/webgpu-en-el-pixel-10.md)). Sin WebGPU, una línea lo explica. No hay fallback a
-  WASM: con `q4` son 3,6 GB que onnxruntime copia al heap de wasm32, y en chromium-box (8 GB) colgó la VM entera.
+  WASM: con `q4` son 3,6 GB que onnxruntime copia al heap de wasm32, y en chromium-box (8 GB) colgó la VM entera. Lo
+  único que puede ir a wasm son los embeddings, cuando la GPU no acepta su buffer (en el Pixel, 256 MB contra 1 174 MB):
+  son un lookup por token.
 - **Nunca corre sola.** El prompt (`src/grafo/ai/prompt.ts`) lleva el esquema sacado del Store: los prefijos, las clases
   con cuántas instancias tienen y cada propiedad con su `rdfs:domain`, `rdfs:range` y `rdfs:comment`, o con las clases
   que la usan. También lleva tres prearmadas como ejemplo, sin las líneas PREFIX. `extraer.ts` saca el bloque
