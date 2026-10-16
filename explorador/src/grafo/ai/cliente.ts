@@ -61,8 +61,13 @@ export function pistaDeCarga(mensaje: string, nombre = ""): string {
   return "Probá de nuevo; si sigue, recargá la página.";
 }
 
-/** La GPU se perdió (driver reiniciado, memoria): las sesiones de WebGPU quedan muertas y reintentar no sirve. */
-export const GPU_PERDIDA = /device (was )?lost|GPUDevice|DeviceLost/i;
+/**
+ * La GPU se perdió (driver reiniciado, memoria): las sesiones de WebGPU quedan muertas y reintentar no sirve.
+ * "external Instance reference no longer exists" es el texto de Dawn con el device perdido (Pixel 10, 2026-10-16,
+ * Gemma 3 270M).
+ */
+export const GPU_PERDIDA =
+  /device (was )?lost|GPUDevice|DeviceLost|external Instance reference|Instance reference no longer exists/i;
 
 export class ClienteAi {
   #estado: EstadoAi;

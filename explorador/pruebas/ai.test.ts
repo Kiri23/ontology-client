@@ -183,6 +183,23 @@ describe("cliente", () => {
     expect(fakes[1].recibidos).toEqual([{ tipo: "load" }]);
   });
 
+  it("el OrtRun que falla porque Dawn perdió el device (el Pixel 10 con 270M) es GPU perdida, no un error de generar", async () => {
+    const fakes: ReturnType<typeof workerFalso>[] = [];
+    const cliente = new ClienteAi(() => (fakes.push(workerFalso()), fakes.at(-1)!.worker), () => true);
+    cliente.revisar();
+    fakes[0].conWebGpu(GPU_DEL_PIXEL);
+    cliente.cargar();
+    fakes[0].emitir({ tipo: "listo" });
+    const texto = cliente.generar([{ role: "user", content: "hola" }]);
+    const mensaje = "failed to call OrtRun(). ERROR_CODE: 1, ERROR_MESSAGE: …/webgpu/buffer_manager.cc:605 … " +
+      "BufferManager::Download … Failed to create a WebGPU compute pipeline: A valid external Instance reference no " +
+      "longer exists";
+    fakes[0].emitir({ tipo: "error", cuando: "generacion", mensaje });
+    await expect(texto).rejects.toThrow("external Instance reference");
+    expect(fakes[0].estado.terminado).toBe(true);
+    expect(cliente.estado()).toEqual({ fase: "disponible", gpu: GPU_DEL_PIXEL, error: mensaje });
+  });
+
   it("el porcentaje se mide contra lo que pesa la variante que baja, aunque el total todavía no lo sume", () => {
     expect(porcentaje({ archivo: "", cargado: 146_640_000, total: 280_000_000 }, bytesDelModelo(true))).toBe(50);
     expect(porcentaje({ archivo: "", cargado: 146_640_000, total: 280_000_000 }, bytesDelModelo(false))).toBe(42);
