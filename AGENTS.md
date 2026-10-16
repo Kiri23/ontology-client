@@ -10,5 +10,5 @@ Trampas que no se ven mirando el código. El resto está en README.md y explorad
   `explorador/node_modules` se puede copiar de otro worktree si el `package-lock.json` es idéntico.
 - **Preview de cada PR**: `https://pr-ontology-client-<n>.exe.xyz/` (login de exe.dev). Le habla a producción: los GET y
   `POST /ai/sparql` van a `ontology.kiri231.com`; lo que escribe no pasa.
-- **Pre-commit**: `deno task hooks`, una vez por clon. Corre lo de `ci.yml` y, si el commit toca `explorador/`,
-  `npm run check` y `npm test`.
+- **Pre-commit**: `deno task hooks`, una vez por clon. Corre fmt, lint, tipos, tests y `generar --check` de `ci.yml` y,
+  si el commit toca `explorador/`, `npm run check` y `npm test`.
