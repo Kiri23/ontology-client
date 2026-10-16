@@ -1,6 +1,6 @@
 // La consulta libre: un SPARQL escrito a mano, que pasa por el validador antes de correr en el motor local. SELECT y
 // ASK dan una tabla o un sí/no (y los nodos del resultado se resaltan); CONSTRUCT se dibuja en el lienzo. El texto vive
-// en la URL (?sparql=), así un link abre la consulta y su resultado.
+// en la URL (?sparql=), así un link abre la consulta lista para correr.
 import { type FormEvent, useMemo, useState } from "react";
 import { Copiar } from "../componentes/Copiar.tsx";
 import { Cuerpo } from "../componentes/Cuerpo.tsx";
@@ -33,8 +33,9 @@ function correrValidada(grafo: Grafo, consulta: string): Corrida {
 export function ConsultaLibre({ grafo, sparql, ir }: { grafo: Grafo; sparql: string; ir: Ir }) {
   const { modelo } = grafo;
   const [texto, setTexto] = useState(sparql || EJEMPLO);
-  // Un link con ?sparql= abre con el resultado: es local y solo lee, correrla al abrir no cuesta nada.
-  const [corrida, setCorrida] = useState<Corrida | undefined>(() => sparql ? correrValidada(grafo, sparql) : undefined);
+  // Un link con ?sparql= solo llena el editor: corre al tocar Correr. Una consulta cara congela la pestaña, y si
+  // corriera al abrir, recargar la congelaría de nuevo (el hash sigue ahí).
+  const [corrida, setCorrida] = useState<Corrida>();
 
   const todos = useMemo(() => [...modelo.nodos.keys()], [modelo]);
   const lienzo = useMemo(() => {

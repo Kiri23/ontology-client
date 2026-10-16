@@ -11,6 +11,7 @@ import { compacto, nombreCorto, PREFIJOS } from "../src/grafo/logica/prefijos.ts
 import { relacionesDe } from "../src/grafo/logica/relaciones.ts";
 import { filasDeTabla, leerResultado, nodosDelResultado, variablesDelSelect } from "../src/grafo/logica/resultados.ts";
 import { leerVista } from "../src/grafo/logica/vistas.ts";
+import { leerRuta } from "../src/logica/ruta.ts";
 import { CONSULTA_CLASES, CONSULTA_PROPIEDADES, validar } from "../src/grafo/logica/validador.ts";
 
 const K = PREFIJOS.k;
@@ -88,6 +89,32 @@ describe("stepper", () => {
     expect([dos.nodos.length, dos.aristas.length]).toEqual([9, 8]);
     expect(leerSaltos(escribirSaltos(saltos))).toEqual(saltos);
   });
+  it("un salto desde un nodo que no está en el lienzo no agrega nada, ni al lienzo ni al SPARQL", () => {
+    const fuera: Salto[] = [{ desde: JOBSEARCH, predicado: K + "tieneWorkflow", direccion: "sale" }];
+    expect(subgrafo(modelo, CHECKOUT, fuera)).toEqual({ nodos: [CHECKOUT], aristas: [] });
+    expect(sparqlDelCamino(modelo, CHECKOUT, fuera)).toBe(sparqlDelCamino(modelo, CHECKOUT, []));
+  });
+  it("lo que viene de la URL o de una etiqueta no escapa del comentario # del SPARQL del camino", () => {
+    const hash = "#/grafo/nodo?iri=urn:x%0AINSERT%20DATA%20%7B%3Curn:a%3E%20%3Curn:b%3E%20%3Curn:c%3E%7D";
+    const { iri } = leerVista(leerRuta(hash)) as { iri: string };
+    expect(iri).toContain("\nINSERT DATA");
+    expect(sparqlDelCamino(modelo, iri, [])).toBe("");
+    const conSalto = armarModelo([
+      {
+        subject: { termType: "NamedNode", value: "urn:a" },
+        predicate: { termType: "NamedNode", value: K + "accion" },
+        object: { termType: "NamedNode", value: "urn:b" },
+      },
+      {
+        subject: { termType: "NamedNode", value: "urn:a" },
+        predicate: { termType: "NamedNode", value: PREFIJOS.rdfs + "label" },
+        object: { termType: "Literal", value: "Título\nINSERT DATA { <urn:x> <urn:y> <urn:z> }\u2028DROP ALL" },
+      },
+    ]);
+    const q = sparqlDelCamino(conSalto, "urn:a", [{ desde: "urn:a", predicado: K + "accion", direccion: "sale" }]);
+    expect(q.split("\n").filter((l) => /INSERT|DROP/.test(l)).every((l) => l.trimStart().startsWith("#"))).toBe(true);
+    expect(q).toContain("# Salto 1: lo que Título INSERT DATA { <urn:x> <urn:y> <urn:z> } DROP ALL tiene por");
+  });
   it("el SPARQL del camino reproduce el lienzo y pasa el validador", () => {
     const saltos = [
       { desde: CHECKOUT, predicado: K + "ejecutaEnCI", direccion: "entra" as const },
@@ -160,6 +187,26 @@ describe("validador", () => {
       `Falta declarar el prefijo k:. Agregá arriba: PREFIX k: <${K}>`,
     );
   });
+  it("una propiedad inventada dentro de un path con |, ^, + o * también cae (los link del álgebra)", () => {
+    for (const camino of ["(k:accion|k:inventada)", "^k:inventada", "k:inventada+", "k:inventada*"]) {
+      expect(rechazo(`${K_}SELECT * WHERE { ?s ${camino} ?o . ?s a k:Uso }`), camino).toMatch(
+        /^La propiedad k:inventada no existe en el grafo/,
+      );
+    }
+  });
+  it("lo caro: un producto cartesiano (las dos consultas que congelaban la pestaña) y un ?s ?p ?o suelto", () => {
+    expect(rechazo("SELECT (COUNT(*) AS ?n) WHERE { ?a ?b ?c . ?d ?e ?f . ?g ?h ?i }")).toBe(
+      "Los patrones ?a ?b ?c y ?d ?e ?f y ?g ?h ?i no comparten ninguna variable: juntos son un producto cartesiano " +
+        "(cada resultado de uno con cada resultado del otro) y congelan la pestaña. Unilos por una variable en común.",
+    );
+    expect(rechazo("SELECT * WHERE { ?a ?b ?c . ?d ?e ?f } LIMIT 1000000")).toMatch(/^Los patrones .* cartesiano/);
+    expect(rechazo(`${K_}SELECT * WHERE { ?a a k:Action . ?u a k:Uso }`)).toMatch(/cartesiano/);
+    expect(rechazo("SELECT ?p WHERE { ?s ?p ?o }")).toMatch(/^\?s \?p \?o solo, sin otro patrón que lo ancle/);
+  });
+  it("lo barato pasa: patrones unidos por variables, y un ?s ?p ?o anclado por otro patrón", () => {
+    expect(validar(`${K_}SELECT * WHERE { ?u a k:Uso ; k:accion ?a . ?a a k:Action }`, conocidas()).ok).toBe(true);
+    expect(validar(`${K_}SELECT * WHERE { ?s ?p ?o . ?s a k:Action }`, conocidas()).ok).toBe(true);
+  });
   it("la plantilla de un CONSTRUCT puede inventar predicados; el WHERE no", () => {
     expect(validar(`${K_}CONSTRUCT { ?a k:inventado ?b } WHERE { ?a k:accion ?b }`, conocidas()).ok).toBe(true);
   });
@@ -182,5 +229,6 @@ describe("vistas", () => {
     });
     expect(leerVista({ id: "grafo/nodo", valores: { iri: CHECKOUT } })).toMatchObject({ tipo: "nodo", iri: CHECKOUT });
     expect(leerVista({ id: "grafo/nada", valores: {} })).toEqual({ tipo: "mapa", clase: "" });
+    expect(leerVista({ id: "grafo/nodo", valores: {} })).toEqual({ tipo: "mapa", clase: "" });
   });
 });

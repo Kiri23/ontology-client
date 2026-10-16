@@ -35,13 +35,28 @@ function aristasDelSalto(m: Modelo, s: Salto): Arista[] {
   );
 }
 
-/** Lo que muestra el lienzo del stepper: el inicio, y por cada salto sus aristas y sus vecinos, en orden. */
+/**
+ * Los saltos que valen, en orden: los que salen de un nodo que ya está en el lienzo y traen al menos una arista. Los
+ * demás (una URL editada a mano) no agregan nada ni al lienzo ni al SPARQL. El inicio tiene que ser un nodo del grafo.
+ */
+export function saltosValidos(m: Modelo, inicio: string, saltos: Salto[]): { salto: Salto; aristas: Arista[] }[] {
+  const nodos = new Set(m.nodos.has(inicio) ? [inicio] : []);
+  const validos: { salto: Salto; aristas: Arista[] }[] = [];
+  for (const salto of saltos) {
+    const aristas = nodos.has(salto.desde) ? aristasDelSalto(m, salto) : [];
+    if (!aristas.length) continue;
+    for (const a of aristas) nodos.add(a.desde).add(a.hasta);
+    validos.push({ salto, aristas });
+  }
+  return validos;
+}
+
+/** Lo que muestra el lienzo del stepper: el inicio, y por cada salto válido sus aristas y sus vecinos, en orden. */
 export function subgrafo(m: Modelo, inicio: string, saltos: Salto[]): { nodos: string[]; aristas: Arista[] } {
   const nodos = new Set(m.nodos.has(inicio) ? [inicio] : []);
   const aristas = new Map<string, Arista>();
-  for (const s of saltos) {
-    if (!nodos.has(s.desde)) continue; // un salto desde un nodo que no está en el lienzo no vale (URL editada a mano)
-    for (const a of aristasDelSalto(m, s)) {
+  for (const v of saltosValidos(m, inicio, saltos)) {
+    for (const a of v.aristas) {
       aristas.set(a.id, a);
       nodos.add(a.desde).add(a.hasta);
     }
@@ -52,11 +67,15 @@ export function subgrafo(m: Modelo, inicio: string, saltos: Salto[]): { nodos: s
 const termino = (iri: string) => compacto(iri);
 
 /**
- * El SPARQL que reproduce el lienzo: un CONSTRUCT con una rama de UNION por salto, en el orden en que se dieron.
- * Sin saltos, la ficha del nodo (lo que sale de él).
+ * El SPARQL que reproduce el lienzo: un CONSTRUCT con una rama de UNION por salto válido, en el orden en que se dieron.
+ * Sin saltos, la ficha del nodo (lo que sale de él). Si el inicio no es un nodo del grafo, "" (no hay camino).
+ * Las etiquetas van en comentarios `#`: un salto de línea en una (los títulos de HN vienen de afuera) cerraría el
+ * comentario y lo que sigue sería SPARQL. Por eso cada espacio en blanco, saltos incluidos, queda como un espacio.
  */
-export function sparqlDelCamino(m: Modelo, inicio: string, saltos: Salto[]): string {
-  const nombre = (iri: string) => m.nodos.get(iri)?.etiqueta ?? iri;
+export function sparqlDelCamino(m: Modelo, inicio: string, todos: Salto[]): string {
+  if (!m.nodos.has(inicio)) return "";
+  const saltos = saltosValidos(m, inicio, todos).map((v) => v.salto);
+  const nombre = (iri: string) => (m.nodos.get(iri)?.etiqueta ?? iri).replace(/\s+/g, " ");
   let cuerpo: string;
   if (!saltos.length) {
     cuerpo = `# La ficha de ${nombre(inicio)}: lo que sale de él.\n` +

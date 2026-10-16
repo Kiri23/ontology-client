@@ -74,12 +74,14 @@ export function Nodo({ grafo, iri, saltos: enUrl, foco: focoUrl, ir }: Props) {
               )}
             </div>
           )}
-          <Sparql
-            sparql={sparql}
-            titulo={`El camino en SPARQL${
-              saltos.length ? ` (${saltos.length === 1 ? "1 salto" : `${saltos.length} saltos`})` : ""
-            }`}
-          />
+          {sparql && (
+            <Sparql
+              sparql={sparql}
+              titulo={`El camino en SPARQL${
+                saltos.length ? ` (${saltos.length === 1 ? "1 salto" : `${saltos.length} saltos`})` : ""
+              }`}
+            />
+          )}
         </>
       }
     />

@@ -2,10 +2,11 @@
 // después entra la AI (explorador/docs/consultas-por-ai.md, sección 5): lo que proponga un modelo pasa por acá.
 //
 // Rechaza: lo que no parsea, lo que cambia datos (INSERT, DELETE, LOAD…), lo que no es SELECT, ASK o CONSTRUCT,
-// SERVICE y FROM, y las clases (objetos de rdf:type) y propiedades que el grafo no tiene. Parsea con Traqula (el sucesor
+// SERVICE y FROM, las clases (objetos de rdf:type) y propiedades que el grafo no tiene, y lo caro (costo.ts). Parsea con Traqula (el sucesor
 // de sparqljs) y mira el álgebra, que ya trae las IRIs completas y las secuencias a/b como patrones sueltos.
 import { toAlgebra } from "@traqula/algebra-sparql-1-1";
 import { Parser } from "@traqula/parser-sparql-1-1";
+import { motivosDeCosto } from "./costo.ts";
 import { compacto, PREFIJOS, RDF_TYPE } from "./prefijos.ts";
 
 /** Las IRIs que el grafo conoce, sacadas del Store con {@link CONSULTA_CLASES} y {@link CONSULTA_PROPIEDADES}. */
@@ -125,6 +126,7 @@ export function validar(consulta: string, conocidas: Conocidas): Veredicto {
   const motivos: string[] = [];
   if (usadas.service) motivos.push("SERVICE sale a otro servidor: acá solo se consulta el grafo cargado.");
   if (usadas.from) motivos.push("FROM elige otro grafo: acá hay uno solo, el que se cargó. Sacá el FROM.");
+  motivos.push(...motivosDeCosto(algebra));
   for (const c of usadas.clases) if (!conocidas.clases.has(c)) motivos.push(noExiste("La clase", c, conocidas.clases));
   for (const p of usadas.propiedades) {
     if (!conocidas.propiedades.has(p)) motivos.push(noExiste("La propiedad", p, conocidas.propiedades));
