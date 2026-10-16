@@ -31,8 +31,9 @@ function segundos(retryAfter: string | null): number {
  * solo donde ya es corto y en castellano: el 400, el 502 y el 503, que dicen qué le pasó a Google o al servidor.
  * - 502 sin `error` no es de ai.py: es Cloudflare o kiri-edge con el origen caído o en deploy (HTML o texto plano).
  *   Cloudflare además reemplaza el cuerpo de un 502 del origen por su página, así que ai.py no usa 502 para Google.
- * - 503 con `error` es de ai.py: Google falló aun reintentando (con Retry-After) o no hay key. Sin `error`, el 503 no
- *   trae nada que mostrar: queda el mensaje de "no configurada".
+ * - 503 con `error` es de ai.py. Con Retry-After la falla es pasajera (un 5xx de Google, un timeout): se dice cuánto
+ *   esperar. Sin Retry-After es de configuración o de cuota (no hay key, Google rechaza la key o se acabó la cuota):
+ *   va el error solo, porque esperar no lo arregla. Sin `error`, el 503 no trae nada que mostrar: "no configurada".
  */
 export function explicar(estado: number, error: string | undefined, retryAfter: string | null): string {
   if (estado === 429) return `Se llegó al límite de preguntas por minuto: probá de nuevo en ${segundos(retryAfter)} s.`;
@@ -40,7 +41,9 @@ export function explicar(estado: number, error: string | undefined, retryAfter: 
   if (estado === 503) {
     if (!error) return "La AI no está configurada en el servidor todavía: por ahora no se puede preguntar.";
     const s = Number(retryAfter);
-    return `${oracion(error)} Probá de nuevo en ${Number.isInteger(s) && s > 0 ? `${s} s` : "un rato"}.`;
+    return retryAfter !== null && Number.isInteger(s) && s > 0
+      ? `${oracion(error)} Probá de nuevo en ${s} s.`
+      : oracion(error);
   }
   if (estado === 413) return "La pregunta es demasiado larga: acortala y probá de nuevo.";
   if (estado === 404 || estado === 405) {

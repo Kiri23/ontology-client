@@ -63,11 +63,17 @@ describe("pedirAlServidor", () => {
       .toBe("El servidor no contestó (502). Probá de nuevo en un rato.");
     expect(await con(json(502, { error: "Google respondió 429 (RESOURCE_EXHAUSTED)" })))
       .toBe("Google respondió 429 (RESOURCE_EXHAUSTED). Probá de nuevo en un rato.");
-    // El 503 de ai.py trae su error (Google falló aun reintentando, o no hay key), con Retry-After si se puede esperar.
-    expect(await con(json(503, { error: "Google falló dos veces (INTERNAL)" }, { "Retry-After": "20" })))
-      .toBe("Google falló dos veces (INTERNAL). Probá de nuevo en 20 s.");
-    expect(await con(json(503, { error: "el servidor no tiene key de Google AI Studio" })))
-      .toBe("El servidor no tiene key de Google AI Studio. Probá de nuevo en un rato.");
+    // Los 503 de ai.py, con sus textos (ontologyLearning, rama ai-502, vistas/web/ai.py y ai_studio.py en 632cfe0).
+    // Con Retry-After (REINTENTAR_EN = 10) la falla es pasajera: se dice cuánto esperar.
+    expect(await con(json(503, { error: "Google respondió 500 (INTERNAL)" }, { "Retry-After": "10" })))
+      .toBe("Google respondió 500 (INTERNAL). Probá de nuevo en 10 s.");
+    expect(await con(json(503, { error: "Google no contestó en 30 s" }, { "Retry-After": "10" })))
+      .toBe("Google no contestó en 30 s. Probá de nuevo en 10 s.");
+    // Sin Retry-After es de configuración o de cuota: el error solo, sin "Probá de nuevo".
+    expect(await con(json(503, { error: "el servidor no tiene key de Google AI Studio: no es una falla de Google" })))
+      .toBe("El servidor no tiene key de Google AI Studio: no es una falla de Google.");
+    expect(await con(json(503, { error: "Google respondió 429 (RESOURCE_EXHAUSTED)" })))
+      .toBe("Google respondió 429 (RESOURCE_EXHAUSTED).");
     // Un 503 sin JSON (no es de ai.py): el mensaje de siempre.
     expect(await con(new Response("Service Unavailable", { status: 503, headers: { "Content-Type": "text/plain" } })))
       .toBe("La AI no está configurada en el servidor todavía: por ahora no se puede preguntar.");

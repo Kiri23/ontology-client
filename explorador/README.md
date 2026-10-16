@@ -110,14 +110,14 @@ Gemma 4 26B-A4B en Google AI Studio, gratis (ontologyLearning#31, `vistas/web/ai
 y que Google puede usar lo que le llega (es su servicio gratis). El servidor tiene la key, el límite (5 por minuto por
 IP, 10 por minuto en total) y un tope de 32 KiB por pedido. Cada error se dice en una frase:
 
-| El servidor | La página dice                                                                                                                                                                                              |
-| ----------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 429         | "Se llegó al límite de preguntas por minuto: probá de nuevo en N s." (N es `Retry-After`)                                                                                                                   |
-| 502         | lo que le pasó a Google ("Google no contestó en 30 s.") y "Probá de nuevo en un rato." Sin `{"error"}` (un 502 de Cloudflare o kiri-edge con el origen caído o en deploy): "El servidor no contestó (502)." |
-| 503         | el error del servidor (Google falló aun reintentando, o no hay key) y "Probá de nuevo en N s" con `Retry-After`; sin `{"error"}`, "La AI no está configurada en el servidor todavía"                        |
-| 404, 405    | "Este servidor todavía no tiene Preguntar con AI" (un servidor sin #31)                                                                                                                                     |
-| 413, 400    | la pregunta es demasiado larga; el servidor no aceptó la pregunta y por qué                                                                                                                                 |
-| sin red     | "No se pudo hablar con el servidor: revisá la conexión y probá de nuevo."                                                                                                                                   |
+| El servidor | La página dice                                                                                                                                                                                                                |
+| ----------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 429         | "Se llegó al límite de preguntas por minuto: probá de nuevo en N s." (N es `Retry-After`)                                                                                                                                     |
+| 502         | lo que le pasó a Google ("Google no contestó en 30 s.") y "Probá de nuevo en un rato." Sin `{"error"}` (un 502 de Cloudflare o kiri-edge con el origen caído o en deploy): "El servidor no contestó (502)."                   |
+| 503         | el error del servidor; con `Retry-After` (falla pasajera: un 5xx de Google, un timeout) suma "Probá de nuevo en N s", sin él (no hay key, cuota) va solo; sin `{"error"}`, "La AI no está configurada en el servidor todavía" |
+| 404, 405    | "Este servidor todavía no tiene Preguntar con AI" (un servidor sin #31)                                                                                                                                                       |
+| 413, 400    | la pregunta es demasiado larga; el servidor no aceptó la pregunta y por qué                                                                                                                                                   |
+| sin red     | "No se pudo hablar con el servidor: revisá la conexión y probá de nuevo."                                                                                                                                                     |
 
 No va por el SDK: `/ai/sparql` no es una historia del explorador y todavía no está en `contrato/openapi.json`.
 `npm run dev` lo manda a producción, como las demás rutas.
