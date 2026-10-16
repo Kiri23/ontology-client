@@ -20,11 +20,19 @@ interface Props {
   alProponer: (sparql: string) => void;
 }
 
-/** La nota de CPU va debajo del progreso: la variante llega antes que el primer archivo. */
-function NotaDeCpu({ variante }: { variante?: Variante }) {
-  return variante?.embedEnCpu
-    ? <p className="ai-nota">Los embeddings corren en CPU: la GPU no acepta buffers tan grandes.</p>
-    : null;
+/** 268435456 → "256": los límites de WebGPU son potencias de 2, y así los dan Chrome y webgpureport. */
+const mb = (bytes: number) => (bytes / 2 ** 20).toLocaleString("es", { maximumFractionDigits: 0 });
+
+/** Si la tabla de embeddings no entra en un buffer de esta GPU, se avisa debajo del progreso: puede fallar al cargar. */
+function NotaDeBinding({ variante }: { variante?: Variante }) {
+  if (!variante?.embedExcedeBinding) return null;
+  return (
+    <p className="ai-nota">
+      La tabla de embeddings ({gb(variante.tablaDeEmbed)}{" "}
+      GB) supera lo que la GPU acepta por buffer ({mb(variante.maxStorageBufferBindingSize)}{" "}
+      MB): puede fallar al cargar; si falla, el error va a decir <code>maxStorageBufferBindingSize</code>.
+    </p>
+  );
 }
 
 function Descarga({ progreso, gpu, variante }: { progreso?: Progreso; gpu: Gpu; variante?: Variante }) {
@@ -33,7 +41,7 @@ function Descarga({ progreso, gpu, variante }: { progreso?: Progreso; gpu: Gpu; 
       <div className="ai-carga" role="status">
         <p>Empezando la descarga…</p>
         <progress aria-label="Descarga del modelo" />
-        <NotaDeCpu variante={variante} />
+        <NotaDeBinding variante={variante} />
       </div>
     );
   }
@@ -49,7 +57,7 @@ function Descarga({ progreso, gpu, variante }: { progreso?: Progreso; gpu: Gpu; 
       <p className="ai-nota">
         {gb(progreso.cargado)} de {gb(Math.max(progreso.total, esperado))} GB. Queda guardado en el navegador.
       </p>
-      <NotaDeCpu variante={variante} />
+      <NotaDeBinding variante={variante} />
     </div>
   );
 }

@@ -1,6 +1,6 @@
 // La AI sin modelo: el prompt (esquema del Store, ejemplos, pregunta), el extractor del SPARQL y el cliente con un
 // worker falso. El modelo real no corre acá ni en chromium-box (colgó la VM): lo prueba Christian en el Pixel.
-import { beforeAll, describe, expect, it } from "vitest";
+import { beforeAll, describe, expect, it, vi } from "vitest";
 import { chatDeGemma } from "../src/grafo/ai/chat.ts";
 import { ClienteAi, pistaDeCarga, porcentaje } from "../src/grafo/ai/cliente.ts";
 import { completarPrefijos, consultaPropuesta, extraerSparql } from "../src/grafo/ai/extraer.ts";
@@ -12,7 +12,7 @@ import {
   sinPrefijos,
   textoDelEsquema,
 } from "../src/grafo/ai/prompt.ts";
-import { bytesDelModelo } from "../src/grafo/ai/protocolo.ts";
+import { bytesDelModelo, opcionesDeCarga } from "../src/grafo/ai/protocolo.ts";
 import { validar } from "../src/grafo/logica/validador.ts";
 import type { Grafo } from "../src/grafo/motor.ts";
 import { grafoDePrueba } from "./grafo-de-prueba.ts";
@@ -199,12 +199,12 @@ describe("cliente", () => {
     expect(cliente.estado()).toEqual({ fase: "disponible", gpu: GPU_DEL_PIXEL });
     cliente.cargar();
     expect(cliente.estado()).toEqual({ fase: "bajando", gpu: GPU_DEL_PIXEL });
-    f.emitir({ tipo: "variante", dtype: "q4", bytes: 3_646_000_000, embedEnCpu: true });
+    f.emitir({ tipo: "variante", ...opcionesDeCarga(GPU_DEL_PIXEL) });
     f.emitir({ tipo: "progreso", archivo: "onnx/embed_tokens_q4.onnx_data", cargado: 1e9, total: 2e9 });
     expect(cliente.estado()).toEqual({
       fase: "bajando",
       gpu: GPU_DEL_PIXEL,
-      variante: { dtype: "q4", bytes: 3_646_000_000, embedEnCpu: true },
+      variante: opcionesDeCarga(GPU_DEL_PIXEL),
       progreso: { tipo: "progreso", archivo: "onnx/embed_tokens_q4.onnx_data", cargado: 1e9, total: 2e9 },
     });
     f.emitir({ tipo: "error", cuando: "carga", mensaje: "GPU device lost (unknown): pantalla apagada" });
@@ -232,6 +232,19 @@ describe("cliente", () => {
     expect(fakes).toHaveLength(2);
     expect(fakes[1].recibidos).toEqual([{ tipo: "load" }]);
     expect(pistaDeCarga("Failed to fetch")).toContain("retoma");
+  });
+
+  it("un error de carga con el worker ocioso (sin Continuar) no es un fallo de carga: solo un aviso en la consola", () => {
+    const f = workerFalso();
+    const cliente = new ClienteAi(() => f.worker, () => true);
+    const aviso = vi.spyOn(console, "warn").mockImplementation(() => {});
+    cliente.revisar();
+    f.conWebGpu();
+    f.emitir({ tipo: "error", cuando: "carga", mensaje: "una promesa sin atrapar" });
+    expect(cliente.estado()).toEqual({ fase: "disponible", gpu: GPU_DE_ESCRITORIO });
+    expect(f.estado.terminado).toBe(false);
+    expect(aviso).toHaveBeenCalledWith(expect.any(String), "una promesa sin atrapar");
+    aviso.mockRestore();
   });
 
   it("un segundo cargar mientras baja no manda otro load", () => {

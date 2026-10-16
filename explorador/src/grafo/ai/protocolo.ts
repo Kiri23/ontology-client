@@ -39,36 +39,44 @@ const VARIANTES = {
  * WebGPU lo ata entero a un binding; si la GPU no acepta un buffer así (el Pixel acepta 256 MB), la sesión no se crea
  * ("exceeding maxStorageBufferBindingSize of"). Después viene `per_layer_weight_scales`, f32, 293,6 MB. El decoder no
  * pasa de 201 MB (`lm_head`). Revisión del PR #11, con los .onnx de Hugging Face.
+ *
+ * Mandar `embed_tokens` a wasm no sirve: este build de onnxruntime-web no trae el kernel de CPU de
+ * `GatherBlockQuantized` (solo `contrib_ops/webgpu/quantization/gather_block_quantized.cc`; con EP wasm da "Could not
+ * find an implementation for GatherBlockQuantized(1)"), y las variantes que usan Gather común (fp16, fp32) pesan 5,5 y
+ * 11 GB. Por eso es solo un dato para avisar. El plan B, trabajo aparte: un lookup propio de los embeddings con Range
+ * requests sobre `embed_tokens_q4.onnx_data`.
  */
 export const TENSOR_MAS_GRANDE_DE_EMBED = 262_144 * 4_480;
 
-/** Dónde corre cada archivo del modelo: todo en la GPU, o los embeddings en CPU (wasm) y el decoder en la GPU. */
-export type DispositivoDeCarga = "webgpu" | { embed_tokens: "wasm"; decoder_model_merged: "webgpu" };
+/** La variante que eligió el worker al empezar la carga, con los números para avisar si la tabla de embeddings no entra. */
+export interface Variante {
+  dtype: keyof typeof VARIANTES;
+  bytes: number;
+  /** La tabla de embeddings supera lo que la GPU acepta por buffer: puede fallar al crear la sesión. */
+  embedExcedeBinding: boolean;
+  tablaDeEmbed: number;
+  maxStorageBufferBindingSize: number;
+}
 
 /**
- * Qué variante baja, cuánto pesa y dónde corre. Sin f16 baja `q4` (un shader de f16 no compila en esa GPU). Si la GPU
- * no acepta el tensor más grande de los embeddings, `embed_tokens` corre en wasm: es un lookup por token, no necesita la
- * GPU. Lo que baja es lo mismo: cambia dónde corre, no qué archivo.
+ * Qué variante baja y cuánto pesa. Sin f16 baja `q4` (un shader de f16 no compila en esa GPU). Todo corre en la GPU:
+ * `embedExcedeBinding` solo avisa (ver TENSOR_MAS_GRANDE_DE_EMBED).
  */
 export function opcionesDeCarga(
   { f16, maxStorageBufferBindingSize }: Pick<Gpu, "f16" | "maxStorageBufferBindingSize">,
-): { dtype: keyof typeof VARIANTES; bytes: number; device: DispositivoDeCarga } {
+): Variante {
   const dtype = f16 ? "q4f16" : "q4";
-  const device: DispositivoDeCarga = maxStorageBufferBindingSize < TENSOR_MAS_GRANDE_DE_EMBED
-    ? { embed_tokens: "wasm", decoder_model_merged: "webgpu" }
-    : "webgpu";
-  return { dtype, bytes: VARIANTES[dtype], device };
+  return {
+    dtype,
+    bytes: VARIANTES[dtype],
+    embedExcedeBinding: maxStorageBufferBindingSize < TENSOR_MAS_GRANDE_DE_EMBED,
+    tablaDeEmbed: TENSOR_MAS_GRANDE_DE_EMBED,
+    maxStorageBufferBindingSize,
+  };
 }
 
 /** Lo que baja la primera vez, según haya f16 o no: para el aviso, antes de cargar. */
 export const bytesDelModelo = (f16: boolean) => VARIANTES[f16 ? "q4f16" : "q4"];
-
-/** La variante que eligió el worker al empezar la carga: el tamaño real y si los embeddings van a CPU. */
-export interface Variante {
-  dtype: keyof typeof VARIANTES;
-  bytes: number;
-  embedEnCpu: boolean;
-}
 
 export interface Mensaje {
   role: "system" | "user" | "assistant";

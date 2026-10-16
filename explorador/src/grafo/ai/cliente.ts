@@ -20,7 +20,7 @@ export type EstadoAi =
    * `error`: se perdió la GPU y el modelo se descargó de la memoria; hay que cargarlo de nuevo.
    */
   | { fase: "disponible"; gpu: Gpu; error?: string }
-  /** `variante`: la que eligió el worker al empezar (tamaño real y si los embeddings van a CPU). */
+  /** `variante`: la que eligió el worker al empezar (tamaño real y si la tabla de embeddings entra en un buffer). */
   | { fase: "bajando"; gpu: Gpu; variante?: Variante; progreso?: Progreso }
   | { fase: "preparando"; gpu: Gpu }
   /** `error`: la última generación falló; el modelo sigue cargado. */
@@ -143,10 +143,13 @@ export class ClienteAi {
         this.#pedido = undefined;
         this.#poner({ fase: "listo", gpu, error: m.mensaje });
         pedido?.rechazar(new Error(m.mensaje));
-      } else {
+      } else if (e.fase === "bajando" || e.fase === "preparando") {
         // onnxruntime queda abortado en ese worker: Probar de nuevo abre uno limpio.
         this.#terminar();
         this.#poner({ fase: "fallo-carga", gpu, mensaje: m.mensaje, pista: pistaDeCarga(m.mensaje, m.nombre) });
+      } else {
+        // Un error sin atrapar con el worker ocioso (nadie tocó Continuar): no es un fallo de carga.
+        console.warn("La AI avisó un error sin estar cargando:", m.mensaje);
       }
     }
   }

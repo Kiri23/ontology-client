@@ -9,7 +9,7 @@ import { renderizarParaGemma } from "./plantilla-gemma.ts";
 export const GPU_DE_ESCRITORIO: Gpu = { modo: "core", f16: true, maxStorageBufferBindingSize: 2_147_483_648 };
 /**
  * La del Pixel 10 Pro XL medida el 2026-10-16: solo modo compatibilidad, sin shader-f16 y buffers de 256 MB (baja q4,
- * 3,6 GB, con los embeddings en CPU).
+ * 3,6 GB; la tabla de embeddings no entra en un buffer).
  */
 export const GPU_DEL_PIXEL: Gpu = { modo: "compatibility", f16: false, maxStorageBufferBindingSize: 268_435_456 };
 

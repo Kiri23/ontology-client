@@ -2,7 +2,7 @@
 // Pixel 10 Pro XL Chrome da null en core y un adaptador en compatibilidad (docs/webgpu-en-el-pixel-10.md). Ninguna de
 // las dos deja pasar un adaptador o un device propio sin perder algo: con un device propio, onnxruntime no engancha su
 // onuncapturederror (un buffer de más quedaría como aviso de consola y la AI diría "listo") y las session_options
-// valen para todos los archivos, así que embed_tokens no podría ir a wasm. Lo único que las dos comparten es
+// valen para todos los archivos (no se podría mandar un archivo a otro EP). Lo único que las dos comparten es
 // navigator.gpu.requestAdapter: se reemplaza ahí, y cada una sigue creando su device como siempre.
 import type { ModoWebGpu } from "./protocolo.ts";
 

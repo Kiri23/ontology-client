@@ -67,11 +67,12 @@ async function entradas(procesador: Procesador, mensajes: Mensaje[]) {
 async function cargar() {
   // Un worker nuevo después de un fallo de carga no recibe check: el adaptador se pide acá.
   const { adapter } = adaptador ??= await pedirAdaptador();
-  const { dtype, bytes, device } = opcionesDeCarga({
+  const variante = opcionesDeCarga({
     f16: adapter.features.has("shader-f16"),
     maxStorageBufferBindingSize: adapter.limits.maxStorageBufferBindingSize,
   });
-  enviar({ tipo: "variante", dtype, bytes, embedEnCpu: device !== "webgpu" });
+  enviar({ tipo: "variante", ...variante });
+  const { dtype } = variante;
   // Antes del import(): onnxruntime lee navigator.gpu.requestAdapter cuando pide su adaptador.
   instalarCompatibilidad(gpu!);
   const lib = await import("@huggingface/transformers");
@@ -95,7 +96,12 @@ async function cargar() {
   const opciones = { progress_callback: progreso as never };
   const [procesador, modelo] = await Promise.all([
     lib.AutoProcessor.from_pretrained(MODELO, opciones),
-    lib.Gemma4ForCausalLM.from_pretrained(MODELO, { ...opciones, dtype, device, use_external_data_format: true }),
+    lib.Gemma4ForCausalLM.from_pretrained(MODELO, {
+      ...opciones,
+      dtype,
+      device: "webgpu",
+      use_external_data_format: true,
+    }),
   ]);
   // Un token de prueba compila los shaders; si no, la primera pregunta tarda eso de más. Sin muestreo, como al generar.
   enviar({ tipo: "preparando" });

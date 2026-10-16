@@ -69,27 +69,30 @@ describe("instalarCompatibilidad", () => {
 });
 
 describe("opcionesDeCarga", () => {
-  it("el Pixel (sin f16, buffers de 256 MB): q4, 3,6 GB, embeddings en wasm y decoder en la GPU", () => {
+  it("el Pixel (sin f16, buffers de 256 MB): q4, 3,6 GB, y avisa que la tabla de embeddings no entra en un buffer", () => {
     expect(opcionesDeCarga({ f16: false, maxStorageBufferBindingSize: 268_435_456 })).toEqual({
       dtype: "q4",
       bytes: 3_646_000_000,
-      device: { embed_tokens: "wasm", decoder_model_merged: "webgpu" },
+      embedExcedeBinding: true,
+      tablaDeEmbed: 1_174_405_120,
+      maxStorageBufferBindingSize: 268_435_456,
     });
   });
 
-  it("escritorio (f16, buffers de 2 GB): q4f16, 3,1 GB, todo en la GPU", () => {
-    expect(opcionesDeCarga({ f16: true, maxStorageBufferBindingSize: 2_147_483_648 })).toEqual({
+  it("escritorio (f16, buffers de 2 GB): q4f16, 3,1 GB, sin aviso", () => {
+    expect(opcionesDeCarga({ f16: true, maxStorageBufferBindingSize: 2_147_483_648 })).toMatchObject({
       dtype: "q4f16",
       bytes: 3_130_000_000,
-      device: "webgpu",
+      embedExcedeBinding: false,
     });
   });
 
   it("el límite es el tensor más grande de embed_tokens (u8 [262144, 4480]), en los dos dtypes", () => {
     expect(TENSOR_MAS_GRANDE_DE_EMBED).toBe(1_174_405_120);
     const justo = { maxStorageBufferBindingSize: TENSOR_MAS_GRANDE_DE_EMBED };
-    expect(opcionesDeCarga({ f16: true, ...justo }).device).toBe("webgpu");
-    expect(opcionesDeCarga({ f16: true, maxStorageBufferBindingSize: TENSOR_MAS_GRANDE_DE_EMBED - 1 }).device)
-      .toEqual({ embed_tokens: "wasm", decoder_model_merged: "webgpu" });
+    expect(opcionesDeCarga({ f16: true, ...justo }).embedExcedeBinding).toBe(false);
+    expect(opcionesDeCarga({ f16: false, ...justo }).embedExcedeBinding).toBe(false);
+    const menos = { maxStorageBufferBindingSize: TENSOR_MAS_GRANDE_DE_EMBED - 1 };
+    expect(opcionesDeCarga({ f16: true, ...menos }).embedExcedeBinding).toBe(true);
   });
 });
