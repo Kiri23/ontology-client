@@ -5,10 +5,7 @@ produjo.
 
 ## Decisión
 
-Reescrita el 2026-10-16 después de verificar la vía gratis: `gemma-en-el-navegador.md` tiene la
-prueba.`de`explorador/docs/consultas-por-ai.md`:
-
-## Decisión
+Reescrita el 2026-10-16 después de verificar la vía gratis: `gemma-en-el-navegador.md` tiene la prueba.
 
 1. **Primero: Gemma 4 E2B en el navegador, por WebGPU, con Transformers.js, como ya lo hizo Christian en
    DocsifyTemplate** (`packages/chat/core/worker.js`:
