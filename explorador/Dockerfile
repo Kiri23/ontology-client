@@ -15,7 +15,7 @@ RUN npm ci --no-audit --no-fund
 
 # El SDK que importa el explorador, y los datos de prueba que usan sus tests (tests/datos/jobs.json).
 WORKDIR /repo
-COPY mod.ts cliente.ts jobs.ts ./
+COPY mod.ts cliente.ts jobs.ts sparql.ts ./
 COPY generado ./generado
 COPY contrato ./contrato
 COPY tests/datos ./tests/datos

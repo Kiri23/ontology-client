@@ -22,7 +22,6 @@ plegados).
    `prefers-reduced-motion`, nada se anima, ni el layout de Cytoscape.
 8. **Dedo primero**: todo lo tocable mide ≥ 44 px, nada depende de hover, los paneles van debajo del lienzo y no encima.
 
-Revisión contra el brief: el papel crema con serif y acento rojo es uno de los defaults de página generada; se queda
-porque es la identidad que ya tiene el explorador y el brief pide mantenerla. Lo que sí cambié del plan inicial: saqué
-los rótulos en mayúsculas y los `·` como separador de metadatos (plantilla), y la mono deja de ser la letra de los
-rótulos chicos. El lienzo cuadriculado es la decisión propia de este brief: un grafo dibujado en papel de grafo.
+Revisión contra el brief: papel crema, serif y acento rojo es un default de página generada; se queda porque es la
+identidad del explorador y el brief pide mantenerla. Cambié del plan inicial: fuera los rótulos en mayúsculas y la mono
+como letra de rótulos chicos (plantilla). La decisión propia de este brief es el lienzo: un grafo en papel de grafo.

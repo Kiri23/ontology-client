@@ -18,14 +18,17 @@ explorador/
     tipos.ts         Historia, Control, Clase
     jobs.ts          jobs.get, jobs.descartar, jobs.marcarAplicado
     proyectos.ts     validarProyecto
+    sparql.ts        sparql.consultar
     cliente.ts       crearCliente: una historia por cada GET de contrato/openapi.json
     index.ts         CLASES, el orden de la barra
   src/hooks/       useLlamada (useActionState), useRuta (el hash), useToken (sessionStorage)
   src/componentes/ Barra, PanelHistoria, Controles, CampoToken, Respuesta, Tabla, Json, Prosa
   src/logica/      la ruta del hash y las celdas de la tabla, sin React
-  src/estilos/     un CSS por sección (base, barra, panel, ficha, recibo, tabla); cada componente importa el suyo
+  src/grafo/       la vista Grafo (ver abajo): VistaGrafo, motor.ts, vistas/, componentes/, hooks/ y logica/ (sin React)
+  src/estilos/     un CSS por sección (base, barra, panel, ficha, recibo, tabla, grafo); cada componente importa el suyo
   vite/doc-sdk.ts  plugin de Vite: el JSDoc y la firma de cada función, leídos del código del SDK
-  pruebas/         vitest: historias, hooks y panel con un fetch falso (sin red)
+  pruebas/         vitest: historias, hooks y panel con un fetch falso; grafo.test.ts con datos/grafo.ttl (sin red)
+  docs/            diseno.md (el plan visual) y consultas-por-ai.md (la AI que viene)
   scripts/         humo-imagen (CI) y capturas.mjs (capturas para un PR)
   Dockerfile       node → Caddy; el contexto es la raíz del repo
   Caddyfile        el servidor estático del contenedor
@@ -52,6 +55,42 @@ con nombre es `validarProyecto`, que manda la ficha por POST pero no guarda nada
 4. `deno task test` en la raíz y `npm test` acá.
 
 Un GET nuevo en el contrato no necesita nada: `cliente.ts` arma su historia desde `contrato/openapi.json`.
+
+## Grafo
+
+`#/grafo/mapa` y las demás entradas de la sección Grafo de la barra. El grafo RDF entero (unas 1 300 tripletas) se baja
+una vez con `sparql.consultar("CONSTRUCT { ?s ?p ?o } WHERE { ?s ?p ?o }")` y se carga en
+[oxigraph](https://github.com/oxigraph/oxigraph) 0.5.11, un motor SPARQL en WASM que corre en la pestaña. Se dibuja con
+Cytoscape 3.34.3 y el layout fcose. Todo eso va en un `import()` perezoso (`App.tsx`): una historia no baja el WASM (1,4
+MB comprimido) ni el chunk de la vista (~260 kB comprimido).
+
+- **Mapa** (`#/grafo/mapa?clase=k:Action`): las instancias como nodos (235; los literales son atributos, `rdf:type` es
+  el color y la forma, el esquema no se dibuja). La leyenda cuenta por clase y resalta una. Se ven dos islas que no se
+  tocan, los puestos y los repos, más los nodos sueltos.
+- **Indagar** (`#/grafo/nodo?iri=…&saltos=…&foco=…`): la ficha de un nodo con sus relaciones agrupadas por predicado, en
+  las dos direcciones. Tocar una relación agrega esos vecinos al lienzo sin mover los que ya estaban. El SPARQL del
+  camino (un CONSTRUCT) se arma solo, con Copiar y Abrir en consulta libre. Los saltos van en la URL.
+- **Consultas prearmadas** (`#/grafo/huecos`…): corren al abrir, muestran la tabla y resaltan sus nodos.
+- **Consulta libre** (`#/grafo/consulta?sparql=…`): SELECT y ASK dan tabla o sí/no; CONSTRUCT se dibuja. Un link con
+  `?sparql=` abre ya corrida.
+
+**Agregar una consulta prearmada:** un objeto más en `PREARMADAS` (`src/grafo/logica/consultas.ts`) con `id` (va en la
+URL), `nombre`, `pregunta` (una línea) y `sparql` (sin los PREFIX: `declaraciones()` agrega los que use). La barra la
+lista sola. `pruebas/grafo.test.ts` ya la corre contra `pruebas/datos/grafo.ttl` y exige que pase el validador y dé
+filas; si sabés cuántas, sumá un test con el número.
+
+**El validador** (`src/grafo/logica/validador.ts`) corre antes de cada consulta libre. Parsea con Traqula 1.4.0 (el
+sucesor de sparqljs, que está deprecado) y mira el álgebra. Rechaza lo que no parsea (un prefijo sin declarar dice qué
+línea falta), lo que cambia datos (INSERT, DELETE, LOAD…), lo que no es SELECT, ASK o CONSTRUCT, `SERVICE` y `FROM`, y
+las clases (objetos de `rdf:type`) y propiedades que el grafo no tiene, con la más parecida: "La clase k:Accion no
+existe en el grafo; parecida: k:Action.". Las conocidas salen del Store (usadas y declaradas en el esquema). La
+plantilla de un CONSTRUCT puede inventar predicados; el WHERE no. Es la costura donde va a entrar la AI
+(`docs/consultas-por-ai.md`): lo que proponga un modelo pasa por acá antes de correr.
+
+**La CSP** suma `script-src 'self' 'wasm-unsafe-eval'`: sin eso el navegador no compila el WASM de oxigraph
+(`WebAssembly.instantiateStreaming` cae por `default-src 'self'`). `'wasm-unsafe-eval'` habilita solo WebAssembly, no
+`eval` de JS, y el WASM es un asset propio con hash. Cytoscape quiere inyectar un `<style>`, que `style-src 'self'`
+bloquea: `Lienzo.tsx` ocupa antes su id con un `<meta>` y su única regla (`position: relative`) vive en `grafo.css`.
 
 ## Correrlo
 
@@ -113,9 +152,10 @@ curl -s https://ontology.kiri231.com/explorador/ | grep -c 'id="raiz"'   # → 1
 `kiri-pr-shots` y `chromium-shot.py` no sirven para una SPA. `scripts/capturas.mjs` hace que chromium-box navegue a la
 URL de producción y contesta `/explorador/*` con el `dist/` local y la misma CSP del Caddyfile; la API real responde los
 GET y cualquier otro método se aborta antes de salir. Sale 1 si la página tuvo alguna violación de CSP (así apareció una
-fuente `data:` que la CSP bloqueaba: por eso `assetsInlineLimit: 0` en `vite.config.ts`).
+fuente `data:` que la CSP bloqueaba: por eso `assetsInlineLimit: 0` en `vite.config.ts`). Las del Grafo esperan a que el
+lienzo tenga su canvas y termine el layout (`.lienzo[data-listo="true"] canvas`).
 
 ```sh
-npm run build && node scripts/capturas.mjs ~/tmp/capturas   # 4 capturas × 390 y 1280 px
+npm run build && node scripts/capturas.mjs ~/tmp/capturas   # 9 capturas × 390 y 1280 px, 5 del Grafo
 kiri-pr-shots subir <pr#> ~/tmp/capturas/*.png
 ```
