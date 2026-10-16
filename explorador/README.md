@@ -117,9 +117,10 @@ mediciones están en `docs/consultas-por-ai.md` y `docs/gemma-en-el-navegador.md
 - **Solo WebGPU.** El botón aparece solo si `navigator.gpu.requestAdapter()` da un adaptador en el worker, en modo core
   o, si no, en modo compatibilidad: es lo único que da Chrome en el Pixel 10 Pro XL, sin f16
   ([docs/webgpu-en-el-pixel-10.md](docs/webgpu-en-el-pixel-10.md)). Sin WebGPU, una línea lo explica. No hay fallback a
-  WASM: con `q4` son 3,6 GB que onnxruntime copia al heap de wasm32, y en chromium-box (8 GB) colgó la VM entera. Lo
-  único que puede ir a wasm son los embeddings, cuando la GPU no acepta su buffer (en el Pixel, 256 MB contra 1 174 MB):
-  son un lookup por token.
+  WASM: con `q4` son 3,6 GB que onnxruntime copia al heap de wasm32, y en chromium-box (8 GB) colgó la VM entera. Ni
+  siquiera los embeddings solos: su op (`GatherBlockQuantized`) no tiene kernel de CPU en este onnxruntime-web. En el
+  Pixel la tabla de embeddings (1 174 MB) supera el buffer más grande de la GPU (256 MB), y la descarga avisa que puede
+  fallar al cargar.
 - **Nunca corre sola.** El prompt (`src/grafo/ai/prompt.ts`) lleva el esquema sacado del Store: los prefijos, las clases
   con cuántas instancias tienen y cada propiedad con su `rdfs:domain`, `rdfs:range` y `rdfs:comment`, o con las clases
   que la usan. También lleva tres prearmadas como ejemplo, sin las líneas PREFIX. `extraer.ts` saca el bloque
@@ -141,11 +142,12 @@ mediciones están en `docs/consultas-por-ai.md` y `docs/gemma-en-el-navegador.md
   dos wasm salgan como `application/wasm`. El costo es que la página que guarda tokens puede hablar con un origen más.
 
 **Cómo probarlo.** Con el modelo de verdad, solo en un dispositivo con WebGPU: Chrome de Android 12+ o de escritorio
-(`chrome://gpu` dice "WebGPU: Hardware accelerated"). Se abre el preview del PR en `#/grafo/consulta`, se toca Preguntar
-con AI y después Continuar, se espera la descarga y se pregunta. **Nunca en chromium-box ni en Node**: no tienen GPU y
-el camino WASM no entra en memoria. El resto lo cubren los tests con un worker falso: `pruebas/ai.test.ts` (prompt,
-extractor y cliente) y `pruebas/ai-vista.test.tsx` (sin WebGPU no hay botón, el aviso va antes de la descarga, y lo
-generado pasa por el validador y no corre). La captura `grafo-consulta-sin-webgpu` muestra la línea sin el botón.
+(que `navigator.gpu.requestAdapter` dé un adaptador, en core o en compatibilidad: lo dice
+`public/diagnostico-webgpu.html`). Se abre el preview del PR en `#/grafo/consulta`, se toca Preguntar con AI y después
+Continuar, se espera la descarga y se pregunta. **Nunca en chromium-box ni en Node**: no tienen GPU y el camino WASM no
+entra en memoria. El resto lo cubren los tests con un worker falso: `pruebas/ai.test.ts` (prompt, extractor y cliente) y
+`pruebas/ai-vista.test.tsx` (sin WebGPU no hay botón, el aviso va antes de la descarga, y lo generado pasa por el
+validador y no corre). La captura `grafo-consulta-sin-webgpu` muestra la línea sin el botón.
 
 ## Correrlo
 

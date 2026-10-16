@@ -230,6 +230,7 @@ Detalle, comandos y fuentes en [webgpu-en-el-pixel-10.md](webgpu-en-el-pixel-10.
 - **Por qué no arrancaba:** Transformers.js y onnxruntime piden el adaptador en modo core.
 - **Qué hace el worker ahora:** reemplaza `navigator.gpu.requestAdapter` en el worker (antes del `import()` de
   Transformers.js) para que, si core da `null`, reintente en compatibilidad; onnxruntime crea su device como siempre.
-  Sin f16 baja `q4` (3,6 GB) en vez de `q4f16` (3,1 GB). Si la GPU no acepta el tensor más grande de `embed_tokens` (1
-  174 MB; el Pixel acepta 256 MB), los embeddings corren en wasm y el decoder en la GPU. Sin probar todavía con el
-  modelo real.
+  Sin f16 baja `q4` (3,6 GB) en vez de `q4f16` (3,1 GB). La tabla de embeddings (1 174 MB) supera el buffer más grande
+  del Pixel (256 MB) y no puede ir a wasm (este onnxruntime-web no trae el kernel de CPU de `GatherBlockQuantized`): la
+  UI avisa que puede fallar al cargar. Plan B, trabajo aparte: un lookup propio de los embeddings con Range requests.
+  Sin probar todavía con el modelo real.

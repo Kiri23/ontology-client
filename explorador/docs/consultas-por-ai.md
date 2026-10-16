@@ -36,9 +36,9 @@ Reescrita el 2026-10-16 después de verificar la vía gratis: `gemma-en-el-naveg
    por eso el validador es la guarda, no el modelo.
 6. **WebGPU en el Pixel 10 Pro XL: solo en modo compatibilidad.** `chrome://gpu` dice "WebGPU: Hardware accelerated"
    (2026-10-16), pero `requestAdapter()` en modo core da `null`; con `featureLevel: "compatibility"` da un adaptador sin
-   `shader-f16` y con buffers de 256 MB. El worker cae a compatibilidad, baja `q4` y corre los embeddings en CPU
-   ([webgpu-en-el-pixel-10.md](webgpu-en-el-pixel-10.md)). El modelo todavía no corrió ahí. Si en otro device no hay
-   adaptador en ningún modo, el botón no aparece.
+   `shader-f16` y con buffers de 256 MB. El worker cae a compatibilidad y baja `q4`; la tabla de embeddings (1 174 MB)
+   no entra en un buffer, así que puede fallar al cargar ([webgpu-en-el-pixel-10.md](webgpu-en-el-pixel-10.md)). El
+   modelo todavía no corrió ahí. Si en otro device no hay adaptador en ningún modo, el botón no aparece.
 7. **Si algún día quisiera pagar: API externa detrás de un proxy en el mismo origen.** `POST /ai/sparql` en
    ontologyLearning llamando a los Inference Providers de HF (`router.huggingface.co/v1/chat/completions`,
    `google/gemma-4-26B-A4B-it`; la key `HUGGING_FACE` ya existe en Doppler pero hoy contesta

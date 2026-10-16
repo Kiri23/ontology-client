@@ -61,8 +61,8 @@ device ella y se lo pasaba a onnxruntime por `executionProviders`; la revisión 
 - Con un device propio, los errores no capturados de WebGPU no llegan a onnxruntime: el glue engancha
   `onuncapturederror` solo al device que crea él. Un buffer de más o un OOM quedaban como aviso de consola, y la AI
   decía "listo" con texto vacío.
-- `session_options` es uno para todos los archivos del modelo: con `executionProviders` propios,
-  `device: { embed_tokens: "wasm" }` no hace nada.
+- `session_options` es uno para todos los archivos del modelo: con `executionProviders` propios, no se puede mandar un
+  archivo a otro EP (`device: { embed_tokens: "wasm" }` no haría nada; igual no serviría, ver abajo).
 
 El diseño de ahora:
 
@@ -75,28 +75,50 @@ El diseño de ahora:
   el `maxStorageBufferBindingSize`. `load` lee esos datos del adaptador que ya tiene: no pide device.
 - **dtype:** `q4f16` con `shader-f16`, `q4` sin él (un shader de f16 no compila en esa GPU). Sin f16 baja 3,6 GB en vez
   de 3,1 (decoder 1 864 MB + embed_tokens 1 763 MB + 19 MB).
-- **Embeddings en CPU si la GPU no acepta el buffer.** En `embed_tokens_q4.onnx`, el tensor
-  `model_embed_tokens_per_layer_weight_quant` es u8 [262144, 4480] = 1 174 405 120 bytes (1 174 MB), y
-  `per_layer_weight_scales` es f32 de 293,6 MB. Los usa `GatherBlockQuantized`, que tiene kernel de WebGPU y ata el
-  tensor a un binding; el Pixel acepta 256 MB. El decoder `q4` no pasa del límite (lo más grande es `lm_head`, 201 MB).
-  Regla (`opcionesDeCarga` en `protocolo.ts`): si `maxStorageBufferBindingSize` < 1 174 405 120, `device` es
-  `{ embed_tokens: "wasm", decoder_model_merged: "webgpu" }`; si no, `"webgpu"`. Vale para los dos dtypes: el tensor
-  cuantizado pesa lo mismo en u8. Los tamaños de los tensores salen de la revisión del PR #11, sobre los `.onnx` de
-  Hugging Face. Si la regla se queda corta, el error a buscar es `exceeding maxStorageBufferBindingSize of` (está en
-  `ort-wasm-simd-threaded.asyncify.wasm`: `grep -ao ".\{60\}exceeding maxStorageBufferBindingSize of.\{30\}"`).
+- **La tabla de embeddings no entra en un buffer del Pixel, y no hay a dónde mandarla.** En `embed_tokens_q4.onnx`, el
+  tensor `model_embed_tokens_per_layer_weight_quant` es u8 [262144, 4480] = 1 174 405 120 bytes (1 174 MB), y
+  `per_layer_weight_scales` es f32 de 293,6 MB. Los usa `GatherBlockQuantized`, que en WebGPU ata el tensor a un
+  binding; el Pixel acepta 256 MB. El decoder `q4` no pasa del límite (lo más grande es `lm_head`, 201 MB). Los tamaños
+  de los tensores salen de la revisión del PR #11, sobre los `.onnx` de Hugging Face; pesan lo mismo en `q4f16`.
+  - **wasm no es salida.** Este build de onnxruntime-web no trae el kernel de CPU de `GatherBlockQuantized`. El revisor
+    armó un ONNX de un solo nodo `GatherBlockQuantized` (bits=4, block_size=32, gather_axis=0, quantize_axis=1, los
+    atributos del embed real) y lo corrió con `ort-wasm-simd-threaded.asyncify.{mjs,wasm}` y EP `["wasm"]`: "Could not
+    find an implementation for GatherBlockQuantized(1)". El único kernel en el binario es el de WebGPU:
+
+    ```console
+    $ grep -ao "[a-z_/]*gather_block_quantized\.\(cc\|h\)" \
+        node_modules/onnxruntime-web/dist/ort-wasm-simd-threaded.asyncify.wasm | sort | uniq -c
+          1 /s/onnxruntime/contrib_ops/webgpu/quantization/gather_block_quantized.cc
+          1 /s/onnxruntime/contrib_ops/webgpu/quantization/gather_block_quantized.h
+    ```
+
+    No hay `contrib_ops/cpu/quantization/gather_block_quantized.cc`. Las variantes `quantized` (q8) usan el mismo op;
+    solo fp16 y fp32 usan Gather común, y pesan 5,5 y 11 GB.
+  - **Qué hace el worker:** todo va a WebGPU. `opcionesDeCarga` (`protocolo.ts`) solo avisa: si
+    `maxStorageBufferBindingSize` < 1 174 405 120, la `variante` lleva `embedExcedeBinding: true` y la descarga muestra
+    "La tabla de embeddings (1,2 GB) supera lo que la GPU acepta por buffer (256 MB): puede fallar al cargar; si falla,
+    el error va a decir maxStorageBufferBindingSize." El error de onnxruntime dice
+    `exceeding maxStorageBufferBindingSize
+    of` (está en el wasm:
+    `grep -ao ".\{60\}exceeding maxStorageBufferBindingSize of.\{30\}"`).
+  - **Plan B, trabajo aparte:** un lookup propio de los embeddings, con Range requests sobre `embed_tokens_q4.onnx_data`
+    (leer solo las filas de los tokens del prompt y descuantizarlas en JS), y pasarle al decoder `inputs_embeds` y
+    `per_layer_inputs` hechos.
 - **Lo que ve la página:** el aviso previo usa `bytesDelModelo(f16)` del check; al empezar `load`, el worker manda la
-  `variante` (`dtype`, `bytes`, `embedEnCpu`), y la descarga muestra ese tamaño y, si corresponde, "Los embeddings
-  corren en CPU: la GPU no acepta buffers tan grandes."
+  `variante` (`dtype`, `bytes`, `embedExcedeBinding` y los dos tamaños), y la descarga muestra ese tamaño y, si
+  corresponde, el aviso de arriba.
 - **Errores:** lo que nadie atrapa en el worker (`unhandledrejection`, `error`) va a la página como `error`. Un error de
-  carga termina el worker: onnxruntime queda abortado ahí, y Probar de nuevo abre uno limpio.
+  carga mientras baja o prepara termina el worker: onnxruntime queda abortado ahí, y Probar de nuevo abre uno limpio.
+  Con el worker ocioso es solo un `console.warn`.
 
 **Sin verificar** (necesita el modelo real en el teléfono; no se carga en Node ni en chromium-box, cuelga la VM):
 
 - Que los kernels de onnxruntime para Gemma compilen y den bien en modo compatibilidad, sin f16 ni subgroups.
+- Que `embed_tokens` cree su sesión en el Pixel: por el límite de 256 MB, lo esperable es que no, con "exceeding
+  maxStorageBufferBindingSize of". Si pasa, sigue el plan B.
 - Memoria: al crear las sesiones, onnxruntime tiene los ~3,6 GB de pesos en ArrayBuffers, más lo que sube a la GPU
-  (memoria compartida en el teléfono), más los embeddings en el heap de wasm.
-- Velocidad: `q4` hace las cuentas en f32, más lento que `q4f16`, y los embeddings por CPU suman una ida y vuelta por
-  token.
+  (memoria compartida en el teléfono).
+- Velocidad: `q4` hace las cuentas en f32, más lento que `q4f16`.
 
 ## 4. Referencias
 
