@@ -63,7 +63,13 @@ describe("pedirAlServidor", () => {
       .toBe("El servidor no contestó (502). Probá de nuevo en un rato.");
     expect(await con(json(502, { error: "Google respondió 429 (RESOURCE_EXHAUSTED)" })))
       .toBe("Google respondió 429 (RESOURCE_EXHAUSTED). Probá de nuevo en un rato.");
+    // El 503 de ai.py trae su error (Google falló aun reintentando, o no hay key), con Retry-After si se puede esperar.
+    expect(await con(json(503, { error: "Google falló dos veces (INTERNAL)" }, { "Retry-After": "20" })))
+      .toBe("Google falló dos veces (INTERNAL). Probá de nuevo en 20 s.");
     expect(await con(json(503, { error: "el servidor no tiene key de Google AI Studio" })))
+      .toBe("El servidor no tiene key de Google AI Studio. Probá de nuevo en un rato.");
+    // Un 503 sin JSON (no es de ai.py): el mensaje de siempre.
+    expect(await con(new Response("Service Unavailable", { status: 503, headers: { "Content-Type": "text/plain" } })))
       .toBe("La AI no está configurada en el servidor todavía: por ahora no se puede preguntar.");
     expect(await con(json(413, { error: "el body pasa de 32768 bytes" }))).toContain("demasiado larga");
     expect(await con(json(400, { error: "la conversación empieza y termina con un mensaje de user" })))
@@ -97,7 +103,10 @@ describe("pedirAlServidor", () => {
   });
 
   it("explicar no muestra el error del servidor donde no es para quien pregunta", () => {
-    expect(explicar(503, "el servidor no tiene key de Google AI Studio", null)).not.toContain("key");
+    expect(explicar(503, undefined, "20")).toBe(
+      "La AI no está configurada en el servidor todavía: por ahora no se puede preguntar.",
+    );
+    expect(explicar(413, "el body pasa de 32768 bytes", null)).not.toContain("body");
     expect(explicar(502, undefined, null)).toBe("El servidor no contestó (502). Probá de nuevo en un rato.");
   });
 });

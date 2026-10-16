@@ -17,6 +17,9 @@ export type Pedir = (mensajes: Mensaje[], senal: AbortSignal) => Promise<string>
 /** "Google no contestó en 30 s" → "Google no contestó en 30 s.", para cerrar una frase. */
 const conPunto = (frase: string) => frase.trim().replace(/\.?$/, ".");
 
+/** "google falló" → "Google falló.": un error de ai.py como frase suelta. */
+const oracion = (frase: string) => conPunto(frase.charAt(0).toUpperCase() + frase.slice(1));
+
 /** Los segundos de Retry-After; si no vino o no es un número, un minuto (la ventana del límite). */
 function segundos(retryAfter: string | null): number {
   const s = Number(retryAfter);
@@ -25,13 +28,20 @@ function segundos(retryAfter: string | null): number {
 
 /**
  * Qué decir cuando el servidor no dio texto. `error` es el que manda el servidor en el cuerpo ({"error": "…"}); va
- * solo donde ya es corto y en castellano (el 400 y el 502, que dice qué le pasó a Google). Un 502 sin `error` no es de
- * ai.py: es Cloudflare o kiri-edge con el origen caído o en deploy (HTML o texto plano), y Google no tiene que ver.
+ * solo donde ya es corto y en castellano: el 400, el 502 y el 503, que dicen qué le pasó a Google o al servidor.
+ * - 502 sin `error` no es de ai.py: es Cloudflare o kiri-edge con el origen caído o en deploy (HTML o texto plano).
+ *   Cloudflare además reemplaza el cuerpo de un 502 del origen por su página, así que ai.py no usa 502 para Google.
+ * - 503 con `error` es de ai.py: Google falló aun reintentando (con Retry-After) o no hay key. Sin `error`, el 503 no
+ *   trae nada que mostrar: queda el mensaje de "no configurada".
  */
 export function explicar(estado: number, error: string | undefined, retryAfter: string | null): string {
   if (estado === 429) return `Se llegó al límite de preguntas por minuto: probá de nuevo en ${segundos(retryAfter)} s.`;
   if (estado === 502) return `${error ? conPunto(error) : "El servidor no contestó (502)."} Probá de nuevo en un rato.`;
-  if (estado === 503) return "La AI no está configurada en el servidor todavía: por ahora no se puede preguntar.";
+  if (estado === 503) {
+    if (!error) return "La AI no está configurada en el servidor todavía: por ahora no se puede preguntar.";
+    const s = Number(retryAfter);
+    return `${oracion(error)} Probá de nuevo en ${Number.isInteger(s) && s > 0 ? `${s} s` : "un rato"}.`;
+  }
   if (estado === 413) return "La pregunta es demasiado larga: acortala y probá de nuevo.";
   if (estado === 404 || estado === 405) {
     return `Este servidor todavía no tiene Preguntar con AI (${RUTA} dio ${estado}).`;
