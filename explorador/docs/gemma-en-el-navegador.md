@@ -22,7 +22,8 @@ fewshot.json) y `.../scratchpad/validador/validar.mjs`.
 6. **CSP:** `connect-src 'self' https://huggingface.co https://*.hf.co` (en el PR #11 se acotó a
    `https://huggingface.co/onnx-community/gemma-4-E2B-it-ONNX/`), `script-src 'self' 'wasm-unsafe-eval' blob:`,
    `worker-src 'self' blob:`; el wasm de onnxruntime servido propio. Sin violaciones en el harness.
-7. **Pixel 10 Pro XL:** sigue sin medir WebGPU (PowerVR); si falla, en el teléfono no hay camino gratis (estimado).
+7. **Pixel 10 Pro XL:** al escribir esto, WebGPU estaba sin medir (PowerVR). Se midió después, el mismo día:
+   `chrome://gpu` dice "WebGPU: Hardware accelerated" (`consultas-por-ai.md`, Decisión 6). Falta correr el modelo ahí.
 8. **Node en Termux no corre** (`onnxruntime-node` sin binario android/arm64; `sharp` tampoco).
 9. **Qué cambia respecto al doc:** el orden de la Decisión: primero el navegador gratis como botón opcional y solo con
    WebGPU; el proxy pago (HF 402 hoy / OpenRouter) pasa a alternativa. Validador, few-shot y "no vps2" quedan igual.

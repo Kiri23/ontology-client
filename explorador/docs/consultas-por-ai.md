@@ -304,7 +304,8 @@ Es determinista y en TypeScript, con `sparqljs` 3.7.4
 1. Lo que no parsea. El error del parser vuelve al modelo como pista para un reintento, uno solo.
 2. `type === "update"`. Cubre INSERT, DELETE, LOAD, CLEAR, DROP y CREATE de una vez.
 3. `queryType` fuera de `SELECT` y `ASK`. La tabla del explorador muestra filas; CONSTRUCT y DESCRIBE quedan para
-   después.
+   después. (Diseño original. El validador del explorador también acepta CONSTRUCT, que la consulta libre dibuja en el
+   lienzo, y el prompt de la AI lo permite.)
 4. `SERVICE`, en cualquier profundidad, y `FROM` o `FROM NAMED`. El servidor ya los bloquea con `sin_red`; esto los
    frena antes.
 5. **IRIs desconocidos.** Recorre todo el árbol (group, optional, union, minus, graph, filter EXISTS, subconsultas y los

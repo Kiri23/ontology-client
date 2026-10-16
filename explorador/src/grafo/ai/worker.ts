@@ -3,7 +3,7 @@
 // Vite, Gemma4ForCausalLM (texto solo: 3,1 GB en vez de 3,4) y el wasm de onnxruntime servido desde el propio origen.
 //
 // La librería entra con import() recién en `load`: abrir la consulta libre baja este archivo (unos KB) para el `check`,
-// no los 1,2 MB de Transformers.js ni los 27 MB del wasm. Sin WebGPU no hay fallback a WASM (no entra en memoria).
+// no los 581 kB de Transformers.js ni los 27 MB del wasm. Sin WebGPU no hay fallback a WASM (no entra en memoria).
 import ortMjs from "onnxruntime-web/ort-wasm-simd-threaded.asyncify.mjs?url";
 import ortWasm from "onnxruntime-web/ort-wasm-simd-threaded.asyncify.wasm?url";
 import { chatDeGemma, OPCIONES_DE_PLANTILLA } from "./chat.ts";
@@ -49,15 +49,20 @@ async function cargar() {
   const lib = await import("@huggingface/transformers");
   // Sin esto onnxruntime baja su wasm de cdn.jsdelivr.net, que la CSP no deja.
   lib.env.backends.onnx.wasm!.wasmPaths = { mjs: ortMjs, wasm: ortWasm };
+  // La suma la hace acá, con los "progress" de cada archivo: el "progress_total" de Transformers.js sale antes que el
+  // "progress" del mismo pedazo (el archivo iría un evento atrasado) y es uno por from_pretrained (el del tokenizer y
+  // el del modelo se pisarían).
   let ultimo = 0;
-  let archivo = "";
+  const archivos = new Map<string, { cargado: number; total: number }>();
   const progreso = (info: { status: string; file?: string; loaded?: number; total?: number }) => {
-    if (info.status === "progress" && info.file) archivo = info.file;
-    if (info.status !== "progress_total") return;
+    if (info.status !== "progress" || !info.file) return;
+    archivos.set(info.file, { cargado: info.loaded ?? 0, total: info.total ?? 0 });
     const ahora = performance.now();
     if (ahora - ultimo < 250 && info.loaded !== info.total) return;
     ultimo = ahora;
-    enviar({ tipo: "progreso", archivo, cargado: info.loaded ?? 0, total: info.total ?? 0 });
+    let [cargado, total] = [0, 0];
+    for (const a of archivos.values()) [cargado, total] = [cargado + a.cargado, total + a.total];
+    enviar({ tipo: "progreso", archivo: info.file, cargado, total });
   };
   const opciones = { progress_callback: progreso as never };
   const [procesador, modelo] = await Promise.all([

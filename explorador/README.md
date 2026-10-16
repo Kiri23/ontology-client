@@ -109,6 +109,10 @@ $0, no hay key y no hay servidor. Es la receta de DocsifyTemplate; la decisión 
   Quedan en la Cache API del navegador (`transformers-cache`, con `navigator.storage.persist()`), y las próximas veces
   se leen del disco. Antes de bajar nada, un aviso dice el tamaño y espera Continuar. Después muestra el progreso por
   archivo y compila los shaders con un token de prueba.
+- **Al salir de la consulta libre** el worker se termina y el modelo sale de la memoria: en el teléfono la memoria es
+  compartida, y ~3 GB no pueden quedar tomados mientras se leen otras historias. Volver lo carga de nuevo desde la Cache
+  API, sin bajarlo (tarda la creación de las sesiones, no la descarga). Si la GPU se pierde ("device lost"), pasa lo
+  mismo y el error queda a la vista.
 - **Solo WebGPU.** El botón aparece solo si `navigator.gpu.requestAdapter()` da un adaptador en el worker. Sin WebGPU,
   una línea lo explica. No hay fallback a WASM: con `q4` son 3,6 GB que onnxruntime copia al heap de wasm32, y en
   chromium-box (8 GB) colgó la VM entera.
