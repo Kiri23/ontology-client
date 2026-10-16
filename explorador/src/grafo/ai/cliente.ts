@@ -24,6 +24,7 @@ export interface WorkerAi {
   postMessage(m: AlWorker): void;
   addEventListener(tipo: "message", oyente: (e: MessageEvent<APagina>) => void): void;
   addEventListener(tipo: "error", oyente: (e: ErrorEvent) => void): void;
+  terminate(): void;
 }
 
 /** El porcentaje de la descarga. El total crece a medida que empieza cada archivo: se mide contra lo esperado. */

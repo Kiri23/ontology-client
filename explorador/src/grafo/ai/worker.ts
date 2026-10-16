@@ -6,6 +6,7 @@
 // no los 1,2 MB de Transformers.js ni los 27 MB del wasm. Sin WebGPU no hay fallback a WASM (no entra en memoria).
 import ortMjs from "onnxruntime-web/ort-wasm-simd-threaded.asyncify.mjs?url";
 import ortWasm from "onnxruntime-web/ort-wasm-simd-threaded.asyncify.wasm?url";
+import { chatDeGemma, OPCIONES_DE_PLANTILLA } from "./chat.ts";
 import { type AlWorker, type APagina, type Mensaje, MODELO } from "./protocolo.ts";
 
 const enviar = (m: APagina) => (self as unknown as { postMessage(m: APagina): void }).postMessage(m);
@@ -32,12 +33,10 @@ async function check(): Promise<void> {
   }
 }
 
-/** Gemma 4 quiere el contenido como partes ({type: "text"}), como en DocsifyTemplate. */
 async function entradas(procesador: Procesador, mensajes: Mensaje[]) {
-  const chat = mensajes.map((m) => ({ role: m.role, content: [{ type: "text", text: m.content }] }));
   // enable_thinking no está en los tipos: Transformers.js le pasa al template de Jinja las opciones que no conoce.
-  const opciones = { add_generation_prompt: true, enable_thinking: false };
-  const texto = procesador.apply_chat_template(chat as never, opciones as { add_generation_prompt: boolean });
+  const opciones = OPCIONES_DE_PLANTILLA as unknown as { add_generation_prompt: boolean };
+  const texto = procesador.apply_chat_template(chatDeGemma(mensajes) as never, opciones);
   return await (procesador as unknown as (t: unknown, ...r: unknown[]) => Promise<Record<string, unknown>>)(
     texto,
     null,

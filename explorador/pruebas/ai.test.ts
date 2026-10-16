@@ -1,6 +1,7 @@
 // La AI sin modelo: el prompt (esquema del Store, ejemplos, pregunta), el extractor del SPARQL y el cliente con un
 // worker falso. El modelo real no corre acá ni en chromium-box (colgó la VM): lo prueba Christian en el Pixel.
 import { beforeAll, describe, expect, it } from "vitest";
+import { chatDeGemma } from "../src/grafo/ai/chat.ts";
 import { ClienteAi, pistaDeCarga, porcentaje } from "../src/grafo/ai/cliente.ts";
 import { completarPrefijos, consultaPropuesta, extraerSparql } from "../src/grafo/ai/extraer.ts";
 import {
@@ -14,6 +15,7 @@ import {
 import { validar } from "../src/grafo/logica/validador.ts";
 import type { Grafo } from "../src/grafo/motor.ts";
 import { grafoDePrueba } from "./grafo-de-prueba.ts";
+import { renderizarParaGemma } from "./plantilla-gemma.ts";
 import { workerFalso } from "./worker-falso.ts";
 
 let grafo: Grafo;
@@ -63,6 +65,24 @@ describe("esquema del prompt", () => {
 
   it("cada ejemplo, con sus PREFIX completados de nuevo, pasa el validador", () => {
     for (const e of EJEMPLOS) expect(validar(completarPrefijos(sinPrefijos(e.sparql)), grafo.conocidas).ok).toBe(true);
+  });
+});
+
+describe("plantilla de chat de Gemma 4 (la real, sin el modelo)", () => {
+  it("acepta la conversación entera que arma el worker y deja abierto el turno del modelo", () => {
+    const prompt = renderizarParaGemma(armarMensajes(esquema, "¿Cuántas acciones hay?"));
+    expect(prompt.startsWith("<bos><|turn>system\nTraducís preguntas en castellano")).toBe(true);
+    expect(prompt).toContain("Clases (instancias en el grafo)");
+    expect(prompt.match(/<\|turn>model\n/g)).toHaveLength(EJEMPLOS.length + 1);
+    expect(prompt.endsWith("<|turn>user\n¿Cuántas acciones hay?<turn|>\n<|turn>model\n")).toBe(true);
+  });
+
+  it("el system va como string y lo demás en partes: el system en partes rompía cada Generar", () => {
+    const chat = chatDeGemma([{ role: "system", content: "S" }, { role: "user", content: "p" }]);
+    expect(chat).toEqual([
+      { role: "system", content: "S" },
+      { role: "user", content: [{ type: "text", text: "p" }] },
+    ]);
   });
 });
 
@@ -134,7 +154,7 @@ describe("cliente", () => {
     expect(cliente.estado()).toMatchObject({ fase: "fallo-carga", pista: expect.stringContaining("liberá espacio") });
     cliente.cargar();
     f.emitir({ tipo: "listo" });
-    const texto = cliente.generar([]);
+    const texto = cliente.generar([{ role: "user", content: "hola" }]);
     f.emitir({ tipo: "error", cuando: "generacion", mensaje: "GPU device lost" });
     await expect(texto).rejects.toThrow("GPU device lost");
     expect(cliente.estado()).toEqual({ fase: "listo", error: "GPU device lost" });
