@@ -38,12 +38,20 @@ function motivoParaNoCorrer(historia: Historia, token: string, valores: Valores)
   return faltan.length ? `Falta ${faltan.join(" y ")}.` : undefined;
 }
 
+// En pantalla ancha arranca abierta, al lado de los controles; en el teléfono va plegada al final, a un toque.
+const docAbierta = () => globalThis.matchMedia?.("(min-width: 72rem)").matches ?? true;
+
 function Documentacion({ historia, doc, generico }: { historia: Historia; doc?: DocFuncion; generico: boolean }) {
   if (!doc) return null;
   const prosa = <Prosa texto={doc.descripcion} soloLee={!historia.escribe} />;
   return (
-    <section className="panel-doc" aria-label="Documentación">
-      <h2 className="seccion-titulo">Documentación</h2>
+    <details className="panel-doc" open={docAbierta()}>
+      <summary className="seccion-titulo">
+        Documentación{" "}
+        <span className="panel-doc-de">
+          JSDoc y firma de <code>{historia.funcion}</code>
+        </span>
+      </summary>
       {doc.descripcion && (generico
         ? (
           <details className="doc-generico">
@@ -54,21 +62,14 @@ function Documentacion({ historia, doc, generico }: { historia: Historia; doc?: 
             {prosa}
           </details>
         )
-        : (
-          <>
-            <p className="doc-origen">
-              JSDoc de <code>{historia.funcion}</code>
-            </p>
-            {prosa}
-          </>
-        ))}
+        : prosa)}
       <figure className="firma">
         <figcaption>
-          firma · <span>{doc.archivo}</span>
+          Firma, en <span>{doc.archivo}</span>
         </figcaption>
         <pre>{doc.firma}</pre>
       </figure>
-    </section>
+    </details>
   );
 }
 

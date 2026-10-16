@@ -67,9 +67,7 @@ export function Respuesta({ estado, corriendo, columnas }: Props) {
       {estado.fase === "quieto" && (
         <div className="recibo-vacio">
           <p>
-            {corriendo
-              ? "Corriendo…"
-              : "Todavía no corrió. Llená los controles y apretá Correr: acá sale el status, el tiempo y lo que devolvió la función."}
+            {corriendo ? "Corriendo…" : "Todavía no corrió. Acá sale el status, el tiempo y lo que devolvió."}
           </p>
         </div>
       )}

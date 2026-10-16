@@ -1,10 +1,15 @@
-// El explorador: barra con las clases del SDK, y la historia que dice el hash.
+// El explorador: la barra con las clases del SDK y el Grafo, y lo que dice el hash: una historia o una vista del Grafo.
+// La vista Grafo se carga perezosa (import()): trae el motor SPARQL en WASM, y una historia no tiene por qué pagarlo.
 import doc from "virtual:doc-sdk";
-import { useMemo } from "react";
+import { lazy, Suspense, useMemo } from "react";
 import { Barra } from "./componentes/Barra.tsx";
 import { PanelHistoria } from "./componentes/PanelHistoria.tsx";
+import { esRutaDeGrafo, leerVista, nombreDeVista } from "./grafo/logica/vistas.ts";
 import { buscarHistoria, CLASES, type Historia, HISTORIAS, type Valores } from "./historias/index.ts";
 import { useRuta } from "./hooks/useRuta.ts";
+import type { Ruta } from "./logica/ruta.ts";
+
+const VistaGrafo = lazy(() => import("./grafo/VistaGrafo.tsx"));
 
 const iniciales = (h: Historia): Valores => Object.fromEntries(h.controles.map((c) => [c.nombre, c.inicial ?? ""]));
 
@@ -15,46 +20,71 @@ interface Props {
   fetch?: (pedido: Request) => Promise<Response>;
 }
 
-export function App({ url = globalThis.location.origin, fetch }: Props) {
-  const [ruta, navegar] = useRuta();
+function VistaHistoria({ ruta, navegar, url, fetch }: {
+  ruta: Ruta;
+  navegar: (ruta: Ruta, como?: "nueva" | "reemplazo") => void;
+  url: string;
+  fetch?: Props["fetch"];
+}) {
   const historia = buscarHistoria(ruta.id) ?? HISTORIAS[0];
   const clase = CLASES.find((c) => c.id === historia.clase)!;
   const valores = useMemo(() => ({ ...iniciales(historia), ...ruta.valores }), [historia, ruta.valores]);
   const cambiar = (nombre: string, valor: string) =>
     navegar({ id: historia.id, valores: { ...ruta.valores, [nombre]: valor } }, "reemplazo");
+  return (
+    <>
+      <title>{`${historia.nombre} · ${historia.clase} · explorador del SDK`}</title>
+      {ruta.id && !buscarHistoria(ruta.id) && (
+        <p className="aviso">
+          No hay una historia <code>{ruta.id}</code>. Abajo, <code>{historia.id}</code>.
+        </p>
+      )}
+      <PanelHistoria
+        key={historia.id}
+        historia={historia}
+        representa={clase.representa}
+        doc={doc[historia.funcion]}
+        docGenerico={clase.historias.filter((h) => h.funcion === historia.funcion).length > 1}
+        valores={valores}
+        cambiar={cambiar}
+        url={url}
+        fetch={fetch}
+      />
+    </>
+  );
+}
+
+export function App({ url = globalThis.location.origin, fetch }: Props) {
+  const [ruta, navegar] = useRuta();
+  const enGrafo = esRutaDeGrafo(ruta.id);
+  const historia = enGrafo ? undefined : buscarHistoria(ruta.id) ?? HISTORIAS[0];
+  const actual = historia?.id ?? ruta.id;
+  const donde = historia
+    ? { seccion: historia.clase, nombre: historia.nombre }
+    : { seccion: "Grafo", nombre: nombreDeVista(leerVista(ruta)) };
 
   return (
     <div className="marco">
-      <title>{`${historia.nombre} · ${historia.clase} · explorador del SDK`}</title>
       <header className="cabecera">
         <p className="marca">
-          <span className="marca-paquete">@kiri23/ontology-client</span>
           <span className="marca-app">explorador</span>
+          <span className="marca-paquete">@kiri23/ontology-client</span>
         </p>
         <p className="cabecera-meta">
-          contra <code>{new URL(url).host}</code>
+          <code title="El servidor al que le habla el SDK">{new URL(url).host}</code>
           <a href="https://jsr.io/@kiri23/ontology-client">JSR</a>
           <a href="https://github.com/Kiri23/ontology-client">código</a>
         </p>
       </header>
-      <Barra clases={CLASES} actual={historia} />
+      <Barra clases={CLASES} actual={actual} donde={donde} />
       <main className="principal">
-        {ruta.id && !buscarHistoria(ruta.id) && (
-          <p className="aviso">
-            No hay una historia <code>{ruta.id}</code>. Abajo, <code>{historia.id}</code>.
-          </p>
-        )}
-        <PanelHistoria
-          key={historia.id}
-          historia={historia}
-          representa={clase.representa}
-          doc={doc[historia.funcion]}
-          docGenerico={clase.historias.filter((h) => h.funcion === historia.funcion).length > 1}
-          valores={valores}
-          cambiar={cambiar}
-          url={url}
-          fetch={fetch}
-        />
+        {enGrafo
+          ? (
+            <Suspense fallback={<p className="grafo-cargando" role="status">Abriendo la vista Grafo…</p>}>
+              <VistaGrafo ruta={ruta} navegar={navegar} url={url} fetch={fetch} />
+            </Suspense>
+          )
+          : <VistaHistoria ruta={ruta} navegar={navegar} url={url} fetch={fetch} />}
       </main>
     </div>
   );

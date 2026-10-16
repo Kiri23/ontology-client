@@ -49,10 +49,13 @@ export function CampoToken({ tipo, valor, guardar }: Props) {
         />
         {valor && <button type="button" className="boton-texto" onClick={() => guardar("")}>olvidar</button>}
       </div>
-      <p className="control-ayuda">
-        Vive en el sessionStorage de esta pestaña y sale solo en el header Authorization del pedido. Al cerrar la
-        pestaña se va. La página no le ofrece al navegador guardarlo.
-      </p>
+      <details className="token-ayuda">
+        <summary>Dónde queda el token</summary>
+        <p>
+          En el sessionStorage de esta pestaña, y sale solo en el header Authorization del pedido. Al cerrar la pestaña
+          se va. La página no le ofrece al navegador guardarlo.
+        </p>
+      </details>
     </div>
   );
 }

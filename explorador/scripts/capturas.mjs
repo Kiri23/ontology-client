@@ -16,6 +16,12 @@ const DIST = new URL("../dist/", import.meta.url);
 const ORIGEN = "https://ontology.kiri231.com";
 const HOST = process.env.CHROMIUM_BOX_HOST ?? "chromium-box.exe.xyz";
 const LINK = "https://news.ycombinator.com/item?id=50063001";
+const CHECKOUT = "https://github.com/actions/checkout#.";
+// Una consulta con una clase que no existe (k:Accion): el validador la rechaza y propone k:Action.
+const CON_ERROR = `PREFIX k: <https://kiri23.dev/catalogo#>
+SELECT ?accion WHERE { ?accion a k:Accion }`;
+// El lienzo terminó su layout (Lienzo.tsx pone data-listo) y Cytoscape ya dibujó su canvas.
+const LIENZO = '.lienzo[data-listo="true"] canvas';
 
 const CAPTURAS = [
   {
@@ -44,6 +50,22 @@ const CAPTURAS = [
     hash: "#/cliente.GET/preguntar?consulta=nada",
     correr: true,
     esperar: ".recibo-error",
+  },
+  { nombre: "grafo-mapa", hash: "#/grafo/mapa", esperar: LIENZO },
+  {
+    nombre: "grafo-nodo",
+    hash: `#/grafo/nodo?${new URLSearchParams({
+      iri: CHECKOUT,
+      saltos: `${CHECKOUT} < https://kiri23.dev/catalogo#ejecutaEnCI`,
+    })}`,
+    esperar: LIENZO,
+  },
+  { nombre: "grafo-acciones-mas-usadas", hash: "#/grafo/acciones-mas-usadas", esperar: LIENZO },
+  { nombre: "grafo-huecos", hash: "#/grafo/huecos", esperar: LIENZO },
+  {
+    nombre: "grafo-consulta-rechazo",
+    hash: `#/grafo/consulta?${new URLSearchParams({ sparql: CON_ERROR })}`,
+    esperar: ".rechazo",
   },
 ];
 // La misma CSP que pone el Caddyfile, así la captura también prueba que la página anda con ella.
@@ -74,7 +96,13 @@ for (const nombre of readdirSync(new URL("assets/", DIST))) {
 // Corre en chromium-box. `context` llega como JSON.
 const codigo = `export default async function ({ page, context }) {
   const { archivos, origen, capturas, anchos, csp } = context;
-  const tipos = { ".js": "text/javascript", ".css": "text/css", ".woff2": "font/woff2", ".html": "text/html" };
+  const tipos = {
+    ".js": "text/javascript",
+    ".css": "text/css",
+    ".woff2": "font/woff2",
+    ".html": "text/html",
+    ".wasm": "application/wasm",
+  };
   const tipo = (ruta) => tipos[ruta.slice(ruta.lastIndexOf("."))] ?? "text/html";
   const bytes = (b64) => Uint8Array.from(atob(b64), (c) => c.charCodeAt(0));
   await page.setRequestInterception(true);
@@ -108,8 +136,10 @@ const codigo = `export default async function ({ page, context }) {
         if (t) sessionStorage.setItem("ontology-explorador.token.acciones", t);
       }, c.token ?? "");
       await page.reload({ waitUntil: "networkidle0" });
-      await page.waitForSelector(".boton-correr");
-      if (c.correr) await page.click(".boton-correr");
+      if (c.correr) {
+        await page.waitForSelector(".boton-correr");
+        await page.click(".boton-correr");
+      }
       await page.waitForSelector(c.esperar, { timeout: 20000 });
       // Correr enfoca el botón y scrollea: arriba de todo, así la barra sticky del teléfono queda en su lugar.
       await page.evaluate(() => (document.activeElement?.blur(), window.scrollTo(0, 0), document.fonts.ready));

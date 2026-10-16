@@ -1,0 +1,423 @@
+/* ---- la vista Grafo: el lienzo en papel cuadriculado y su panel ---- */
+/* Lo memorable del explorador va acá: un grafo dibujado en papel de grafo, cada nodo en la tinta de su clase. Los
+   Jobs en azules, los Repos en verde, ocre, oliva y ciruela; ninguno en rojo, que quiere decir "escribe". */
+
+:root {
+  --clase-puesto: light-dark(oklch(0.66 0.06 240), oklch(0.7 0.06 240));
+  --clase-tecnologia: light-dark(oklch(0.45 0.14 262), oklch(0.76 0.12 262));
+  --clase-proyecto: light-dark(oklch(0.46 0.11 160), oklch(0.76 0.12 160));
+  --clase-workflow: light-dark(oklch(0.64 0.13 75), oklch(0.78 0.12 75));
+  --clase-uso: light-dark(oklch(0.7 0.09 125), oklch(0.74 0.09 125));
+  --clase-accion: light-dark(oklch(0.46 0.15 330), oklch(0.74 0.13 330));
+  --clase-otra: light-dark(oklch(0.62 0.01 70), oklch(0.6 0.01 70));
+  --arista: light-dark(oklch(0.8 0.02 70), oklch(0.42 0.012 70));
+}
+
+/* minmax(0, 1fr) en cada grid: sin eso la columna toma el ancho de la línea más larga de un <pre> o de la tabla, y la
+   página se desborda a lo ancho en el teléfono. */
+.grafo {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 1.25rem;
+  min-width: 0;
+}
+
+.grafo-cabecera h1 {
+  margin: 0 0 0.4rem;
+  font: 600 clamp(1.9rem, 1.4rem + 2.2vw, 3rem)/1.05 var(--f-prosa);
+  letter-spacing: -0.025em;
+}
+
+.grafo-bajada {
+  margin: 0;
+  max-width: 62ch;
+  font: 400 1.02rem/1.5 var(--f-prosa);
+}
+
+.grafo-costura {
+  margin: 0.6rem 0 0;
+  max-width: 62ch;
+  padding-left: 0.75rem;
+  border-left: 2px solid var(--regla);
+  font-size: 0.85rem;
+  color: var(--tinta-suave);
+}
+
+.grafo-cargando {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin: 0;
+  color: var(--tinta-suave);
+}
+
+.grafo-cargando progress {
+  width: 6rem;
+  accent-color: var(--tinta);
+}
+
+.grafo-error {
+  padding: 1rem;
+  border: 1.5px solid var(--rojo);
+  border-radius: 3px;
+  background: var(--rojo-fondo);
+}
+
+.grafo-error p {
+  margin: 0 0 0.6rem;
+}
+
+.grafo-error-titulo,
+.rechazo-titulo {
+  font-weight: 700;
+  color: var(--rojo);
+}
+
+.grafo-aviso,
+.grafo-pista {
+  margin: 0;
+  font-size: 0.88rem;
+  color: var(--tinta-suave);
+}
+
+/* ---- cuerpo: lienzo y panel ---- */
+
+.grafo-cuerpo {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 1.25rem;
+}
+
+.grafo-panel {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 1.25rem;
+  align-content: start;
+  min-width: 0;
+}
+
+@media (min-width: 72rem) {
+  .grafo-cuerpo {
+    grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr);
+    align-items: start;
+  }
+
+  .grafo-lienzo {
+    position: sticky;
+    top: 1rem;
+  }
+}
+
+.lienzo-marco {
+  position: relative;
+}
+
+/* position: relative es la regla que traía el <style> de Cytoscape (ver Lienzo.tsx: la CSP no lo deja inyectarlo). */
+.lienzo {
+  position: relative;
+  height: min(54svh, 32rem);
+  min-height: 18rem;
+  border: 1px solid var(--regla);
+  border-radius: 3px;
+  background-color: var(--papel-ficha);
+  background-image:
+    linear-gradient(var(--renglon) 1px, transparent 1px),
+    linear-gradient(90deg, var(--renglon) 1px, transparent 1px);
+  background-size: 1.5rem 1.5rem;
+  background-position: -1px -1px;
+}
+
+@media (min-width: 72rem) {
+  .lienzo {
+    height: calc(100dvh - 12rem);
+    min-height: 30rem;
+  }
+}
+
+.lienzo-encuadrar {
+  position: absolute;
+  top: 0.5rem;
+  right: 0.5rem;
+  min-height: var(--toque);
+  padding: 0 0.85rem;
+  border: 1px solid var(--regla);
+  border-radius: 3px;
+  background: var(--papel-ficha);
+  color: var(--tinta);
+  font: 550 0.82rem var(--f-ui);
+}
+
+/* ---- leyenda ---- */
+
+.leyenda {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(10.5rem, 1fr));
+  gap: 0.4rem;
+}
+
+.leyenda button {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  width: 100%;
+  min-height: var(--toque);
+  padding: 0 0.75rem;
+  border: 1px solid var(--regla);
+  border-radius: 3px;
+  background: var(--papel-ficha);
+  color: var(--tinta);
+  text-align: left;
+}
+
+.leyenda button[aria-pressed="true"] {
+  border-color: var(--tinta);
+  box-shadow: inset 0 0 0 1px var(--tinta);
+}
+
+.leyenda-nombre {
+  flex: 1;
+  font-size: 0.88rem;
+}
+
+.leyenda-n {
+  font-variant-numeric: tabular-nums;
+  font-weight: 650;
+}
+
+.leyenda-muestra {
+  flex: none;
+  display: inline-block;
+  width: 0.9rem;
+  height: 0.9rem;
+  background: var(--clase-otra);
+  border-radius: 50%;
+}
+
+.leyenda-muestra[data-tono="puesto"] {
+  background: var(--clase-puesto);
+}
+.leyenda-muestra[data-tono="tecnologia"] {
+  background: var(--clase-tecnologia);
+}
+.leyenda-muestra[data-tono="proyecto"] {
+  background: var(--clase-proyecto);
+}
+.leyenda-muestra[data-tono="workflow"] {
+  background: var(--clase-workflow);
+}
+.leyenda-muestra[data-tono="uso"] {
+  background: var(--clase-uso);
+}
+.leyenda-muestra[data-tono="accion"] {
+  background: var(--clase-accion);
+}
+
+.leyenda-muestra[data-forma="round-rectangle"] {
+  border-radius: 3px;
+}
+.leyenda-muestra[data-forma="diamond"] {
+  border-radius: 0;
+  clip-path: polygon(50% 0, 100% 50%, 50% 100%, 0 50%);
+}
+.leyenda-muestra[data-forma="triangle"] {
+  border-radius: 0;
+  clip-path: polygon(50% 0, 100% 100%, 0 100%);
+}
+.leyenda-muestra[data-forma="hexagon"] {
+  border-radius: 0;
+  clip-path: polygon(25% 0, 75% 0, 100% 50%, 75% 100%, 25% 100%, 0 50%);
+}
+.leyenda-muestra[data-forma="star"] {
+  border-radius: 0;
+  clip-path: polygon(50% 0, 61% 35%, 98% 35%, 68% 57%, 79% 91%, 50% 70%, 21% 91%, 32% 57%, 2% 35%, 39% 35%);
+}
+
+/* ---- ficha del nodo (stepper) ---- */
+
+.ficha-nodo h2 {
+  margin: 0.15rem 0 0.25rem;
+  font: 600 1.5rem/1.2 var(--f-prosa);
+  overflow-wrap: anywhere;
+}
+
+.ficha-nodo h3 {
+  margin: 1.25rem 0 0.5rem;
+  font: 650 0.95rem var(--f-ui);
+}
+
+.ficha-nodo-clase {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0;
+  font-size: 0.88rem;
+  color: var(--tinta-suave);
+}
+
+.ficha-nodo-iri {
+  margin: 0;
+  font: 400 0.72rem/1.5 var(--f-mono);
+  overflow-wrap: anywhere;
+  color: var(--tinta-suave);
+}
+
+.relaciones {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.4rem;
+}
+
+.relaciones button {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  width: 100%;
+  min-height: var(--toque);
+  padding: 0 0.75rem;
+  border: 1px solid var(--regla);
+  border-radius: 3px;
+  background: var(--papel-ficha);
+  color: var(--tinta);
+  text-align: left;
+}
+
+.relaciones button:disabled {
+  cursor: default;
+  background: transparent;
+  border-style: dashed;
+  color: var(--tinta-suave);
+}
+
+.relacion-flecha {
+  font-size: 1.1rem;
+}
+
+.relacion-predicado {
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.relacion-n {
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+}
+
+.relaciones button:disabled .relacion-n {
+  font-weight: 400;
+  font-size: 0.8rem;
+}
+
+.atributos {
+  display: grid;
+  gap: 0.35rem;
+  margin: 0;
+}
+
+.atributos > div {
+  display: grid;
+  grid-template-columns: minmax(6rem, 35%) minmax(0, 1fr);
+  gap: 0.75rem;
+}
+
+.atributos dt {
+  font: 500 0.75rem/1.6 var(--f-mono);
+  color: var(--tinta-suave);
+  overflow-wrap: anywhere;
+}
+
+.atributos dd {
+  margin: 0;
+  font-size: 0.88rem;
+  overflow-wrap: anywhere;
+}
+
+.grafo-botones {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+/* ---- SPARQL a la vista ---- */
+
+.sparql summary {
+  display: flex;
+  align-items: center;
+  min-height: var(--toque);
+  cursor: pointer;
+  font-weight: 650;
+}
+
+.sparql pre {
+  margin: 0 0 0.6rem;
+  padding: 0.85rem 1rem;
+  overflow-x: auto;
+  background: var(--papel-hundido);
+  border-radius: 3px;
+  font-size: 0.74rem;
+  line-height: 1.6;
+}
+
+.sparql-acciones,
+.consulta-pie {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+/* ---- consulta libre ---- */
+
+.consulta {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 0.6rem;
+}
+
+.consulta-rotulo {
+  font-weight: 650;
+}
+
+.consulta textarea {
+  min-height: 14rem;
+  font-size: 0.78rem;
+}
+
+.consulta textarea[aria-invalid="true"] {
+  border-bottom-color: var(--rojo);
+}
+
+.rechazo {
+  padding: 0.9rem 1rem;
+  border-left: 3px solid var(--rojo);
+  background: var(--rojo-fondo);
+  border-radius: 0 3px 3px 0;
+}
+
+.rechazo p {
+  margin: 0 0 0.4rem;
+}
+
+.rechazo ul {
+  margin: 0;
+  padding-left: 1.1rem;
+  display: grid;
+  gap: 0.3rem;
+}
+
+/* ---- resultado ---- */
+
+.resultado-cuenta {
+  margin: 0 0 0.6rem;
+  font-size: 0.85rem;
+  color: var(--tinta-suave);
+}
+
+.resultado-si-no {
+  margin: 0;
+  font: 600 2.4rem/1 var(--f-prosa);
+}

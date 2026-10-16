@@ -15,8 +15,10 @@
 	redir /explorador /explorador/ 308
 
 	# La página guarda tokens en sessionStorage: solo corre el JS propio y solo le habla a su origen (la API).
+	# 'wasm-unsafe-eval' deja compilar WebAssembly (el motor SPARQL de la vista Grafo, un asset propio); no habilita
+	# eval de JS. default-src va primero: scripts/humo-imagen lo busca.
 	header {
-		Content-Security-Policy "default-src 'self'; img-src 'self' data:; style-src 'self'; font-src 'self'; connect-src 'self'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'"
+		Content-Security-Policy "default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; img-src 'self' data:; style-src 'self'; font-src 'self'; connect-src 'self'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'"
 		X-Content-Type-Options nosniff
 		Referrer-Policy no-referrer
 	}

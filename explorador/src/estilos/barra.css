@@ -68,10 +68,20 @@
 
 .marca-escribe {
   flex: none;
-  font: 600 0.6rem var(--f-ui);
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
+  font: 600 0.72rem var(--f-ui);
   color: var(--rojo);
+}
+
+/* El Grafo no es una clase del SDK: su pestaña va en tinta, para que se lea como otra sección. */
+.clase-grafo .clase-titulo {
+  background: var(--tinta);
+  border-color: var(--tinta);
+  color: var(--papel);
+}
+
+.clase-grafo .clase-titulo small {
+  color: inherit;
+  opacity: 0.75;
 }
 
 .clase a[aria-current="page"] .marca-escribe {
@@ -91,38 +101,58 @@
 
   .barra-plegar {
     display: flex;
-    align-items: baseline;
+    align-items: center;
     gap: 0.6rem;
     width: 100%;
-    padding: 0.75rem 1rem;
+    min-height: 3rem;
+    padding: 0 1rem;
     border: 0;
     background: none;
     color: var(--tinta);
     text-align: left;
   }
 
-  .barra-plegar-rotulo {
-    font: 600 0.68rem var(--f-ui);
-    letter-spacing: 0.1em;
-    text-transform: uppercase;
+  .barra-plegar-seccion {
+    font-size: 0.85rem;
     color: var(--tinta-suave);
   }
 
   .barra-plegar-actual {
     flex: 1;
-    font: 500 0.82rem var(--f-mono);
-    overflow-wrap: anywhere;
+    min-width: 0;
+    font: 650 0.95rem var(--f-ui);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 
+  /* Un chevrón dibujado con bordes: apunta abajo cerrado y arriba abierto. */
   .barra-plegar-signo {
-    font: 400 1.3rem/1 var(--f-mono);
+    width: 0.6rem;
+    height: 0.6rem;
+    margin: 0 0.3rem 0.25rem;
+    border-right: 2px solid currentColor;
+    border-bottom: 2px solid currentColor;
+    transform: rotate(45deg);
+    transition: transform 200ms var(--salida);
+  }
+
+  .barra[data-abierta="true"] .barra-plegar-signo {
+    transform: translateY(0.25rem) rotate(-135deg);
   }
 
   .barra-cajon {
     position: static;
+    gap: 1.25rem;
     padding: 0.5rem 1rem 1.25rem;
-    max-height: 70dvh;
+    max-height: 72dvh;
     overflow-y: auto;
+    border-top: 1px solid var(--regla);
+  }
+
+  .clase a {
+    min-height: var(--toque);
+    align-items: center;
   }
 
   .barra[data-abierta="false"] .barra-cajon {

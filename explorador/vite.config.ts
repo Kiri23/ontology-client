@@ -27,7 +27,9 @@ export default defineConfig({
   },
   // assetsInlineLimit 0: Vite metería como data: las fuentes de menos de 4 KB, y la CSP del Caddyfile (font-src 'self')
   // las bloquea. Todo asset sale como archivo.
-  build: { outDir: "dist", emptyOutDir: true, assetsInlineLimit: 0 },
+  // chunkSizeWarningLimit: el chunk de la vista Grafo (Cytoscape, fcose y Traqula, ~870 kB) se carga perezoso con
+  // import(); el WASM de oxigraph sale aparte, como asset con hash (oxigraph/web_bg.wasm?url).
+  build: { outDir: "dist", emptyOutDir: true, assetsInlineLimit: 0, chunkSizeWarningLimit: 1000 },
   test: {
     environment: "happy-dom",
     include: ["pruebas/**/*.test.{ts,tsx}"],
