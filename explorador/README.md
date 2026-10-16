@@ -62,7 +62,9 @@ Un GET nuevo en el contrato no necesita nada: `cliente.ts` arma su historia desd
 una vez con `sparql.consultar("CONSTRUCT { ?s ?p ?o } WHERE { ?s ?p ?o }")` y se carga en
 [oxigraph](https://github.com/oxigraph/oxigraph) 0.5.11, un motor SPARQL en WASM que corre en la pestaña. Se dibuja con
 Cytoscape 3.34.3 y el layout fcose. Todo eso va en un `import()` perezoso (`App.tsx`): una historia no baja el WASM (1,4
-MB comprimido) ni el chunk de la vista (~260 kB comprimido).
+MB comprimido) ni el chunk de la vista (~260 kB comprimido). Si ese chunk no llega (una pestaña vieja después de un
+deploy), `SiFalla.tsx` lo dice y ofrece recargar. El grafo entero se dispone una vez, con semilla fija
+(`disposicion.ts`): las islas quedan en el mismo lugar en todas las vistas y al recargar.
 
 - **Mapa** (`#/grafo/mapa?clase=k:Action`): las instancias como nodos (235; los literales son atributos, `rdf:type` es
   el color y la forma, el esquema no se dibuja). La leyenda cuenta por clase y resalta una. Se ven dos islas que no se
