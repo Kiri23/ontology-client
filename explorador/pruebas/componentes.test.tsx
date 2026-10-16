@@ -2,6 +2,7 @@
 import { act, cleanup, fireEvent, render, renderHook, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { App } from "../src/App.tsx";
+import { Barra } from "../src/componentes/Barra.tsx";
 import { SiFalla } from "../src/componentes/SiFalla.tsx";
 import { buscarHistoria } from "../src/historias/index.ts";
 import { useLlamada } from "../src/hooks/useLlamada.ts";
@@ -158,6 +159,17 @@ describe("App", () => {
     expect(links[0]).toEqual(["Mapa", "#/grafo/mapa"]);
     expect(links).toContainEqual(["Huecos", "#/grafo/huecos"]);
     expect(links.at(-1)).toEqual(["Consulta libre", "#/grafo/consulta"]);
+    expect(barra.querySelector(".clase-grafo .entrada-apagada")?.textContent).toContain("Indagar");
+  });
+
+  it("Indagar vuelve al último nodo abierto y queda marcada en la vista nodo", () => {
+    const iri = "https://github.com/actions/checkout#.";
+    render(
+      <Barra clases={[]} actual="grafo/nodo" donde={{ seccion: "Grafo", nombre: "Indagar" }} indagar={{ iri }} />,
+    );
+    const indagar = screen.getByRole("link", { name: "Indagar" });
+    expect(indagar.getAttribute("href")).toBe(`#/grafo/nodo?iri=${encodeURIComponent(iri)}`);
+    expect(indagar.getAttribute("aria-current")).toBe("page");
   });
 });
 

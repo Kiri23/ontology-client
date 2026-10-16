@@ -1,7 +1,7 @@
 // La barra lateral: las clases del SDK con sus historias, como el árbol de Storybook, y abajo el Grafo con sus vistas.
 // En el teléfono se pliega en una sola fila sticky que dice dónde estás; tocarla abre el cajón.
-import { type ReactNode, useState } from "react";
-import type { Clase } from "../historias/index.ts";
+import { Fragment, type ReactNode, useState } from "react";
+import type { Clase, Valores } from "../historias/index.ts";
 import { ENTRADAS_GRAFO } from "../grafo/logica/vistas.ts";
 import { escribirRuta } from "../logica/ruta.ts";
 import "../estilos/barra.css";
@@ -12,24 +12,27 @@ interface Props {
   actual: string;
   /** Dónde estás, para la barra plegada: la sección y el nombre. */
   donde: { seccion: string; nombre: string };
+  /** Los valores del último #/grafo/nodo abierto (iri, saltos, foco): la entrada Indagar vuelve ahí. */
+  indagar?: Valores;
 }
 
-function Entrada({ id, actual, cerrar, children }: {
+function Entrada({ id, valores = {}, actual, cerrar, children }: {
   id: string;
+  valores?: Valores;
   actual: string;
   cerrar: () => void;
   children: ReactNode;
 }) {
   return (
     <li>
-      <a href={escribirRuta({ id, valores: {} })} aria-current={id === actual ? "page" : undefined} onClick={cerrar}>
+      <a href={escribirRuta({ id, valores })} aria-current={id === actual ? "page" : undefined} onClick={cerrar}>
         {children}
       </a>
     </li>
   );
 }
 
-export function Barra({ clases, actual, donde }: Props) {
+export function Barra({ clases, actual, donde, indagar }: Props) {
   const [abierta, setAbierta] = useState(false);
   const cerrar = () => setAbierta(false);
   return (
@@ -63,10 +66,23 @@ export function Barra({ clases, actual, donde }: Props) {
             <small>SPARQL local</small>
           </h2>
           <ul>
-            {ENTRADAS_GRAFO.map((e) => (
-              <Entrada key={e.id} id={e.id} actual={actual} cerrar={cerrar}>
-                <span className="historia-nombre">{e.nombre}</span>
-              </Entrada>
+            {ENTRADAS_GRAFO.map((e, i) => (
+              <Fragment key={e.id}>
+                <Entrada id={e.id} actual={actual} cerrar={cerrar}>
+                  <span className="historia-nombre">{e.nombre}</span>
+                </Entrada>
+                {i === 0 && (indagar
+                  ? (
+                    <Entrada id="grafo/nodo" valores={indagar} actual={actual} cerrar={cerrar}>
+                      <span className="historia-nombre">Indagar</span>
+                    </Entrada>
+                  )
+                  : (
+                    <li className="entrada-apagada">
+                      Indagar <small>tocá un nodo del mapa</small>
+                    </li>
+                  ))}
+              </Fragment>
             ))}
           </ul>
         </section>

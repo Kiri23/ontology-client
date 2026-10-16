@@ -72,16 +72,24 @@
   color: var(--rojo);
 }
 
-/* El Grafo no es una clase del SDK: su pestaña va en tinta, para que se lea como otra sección. */
+/* El Grafo no es una clase del SDK: su pestaña lleva un renglón de tinta arriba, sin relleno (relleno de tinta es lo
+   que marca la entrada elegida). */
 .clase-grafo .clase-titulo {
-  background: var(--tinta);
-  border-color: var(--tinta);
-  color: var(--papel);
+  border-top: 2px solid var(--tinta);
 }
 
-.clase-grafo .clase-titulo small {
-  color: inherit;
-  opacity: 0.75;
+/* Indagar sin un nodo abierto todavía: está, pero no lleva a ningún lado hasta tocar un nodo. */
+.entrada-apagada {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+  padding: 0.38rem 0.75rem;
+  font-size: 0.92rem;
+  color: var(--tinta-suave);
+}
+
+.entrada-apagada small {
+  font-size: 0.75rem;
 }
 
 .clase a[aria-current="page"] .marca-escribe {

@@ -1,7 +1,7 @@
 // El explorador: la barra con las clases del SDK y el Grafo, y lo que dice el hash: una historia o una vista del Grafo.
 // La vista Grafo se carga perezosa (import()): trae el motor SPARQL en WASM, y una historia no tiene por qué pagarlo.
 import doc from "virtual:doc-sdk";
-import { lazy, Suspense, useMemo } from "react";
+import { lazy, Suspense, useEffect, useMemo, useState } from "react";
 import { Barra } from "./componentes/Barra.tsx";
 import { PanelHistoria } from "./componentes/PanelHistoria.tsx";
 import { SiFalla } from "./componentes/SiFalla.tsx";
@@ -58,6 +58,11 @@ function VistaHistoria({ ruta, navegar, url, fetch }: {
 export function App({ url = globalThis.location.origin, fetch }: Props) {
   const [ruta, navegar] = useRuta();
   const enGrafo = esRutaDeGrafo(ruta.id);
+  // El último nodo indagado, para que la barra vuelva a él después de pasar por otra vista.
+  const [indagar, setIndagar] = useState<Valores>();
+  useEffect(() => {
+    if (ruta.id === "grafo/nodo" && ruta.valores.iri) setIndagar(ruta.valores);
+  }, [ruta]);
   const historia = enGrafo ? undefined : buscarHistoria(ruta.id) ?? HISTORIAS[0];
   const actual = historia?.id ?? ruta.id;
   const donde = historia
@@ -77,7 +82,7 @@ export function App({ url = globalThis.location.origin, fetch }: Props) {
           <a href="https://github.com/Kiri23/ontology-client">código</a>
         </p>
       </header>
-      <Barra clases={CLASES} actual={actual} donde={donde} />
+      <Barra clases={CLASES} actual={actual} donde={donde} indagar={indagar} />
       <main className="principal">
         {enGrafo
           ? (
