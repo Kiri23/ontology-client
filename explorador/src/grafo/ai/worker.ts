@@ -1,6 +1,6 @@
 // El worker de la AI: Gemma 3 270M por WebGPU con Transformers.js, fuera del hilo de la página. Es el modelo más chico
-// de Gemma: Gemma 4 E2B (3,6 GB) no entra en el Pixel 10, cuya GPU acepta buffers de 256 MB y su tabla de embeddings
-// pesa 1 174 MB (docs/webgpu-en-el-pixel-10.md, docs/modelo-chico-para-el-pixel.md). Transformers.js va fijada en 4.3.1
+// de Gemma. Gemma 4 E2B (3,6 GB) no entra en el Pixel 10: la tabla de embeddings de E2B pesa 1 174 MB y la GPU del
+// Pixel acepta buffers de 256 MB (docs/webgpu-en-el-pixel-10.md, docs/modelo-chico-para-el-pixel.md). Transformers.js va fijada en 4.3.1
 // y empaquetada por Vite, el wasm de onnxruntime se sirve desde el propio origen, y WebGPU cae a modo compatibilidad
 // cuando core no da adaptador (el Pixel 10 Pro XL; webgpu.ts).
 //
@@ -53,11 +53,9 @@ async function check(): Promise<void> {
   }
 }
 
-/** input_ids y attention_mask del prompt. Sin special tokens: el `<bos>` ya lo puso la plantilla. */
-function entradas(tokenizer: Tokenizer, mensajes: Mensaje[]) {
-  const texto = tokenizer.apply_chat_template(mensajes, OPCIONES_DE_PLANTILLA);
-  return tokenizer(texto, { add_special_tokens: false });
-}
+/** input_ids y attention_mask del prompt, en una llamada (chat.ts dice por qué no hay un `<bos>` de más). */
+const entradas = (tokenizer: Tokenizer, mensajes: Mensaje[]) =>
+  tokenizer.apply_chat_template(mensajes, OPCIONES_DE_PLANTILLA);
 
 async function cargar() {
   // Un worker nuevo después de un fallo de carga no recibe check: el adaptador se pide acá.

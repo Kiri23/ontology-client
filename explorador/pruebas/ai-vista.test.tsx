@@ -117,7 +117,7 @@ describe("Preguntar con AI", () => {
     act(() => emitir({ tipo: "progreso", archivo: "onnx/model_q4.onnx_data", cargado: 1.2e8, total: 3.2e8 }));
     const estado = screen.getByRole("status");
     expect(estado.textContent).toContain("120 MB de 343 MB");
-    const aviso = "La tabla de embeddings (84 MB) supera lo que la GPU acepta por buffer (64 MB): puede fallar al " +
+    const aviso = "La tabla de embeddings (80 MB) supera lo que la GPU acepta por buffer (64 MB): puede fallar al " +
       "cargar; si falla, el error va a decir maxStorageBufferBindingSize.";
     expect(estado.textContent).toContain(aviso);
   });

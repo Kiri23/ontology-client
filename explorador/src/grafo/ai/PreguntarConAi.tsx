@@ -12,11 +12,8 @@ import "../../estilos/ai.css";
 /** "El navegador no tiene WebGPU." → "el navegador no tiene WebGPU", para ir entre paréntesis. */
 const enMinuscula = (frase: string) => frase.charAt(0).toLowerCase() + frase.slice(1).replace(/\.$/, "");
 
-/** Un tamaño de descarga con su unidad: 343 498 783 → "343 MB"; desde 1 GB, en GB con un decimal ("1,2 GB"). */
-const tamano = (bytes: number) =>
-  bytes < 1e9
-    ? `${(bytes / 1e6).toLocaleString("es", { maximumFractionDigits: 0 })} MB`
-    : `${(bytes / 1e9).toLocaleString("es", { maximumFractionDigits: 1 })} GB`;
+/** Un tamaño de descarga, en MB como los da Hugging Face: 343 498 783 → "343 MB". El modelo no llega a 1 GB. */
+const tamano = (bytes: number) => `${(bytes / 1e6).toLocaleString("es", { maximumFractionDigits: 0 })} MB`;
 
 interface Props {
   cliente: ClienteAi;
@@ -24,7 +21,10 @@ interface Props {
   alProponer: (sparql: string) => void;
 }
 
-/** 268435456 → "256": los límites de WebGPU son potencias de 2, y así los dan Chrome y webgpureport. */
+/**
+ * 268435456 → "256", en MiB: los límites de WebGPU son potencias de 2, y así los dan Chrome y webgpureport. La tabla de
+ * embeddings va en la misma unidad, para compararla con el límite.
+ */
 const mb = (bytes: number) => (bytes / 2 ** 20).toLocaleString("es", { maximumFractionDigits: 0 });
 
 /** Si la tabla de embeddings no entra en un buffer de esta GPU, se avisa debajo del progreso: puede fallar al cargar. */
@@ -32,7 +32,7 @@ function NotaDeBinding({ variante }: { variante?: Variante }) {
   if (!variante?.embedExcedeBinding) return null;
   return (
     <p className="ai-nota">
-      La tabla de embeddings ({tamano(variante.tablaDeEmbed)}) supera lo que la GPU acepta por buffer{" "}
+      La tabla de embeddings ({mb(variante.tablaDeEmbed)} MB) supera lo que la GPU acepta por buffer{" "}
       ({mb(variante.maxStorageBufferBindingSize)} MB): puede fallar al cargar; si falla, el error va a decir{" "}
       <code>maxStorageBufferBindingSize</code>.
     </p>

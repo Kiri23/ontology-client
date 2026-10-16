@@ -95,13 +95,13 @@ El diseño de ahora:
 
     No hay `contrib_ops/cpu/quantization/gather_block_quantized.cc`. Las variantes `quantized` (q8) usan el mismo op;
     solo fp16 y fp32 usan Gather común, y pesan 5,5 y 11 GB.
-  - **Qué hace el worker:** todo va a WebGPU. `opcionesDeCarga` (`protocolo.ts`) solo avisa: si
-    `maxStorageBufferBindingSize` < 1 174 405 120, la `variante` lleva `embedExcedeBinding: true` y la descarga muestra
-    "La tabla de embeddings (1,2 GB) supera lo que la GPU acepta por buffer (256 MB): puede fallar al cargar; si falla,
-    el error va a decir maxStorageBufferBindingSize." El error de onnxruntime dice
-    `exceeding maxStorageBufferBindingSize
-    of` (está en el wasm:
-    `grep -ao ".\{60\}exceeding maxStorageBufferBindingSize of.\{30\}"`).
+  - **Qué hacía el worker con E2B:** todo iba a WebGPU. `opcionesDeCarga` (`protocolo.ts`) solo avisaba: si
+    `maxStorageBufferBindingSize` < 1 174 405 120, la `variante` llevaba `embedExcedeBinding: true` y la descarga
+    mostraba "La tabla de embeddings (1,2 GB) supera lo que la GPU acepta por buffer (256 MB): puede fallar al cargar;
+    si falla, el error va a decir maxStorageBufferBindingSize." Con Gemma 3 270M la tabla pesa 80 MiB y el aviso no
+    salta en el Pixel (§4). El error de onnxruntime dice `exceeding maxStorageBufferBindingSize
+    of` (está en el
+    wasm: `grep -ao ".\{60\}exceeding maxStorageBufferBindingSize of.\{30\}"`).
   - **Plan B, trabajo aparte:** un lookup propio de los embeddings, con Range requests sobre `embed_tokens_q4.onnx_data`
     (leer solo las filas de los tokens del prompt y descuantizarlas en JS), y pasarle al decoder `inputs_embeds` y
     `per_layer_inputs` hechos.

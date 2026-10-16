@@ -37,14 +37,17 @@ const VARIANTES = {
 } as const;
 
 /**
- * El tensor más grande del modelo: `model_embed_tokens_weight_quant`, u8 [262144, 320] = 84 MB, igual en `q4` y en
- * `q4f16`. Lo usa `GatherBlockQuantized`, que en WebGPU lo ata entero a un binding; si la GPU no acepta un buffer así,
- * la sesión no se crea ("exceeding maxStorageBufferBindingSize of"). Entra en los dos límites medidos en el Pixel 10:
- * 256 MB en modo compatibilidad y 128 MB en core (con la blocklist desactivada por flag).
+ * La tabla de embeddings: `model_embed_tokens_weight_quant`, u8 [262144, 320] = 84 MB (80 MiB), igual en `q4` y en
+ * `q4f16`. Es uno de los dos tensores más grandes del modelo; el otro, `…_weight_quant_matmul` (u8 [262144, 20, 16]),
+ * es la misma tabla para el lm_head y pesa lo mismo. La tabla la usa `GatherBlockQuantized`, que en WebGPU la ata
+ * entera a un binding; si la GPU no acepta un buffer así, la sesión no se crea ("exceeding maxStorageBufferBindingSize
+ * of"). Entra en los dos límites medidos en el Pixel 10: 256 MiB en modo compatibilidad y 128 MiB en core (con la
+ * blocklist desactivada por flag).
  *
- * Con Gemma 4 E2B este tensor era la tabla per-layer, u8 [262144, 4480] = 1 174 MB, y no entraba en ninguno de los
- * dos; tampoco podía ir a wasm, porque este onnxruntime-web solo trae `GatherBlockQuantized` para WebGPU
- * (docs/webgpu-en-el-pixel-10.md). El aviso queda para cualquier GPU con un binding más chico que 84 MB.
+ * Con este modelo `embedExcedeBinding` no salta en ninguna GPU estándar: WebGPU garantiza al menos 128 MiB por binding.
+ * Queda porque con `gemma-3-1b` (tabla de 151 MB, más que 128 MiB) volvería a hacer falta en core. Con Gemma 4 E2B la
+ * tabla per-layer pesaba 1 174 MB y no entraba en ninguno de los dos; tampoco podía ir a wasm, porque este
+ * onnxruntime-web solo trae `GatherBlockQuantized` para WebGPU (docs/webgpu-en-el-pixel-10.md).
  */
 export const TENSOR_MAS_GRANDE_DE_EMBED = 262_144 * 320;
 

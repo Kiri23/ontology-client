@@ -1,6 +1,7 @@
 // El prompt de la AI: el esquema del grafo sacado del Store, tres consultas prearmadas como ejemplos y la pregunta.
-// Sin ejemplos E2B no sirve (zero-shot 0/1 válida, docs/gemma-en-el-navegador.md §2b); con tres, sí. Las consultas van
-// sin las líneas PREFIX: E2B las repite enteras y se alarga, y completarPrefijos() (extraer.ts) las agrega después.
+// Sin ejemplos E2B no servía (zero-shot 0/1 válida, docs/gemma-en-el-navegador.md §2b); con tres, sí. Las consultas van
+// sin las líneas PREFIX: E2B las repetía enteras y se alargaba, y completarPrefijos() (extraer.ts) las agrega después.
+// Todo eso se midió con Gemma 4 E2B; con Gemma 3 270M, el modelo de hoy, no se midió.
 import { type Prearmada, PREARMADAS } from "../logica/consultas.ts";
 import { compacto, PREFIJOS, RDF_TYPE } from "../logica/prefijos.ts";
 import type { Mensaje } from "./protocolo.ts";
