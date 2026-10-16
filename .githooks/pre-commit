@@ -1,0 +1,28 @@
+#!/bin/sh
+# Antes de cada commit: lo mismo que el job calidad de ci.yml (fmt, lint, tipos, tests) y, si el commit toca
+# explorador/, tsc y vitest de explorador/. Se instala con `deno task hooks`. Saltar con --no-verify solo si sabés por qué.
+# Si un paso pasa, imprime solo su resumen; si falla, la salida entera. deno va con --config deno.json porque
+# explorador/package.json corta la búsqueda de config, y sin LD_PRELOAD porque en Termux es un binario glibc.
+set -e
+cd "$(git rev-parse --show-toplevel)"
+export NO_COLOR=1
+
+paso() {
+  nombre=$1
+  shift
+  salida=$("$@" 2>&1) || { printf '%s\n' "$salida"; echo "pre-commit: falló $nombre"; exit 1; }
+  resumen=$(printf '%s\n' "$salida" | grep -E '^(ok \||Checked)| Tests ' | tail -n 1 | sed 's/^ *//')
+  printf '%-7s %s\n' "$nombre" "${resumen:-ok}"
+}
+
+paso fmt env -u LD_PRELOAD deno fmt --check --config deno.json
+paso lint env -u LD_PRELOAD deno lint --config deno.json
+paso tipos env -u LD_PRELOAD deno check --config deno.json mod.ts cli.ts neo4j.ts scripts/*.ts tests/*.ts
+paso tests env -u LD_PRELOAD deno task --config deno.json test
+
+if [ -n "$(git diff --cached --name-only -- explorador/)" ]; then
+  [ -d explorador/node_modules ] || { echo "pre-commit: falta explorador/node_modules (npm ci en explorador/)"; exit 1; }
+  cd explorador
+  paso tsc npm run check
+  paso vitest npm test
+fi
