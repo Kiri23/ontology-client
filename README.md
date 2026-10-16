@@ -296,10 +296,11 @@ deno run --allow-net --allow-read tests/servidor-falso.ts --puerto 8787 --token 
 **Pre-commit.** `deno task hooks` lo activa una vez por clon, y vale para sus worktrees. Antes de cada commit,
 `.githooks/pre-commit` corre fmt, lint, `deno check`, `deno task test` y `deno task generar --check` de `ci.yml` (no
 `deno install --frozen`, `publish --dry-run` ni los jobs de la action); si el commit toca `explorador/`, también
-`npm run check` y `npm test` ahí (necesitan `explorador/node_modules`). De cada paso imprime el resumen, y la salida
-entera si falla. La tarea deja un atajo en `~/.local/share/git-hooks/ontology-client/` que corre el hook con `sh`: en
-`/storage` (Termux) git ignora un hook sin bit de ejecución. En una rama que todavía no tiene el hook, el atajo no hace
-nada. `git commit --no-verify` lo salta, solo si sabés por qué.
+`npm run check` y `npm test` ahí; sin `explorador/node_modules` (el clon en `/storage`) los saltea con un aviso y quedan
+para el CI. De cada paso imprime el resumen, y la salida entera si falla. La tarea deja un atajo en
+`~/.local/share/git-hooks/ontology-client/` que corre el hook con `sh`: en `/storage` (Termux) git ignora un hook sin
+bit de ejecución. En una rama que todavía no tiene el hook, el atajo no hace nada. `git commit --no-verify` lo salta,
+solo si sabés por qué.
 
 Las acciones escriben, así que su test de punta a punta va **solo** contra un ontologyLearning local
 (`ONTOLOGY_ACCIONES_TOKEN=prueba-local python3 main.py web --puerto 8800` con `datos/jobs.trig` =
