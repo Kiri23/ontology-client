@@ -9,6 +9,9 @@ import { armarMensajes, type Consultar, type Esquema, leerEsquema } from "./prom
 import { BYTES_DEL_MODELO } from "./protocolo.ts";
 import "../../estilos/ai.css";
 
+/** "El navegador no tiene WebGPU." → "el navegador no tiene WebGPU", para ir entre paréntesis. */
+const enMinuscula = (frase: string) => frase.charAt(0).toLowerCase() + frase.slice(1).replace(/\.$/, "");
+
 const gb = (bytes: number) => (bytes / 1e9).toLocaleString("es", { maximumFractionDigits: 1 });
 
 interface Props {
@@ -126,7 +129,7 @@ export function PreguntarConAi({ cliente, grafo, alProponer }: Props) {
     case "sin-webgpu":
       return (
         <p className="ai-sin-webgpu">
-          Preguntar con AI necesita WebGPU, y acá no está ({estado.motivo.replace(/\.$/, "")}). El modelo corre en tu
+          Preguntar con AI necesita WebGPU, y acá no está ({enMinuscula(estado.motivo)}). El modelo corre en tu
           dispositivo y sin GPU no entra en memoria. En Chrome de escritorio o de Android aparece el botón.
         </p>
       );
