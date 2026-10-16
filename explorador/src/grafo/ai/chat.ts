@@ -1,25 +1,10 @@
-// La conversación como la quiere la plantilla de chat de Gemma 4 (chat_template.jinja del repo del modelo). El system
-// va como string: la plantilla le aplica `| trim`, y el jinja de Transformers.js no tiene trim para un array ("Unknown
-// ArrayValue filter: trim"). User y assistant van en partes ({type: "text"}), como en DocsifyTemplate. La prueba
-// renderiza la plantilla real (pruebas/datos/gemma-4-chat_template.jinja) con esto mismo.
-import type { Mensaje } from "./protocolo.ts";
+// La conversación como la quiere la plantilla de chat de Gemma 3 (chat_template.jinja del repo del modelo). Los
+// mensajes van tal cual, con `content` como string: la plantilla pega el system al primer turno de user, pasa assistant
+// a `model` y le aplica `| trim` a cada string. No tiene `enable_thinking`. La prueba renderiza la plantilla real
+// (pruebas/datos/gemma-3-chat_template.jinja) con estas mismas opciones.
 
-export interface ParteDeTexto {
-  type: "text";
-  text: string;
-}
-
-export type MensajeDeGemma =
-  | { role: "system"; content: string }
-  | { role: "user" | "assistant"; content: ParteDeTexto[] };
-
-/** Lo que el worker le pasa a apply_chat_template además de los mensajes. enable_thinking va a la plantilla. */
-export const OPCIONES_DE_PLANTILLA = { add_generation_prompt: true, enable_thinking: false } as const;
-
-export function chatDeGemma(mensajes: Mensaje[]): MensajeDeGemma[] {
-  return mensajes.map((m) =>
-    m.role === "system"
-      ? { role: "system", content: m.content }
-      : { role: m.role, content: [{ type: "text", text: m.content }] }
-  );
-}
+/**
+ * Lo que el worker le pasa a apply_chat_template además de los mensajes: el turno del modelo abierto, y el texto sin
+ * tokenizar, porque la plantilla ya pone el `<bos>` y el tokenizer no tiene que agregar otro.
+ */
+export const OPCIONES_DE_PLANTILLA = { add_generation_prompt: true, tokenize: false } as const;

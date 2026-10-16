@@ -1,27 +1,28 @@
-// El worker de la AI: Gemma 4 E2B por WebGPU con Transformers.js, fuera del hilo de la página. Es la receta de
-// DocsifyTemplate (packages/chat/core/worker.js) con cuatro cambios: Transformers.js fijada en 4.3.1 y empaquetada por
-// Vite, Gemma4ForCausalLM (texto solo: 3,1 GB en vez de 3,4), el wasm de onnxruntime servido desde el propio origen, y
-// WebGPU en modo compatibilidad cuando core no da adaptador (el Pixel 10 Pro XL; webgpu.ts y
-// docs/webgpu-en-el-pixel-10.md).
+// El worker de la AI: Gemma 3 270M por WebGPU con Transformers.js, fuera del hilo de la página. Es el modelo más chico
+// de Gemma: Gemma 4 E2B (3,6 GB) no entra en el Pixel 10, cuya GPU acepta buffers de 256 MB y su tabla de embeddings
+// pesa 1 174 MB (docs/webgpu-en-el-pixel-10.md, docs/modelo-chico-para-el-pixel.md). Transformers.js va fijada en 4.3.1
+// y empaquetada por Vite, el wasm de onnxruntime se sirve desde el propio origen, y WebGPU cae a modo compatibilidad
+// cuando core no da adaptador (el Pixel 10 Pro XL; webgpu.ts).
 //
 // La librería entra con import() recién en `load`: abrir la consulta libre baja este archivo (unos KB) para el `check`,
-// no los 581 kB de Transformers.js ni los 27 MB del wasm. Sin WebGPU no hay fallback a WASM (no entra en memoria).
+// no los 581 kB de Transformers.js ni los 27 MB del wasm. Sin WebGPU no hay fallback a WASM (GatherBlockQuantized no
+// tiene kernel de CPU).
 import ortMjs from "onnxruntime-web/ort-wasm-simd-threaded.asyncify.mjs?url";
 import ortWasm from "onnxruntime-web/ort-wasm-simd-threaded.asyncify.wasm?url";
-import { chatDeGemma, OPCIONES_DE_PLANTILLA } from "./chat.ts";
+import { OPCIONES_DE_PLANTILLA } from "./chat.ts";
 import { type AlWorker, type APagina, type Mensaje, MODELO, type ModoWebGpu, opcionesDeCarga } from "./protocolo.ts";
 import { type AdaptadorWebGpu, adaptadorWebGpu, type GpuDelNavegador, instalarCompatibilidad } from "./webgpu.ts";
 
 const enviar = (m: APagina) => (self as unknown as { postMessage(m: APagina): void }).postMessage(m);
 
 type Libreria = typeof import("@huggingface/transformers");
-type Procesador = Awaited<ReturnType<Libreria["AutoProcessor"]["from_pretrained"]>>;
-type Modelo = Awaited<ReturnType<Libreria["Gemma4ForCausalLM"]["from_pretrained"]>>;
+type Tokenizer = Awaited<ReturnType<Libreria["AutoTokenizer"]["from_pretrained"]>>;
+type Modelo = Awaited<ReturnType<Libreria["Gemma3ForCausalLM"]["from_pretrained"]>>;
 
 const mensajeDe = (e: unknown) => String((e as Error)?.message ?? e);
 const gpu = (navigator as { gpu?: GpuDelNavegador }).gpu;
 
-let cargado: Promise<{ lib: Libreria; procesador: Procesador; modelo: Modelo }> | undefined;
+let cargado: Promise<{ lib: Libreria; tokenizer: Tokenizer; modelo: Modelo }> | undefined;
 /** El adaptador del check: `load` lee de él el f16 y el límite de buffer. No pide device: eso lo hace onnxruntime. */
 let adaptador: { adapter: AdaptadorWebGpu; modo: ModoWebGpu } | undefined;
 /** Para los errores que no atrapa nadie: si llegan cargando o ya cargado. */
@@ -52,16 +53,10 @@ async function check(): Promise<void> {
   }
 }
 
-async function entradas(procesador: Procesador, mensajes: Mensaje[]) {
-  // enable_thinking no está en los tipos: Transformers.js le pasa al template de Jinja las opciones que no conoce.
-  const opciones = OPCIONES_DE_PLANTILLA as unknown as { add_generation_prompt: boolean };
-  const texto = procesador.apply_chat_template(chatDeGemma(mensajes) as never, opciones);
-  return await (procesador as unknown as (t: unknown, ...r: unknown[]) => Promise<Record<string, unknown>>)(
-    texto,
-    null,
-    null,
-    { add_special_tokens: false },
-  );
+/** input_ids y attention_mask del prompt. Sin special tokens: el `<bos>` ya lo puso la plantilla. */
+function entradas(tokenizer: Tokenizer, mensajes: Mensaje[]) {
+  const texto = tokenizer.apply_chat_template(mensajes, OPCIONES_DE_PLANTILLA);
+  return tokenizer(texto, { add_special_tokens: false });
 }
 
 async function cargar() {
@@ -94,9 +89,11 @@ async function cargar() {
     enviar({ tipo: "progreso", archivo: info.file, cargado, total });
   };
   const opciones = { progress_callback: progreso as never };
-  const [procesador, modelo] = await Promise.all([
-    lib.AutoProcessor.from_pretrained(MODELO, opciones),
-    lib.Gemma4ForCausalLM.from_pretrained(MODELO, {
+  const [tokenizer, modelo] = await Promise.all([
+    lib.AutoTokenizer.from_pretrained(MODELO, opciones),
+    // Una sola sesión, `model`: onnx/model_<dtype>.onnx y sus pesos en model_<dtype>.onnx_data. El config.json del repo
+    // ya pide external data; va explícito para no depender de él.
+    lib.Gemma3ForCausalLM.from_pretrained(MODELO, {
       ...opciones,
       dtype,
       device: "webgpu",
@@ -106,12 +103,12 @@ async function cargar() {
   // Un token de prueba compila los shaders; si no, la primera pregunta tarda eso de más. Sin muestreo, como al generar.
   enviar({ tipo: "preparando" });
   await modelo.generate({
-    ...(await entradas(procesador, [{ role: "user", content: "hola" }])),
+    ...entradas(tokenizer, [{ role: "user", content: "hola" }]),
     do_sample: false,
     max_new_tokens: 1,
   });
   etapa = "generacion";
-  return { lib, procesador, modelo };
+  return { lib, tokenizer, modelo };
 }
 
 async function load(): Promise<void> {
@@ -128,9 +125,9 @@ async function load(): Promise<void> {
 async function generate(mensajes: Mensaje[]): Promise<void> {
   try {
     if (!cargado) throw new Error("El modelo no está cargado.");
-    const { lib, procesador, modelo } = await cargado;
+    const { lib, tokenizer, modelo } = await cargado;
     let texto = "";
-    const streamer = new lib.TextStreamer(procesador.tokenizer!, {
+    const streamer = new lib.TextStreamer(tokenizer, {
       skip_prompt: true,
       skip_special_tokens: true,
       callback_function: (pedazo: string) => {
@@ -140,7 +137,7 @@ async function generate(mensajes: Mensaje[]): Promise<void> {
     });
     // Sin muestreo: la misma pregunta da la misma consulta. 320 tokens alcanzan para una consulta sin PREFIX.
     await modelo.generate({
-      ...(await entradas(procesador, mensajes)),
+      ...entradas(tokenizer, mensajes),
       do_sample: false,
       max_new_tokens: 320,
       streamer,

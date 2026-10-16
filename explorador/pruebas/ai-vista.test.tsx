@@ -1,6 +1,6 @@
 // "Preguntar con AI" montado en la consulta libre, con un worker falso y el motor de verdad. Prueba lo que promete la
-// UI: sin WebGPU no hay botón, el aviso de 3,1 GB (3,6 sin f16) va antes de bajar nada, y lo generado va al editor y al validador,
-// nunca al motor. Las respuestas que resuelven la promesa de generar van en un act asincrónico (act(() => Promise)).
+// UI: sin WebGPU no hay botón, el aviso de 293 MB (343 sin f16) va antes de bajar nada, y lo generado va al editor y al
+// validador, nunca al motor. Las respuestas que resuelven la promesa de generar van en un act asincrónico (act(() => Promise)).
 import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import { ClienteAi } from "../src/grafo/ai/cliente.ts";
@@ -65,22 +65,21 @@ describe("Preguntar con AI", () => {
     expect(crear).not.toHaveBeenCalled();
   });
 
-  it("el aviso de 3,1 GB va antes de la descarga; Cancelar no baja nada", () => {
+  it("el aviso de 293 MB va antes de la descarga; Cancelar no baja nada", () => {
     const { recibidos, emitir } = montar();
     fireEvent.click(screen.getByRole("button", BOTON));
-    expect(screen.getByText(/Baja 3,1 GB una sola vez y queda en el navegador/)).toBeTruthy();
+    expect(screen.getByText(/Gemma 3 270M corre en este dispositivo/)).toBeTruthy();
+    expect(screen.getByText(/Baja 293 MB una sola vez y queda en el navegador/)).toBeTruthy();
     expect(recibidos.some((m) => m.tipo === "load")).toBe(false);
     fireEvent.click(screen.getByRole("button", { name: "Cancelar" }));
     expect(recibidos.some((m) => m.tipo === "load")).toBe(false);
     fireEvent.click(screen.getByRole("button", BOTON));
     fireEvent.click(screen.getByRole("button", { name: "Continuar" }));
     expect(recibidos.at(-1)).toEqual({ tipo: "load" });
-    act(() =>
-      emitir({ tipo: "progreso", archivo: "onnx/decoder_model_merged_q4f16.onnx_data", cargado: 1.3e9, total: 1.5e9 })
-    );
+    act(() => emitir({ tipo: "progreso", archivo: "onnx/model_q4f16.onnx_data", cargado: 1.2e8, total: 2.7e8 }));
     const estado = screen.getByRole("status");
-    expect(estado.textContent).toContain("decoder_model_merged_q4f16.onnx_data · 41 %");
-    expect(estado.textContent).toContain("1,3 de 3,1 GB");
+    expect(estado.textContent).toContain("model_q4f16.onnx_data · 40 %");
+    expect(estado.textContent).toContain("120 MB de 293 MB");
     act(() => emitir({ tipo: "preparando" }));
     expect(screen.getByText(/Preparando el modelo en la GPU/)).toBeTruthy();
     act(() => emitir({ tipo: "listo" }));
@@ -93,35 +92,34 @@ describe("Preguntar con AI", () => {
     expect(screen.queryByText(/modo compatibilidad/)).toBeNull();
   });
 
-  it("sin f16 y en modo compatibilidad (el Pixel), el aviso dice 3,6 GB y lo del modo, y Continuar carga igual", () => {
+  it("sin f16 y en modo compatibilidad (el Pixel), el aviso dice 343 MB y lo del modo, y Continuar carga igual", () => {
     const { recibidos, emitir } = montar(GPU_DEL_PIXEL);
     fireEvent.click(screen.getByRole("button", BOTON));
-    expect(screen.getByText(/Baja 3,6 GB una sola vez y queda en el navegador/)).toBeTruthy();
-    expect(screen.getByText(/solo en modo compatibilidad: es la primera vez que la AI se prueba/)).toBeTruthy();
+    expect(screen.getByText(/Baja 343 MB una sola vez y queda en el navegador/)).toBeTruthy();
+    expect(screen.getByText(/solo en modo compatibilidad\. El modelo es el chico para que entre, pero así puede/))
+      .toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: "Continuar" }));
     expect(recibidos.at(-1)).toEqual({ tipo: "load" });
     act(() => emitir({ tipo: "variante", ...opcionesDeCarga(GPU_DEL_PIXEL) }));
-    const aviso = "La tabla de embeddings (1,2 GB) supera lo que la GPU acepta por buffer (256 MB): puede fallar al " +
-      "cargar; si falla, el error va a decir maxStorageBufferBindingSize.";
-    expect(screen.getByRole("status").textContent).toContain(aviso);
-    act(() =>
-      emitir({ tipo: "progreso", archivo: "onnx/decoder_model_merged_q4.onnx_data", cargado: 1.3e9, total: 1.5e9 })
-    );
+    act(() => emitir({ tipo: "progreso", archivo: "onnx/model_q4.onnx_data", cargado: 1.2e8, total: 3.2e8 }));
     const estado = screen.getByRole("status");
-    expect(estado.textContent).toContain("decoder_model_merged_q4.onnx_data · 35 %");
-    expect(estado.textContent).toContain("1,3 de 3,6 GB");
-    expect(estado.textContent).toContain(aviso);
+    expect(estado.textContent).toContain("model_q4.onnx_data · 34 %");
+    expect(estado.textContent).toContain("120 MB de 343 MB");
+    // La tabla de embeddings de Gemma 3 270M (84 MB) entra en los 256 MB del Pixel: no hay aviso.
+    expect(estado.textContent).not.toContain("tabla de embeddings");
   });
 
-  it("el tamaño de la descarga lo dice la variante del worker, y si la tabla de embeddings entra no hay aviso", () => {
+  it("el tamaño de la descarga lo dice la variante del worker, y si la tabla de embeddings no entra, avisa", () => {
     const { emitir } = montar();
     fireEvent.click(screen.getByRole("button", BOTON));
     fireEvent.click(screen.getByRole("button", { name: "Continuar" }));
-    act(() => emitir({ tipo: "variante", ...opcionesDeCarga({ f16: false, maxStorageBufferBindingSize: 2 ** 31 }) }));
-    act(() => emitir({ tipo: "progreso", archivo: "onnx/embed_tokens_q4.onnx_data", cargado: 1.3e9, total: 1.5e9 }));
+    act(() => emitir({ tipo: "variante", ...opcionesDeCarga({ f16: false, maxStorageBufferBindingSize: 2 ** 26 }) }));
+    act(() => emitir({ tipo: "progreso", archivo: "onnx/model_q4.onnx_data", cargado: 1.2e8, total: 3.2e8 }));
     const estado = screen.getByRole("status");
-    expect(estado.textContent).toContain("1,3 de 3,6 GB");
-    expect(estado.textContent).not.toContain("tabla de embeddings");
+    expect(estado.textContent).toContain("120 MB de 343 MB");
+    const aviso = "La tabla de embeddings (84 MB) supera lo que la GPU acepta por buffer (64 MB): puede fallar al " +
+      "cargar; si falla, el error va a decir maxStorageBufferBindingSize.";
+    expect(estado.textContent).toContain(aviso);
   });
 
   it("una consulta válida va al editor con sus PREFIX y el veredicto, pero no corre", async () => {

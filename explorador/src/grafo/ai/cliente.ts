@@ -1,5 +1,5 @@
 // La AI vista desde la página: el worker y un estado que React lee con useSyncExternalStore. Uno solo por pestaña
-// (clienteCompartido). Al salir de la consulta libre, cerrar() termina el worker: los ~3 GB del modelo no quedan
+// (clienteCompartido). Al salir de la consulta libre, cerrar() termina el worker: los ~300 MB del modelo no quedan
 // tomados en la GPU mientras se leen otras historias. Volver lo carga de nuevo desde la Cache API, sin bajarlo.
 import type { AlWorker, APagina, Gpu, Mensaje, Variante } from "./protocolo.ts";
 

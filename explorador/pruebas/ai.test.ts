@@ -1,7 +1,6 @@
 // La AI sin modelo: el prompt (esquema del Store, ejemplos, pregunta), el extractor del SPARQL y el cliente con un
 // worker falso. El modelo real no corre acá ni en chromium-box (colgó la VM): lo prueba Christian en el Pixel.
 import { beforeAll, describe, expect, it, vi } from "vitest";
-import { chatDeGemma } from "../src/grafo/ai/chat.ts";
 import { ClienteAi, pistaDeCarga, porcentaje } from "../src/grafo/ai/cliente.ts";
 import { completarPrefijos, consultaPropuesta, extraerSparql } from "../src/grafo/ai/extraer.ts";
 import {
@@ -69,21 +68,21 @@ describe("esquema del prompt", () => {
   });
 });
 
-describe("plantilla de chat de Gemma 4 (la real, sin el modelo)", () => {
+describe("plantilla de chat de Gemma 3 (la real, sin el modelo)", () => {
   it("acepta la conversación entera que arma el worker y deja abierto el turno del modelo", () => {
     const prompt = renderizarParaGemma(armarMensajes(esquema, "¿Cuántas acciones hay?"));
-    expect(prompt.startsWith("<bos><|turn>system\nTraducís preguntas en castellano")).toBe(true);
+    // Gemma 3 no tiene turno de system: lo pega al primer user, separado por una línea en blanco.
+    expect(prompt.startsWith("<bos><start_of_turn>user\nTraducís preguntas en castellano")).toBe(true);
     expect(prompt).toContain("Clases (instancias en el grafo)");
-    expect(prompt.match(/<\|turn>model\n/g)).toHaveLength(EJEMPLOS.length + 1);
-    expect(prompt.endsWith("<|turn>user\n¿Cuántas acciones hay?<turn|>\n<|turn>model\n")).toBe(true);
+    expect(prompt).toContain(`\n\n${EJEMPLOS[0].pregunta}<end_of_turn>\n<start_of_turn>model\n\`\`\`sparql\n`);
+    expect(prompt.match(/<start_of_turn>model\n/g)).toHaveLength(EJEMPLOS.length + 1);
+    expect(prompt.endsWith("<start_of_turn>user\n¿Cuántas acciones hay?<end_of_turn>\n<start_of_turn>model\n"))
+      .toBe(true);
   });
 
-  it("el system va como string y lo demás en partes: el system en partes rompía cada Generar", () => {
-    const chat = chatDeGemma([{ role: "system", content: "S" }, { role: "user", content: "p" }]);
-    expect(chat).toEqual([
-      { role: "system", content: "S" },
-      { role: "user", content: [{ type: "text", text: "p" }] },
-    ]);
+  it("la plantilla es la real: rechaza turnos que no alternan user y assistant", () => {
+    const mensajes = [{ role: "user", content: "a" }, { role: "user", content: "b" }] as const;
+    expect(() => renderizarParaGemma([...mensajes])).toThrow("Conversation roles must alternate");
   });
 });
 
@@ -134,8 +133,8 @@ describe("cliente", () => {
     expect(cliente.estado().fase).toBe("disponible");
     cliente.cargar();
     expect(f.recibidos.at(-1)).toEqual({ tipo: "load" });
-    f.emitir({ tipo: "progreso", archivo: "onnx/embed_tokens_q4f16.onnx_data", cargado: 1_565_000_000, total: 2e9 });
-    expect(cliente.estado()).toMatchObject({ fase: "bajando", progreso: { cargado: 1_565_000_000 } });
+    f.emitir({ tipo: "progreso", archivo: "onnx/model_q4f16.onnx_data", cargado: 146_000_000, total: 2.9e8 });
+    expect(cliente.estado()).toMatchObject({ fase: "bajando", progreso: { cargado: 146_000_000 } });
     f.emitir({ tipo: "listo" });
     const texto = cliente.generar([{ role: "user", content: "hola" }]);
     f.emitir({ tipo: "token", texto: "SEL" });
@@ -185,9 +184,9 @@ describe("cliente", () => {
   });
 
   it("el porcentaje se mide contra lo que pesa la variante que baja, aunque el total todavía no lo sume", () => {
-    expect(porcentaje({ archivo: "", cargado: 1_565_000_000, total: 1_600_000_000 }, bytesDelModelo(true))).toBe(50);
-    expect(porcentaje({ archivo: "", cargado: 1_565_000_000, total: 1_600_000_000 }, bytesDelModelo(false))).toBe(42);
-    expect(porcentaje({ archivo: "", cargado: 4e9, total: 4e9 }, bytesDelModelo(false))).toBe(100);
+    expect(porcentaje({ archivo: "", cargado: 146_640_000, total: 280_000_000 }, bytesDelModelo(true))).toBe(50);
+    expect(porcentaje({ archivo: "", cargado: 146_640_000, total: 280_000_000 }, bytesDelModelo(false))).toBe(42);
+    expect(porcentaje({ archivo: "", cargado: 4e8, total: 4e8 }, bytesDelModelo(false))).toBe(100);
     expect(pistaDeCarga("Failed to fetch")).toContain("retoma");
   });
 
@@ -200,12 +199,12 @@ describe("cliente", () => {
     cliente.cargar();
     expect(cliente.estado()).toEqual({ fase: "bajando", gpu: GPU_DEL_PIXEL });
     f.emitir({ tipo: "variante", ...opcionesDeCarga(GPU_DEL_PIXEL) });
-    f.emitir({ tipo: "progreso", archivo: "onnx/embed_tokens_q4.onnx_data", cargado: 1e9, total: 2e9 });
+    f.emitir({ tipo: "progreso", archivo: "onnx/model_q4.onnx_data", cargado: 1e8, total: 2e8 });
     expect(cliente.estado()).toEqual({
       fase: "bajando",
       gpu: GPU_DEL_PIXEL,
       variante: opcionesDeCarga(GPU_DEL_PIXEL),
-      progreso: { tipo: "progreso", archivo: "onnx/embed_tokens_q4.onnx_data", cargado: 1e9, total: 2e9 },
+      progreso: { tipo: "progreso", archivo: "onnx/model_q4.onnx_data", cargado: 1e8, total: 2e8 },
     });
     f.emitir({ tipo: "error", cuando: "carga", mensaje: "GPU device lost (unknown): pantalla apagada" });
     expect(cliente.estado()).toEqual({

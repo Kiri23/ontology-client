@@ -16,7 +16,7 @@
 
 	# La página guarda tokens en sessionStorage: solo corre el JS propio y solo le habla a su origen (la API) y, por
 	# "Preguntar con AI", a Hugging Face. 'wasm-unsafe-eval' deja compilar WebAssembly (oxigraph y onnxruntime, assets
-	# propios); no habilita eval de JS. La AI (src/grafo/ai/, docs/gemma-en-el-navegador.md §3) suma tres cosas y nada
+	# propios); no habilita eval de JS. La AI (src/grafo/ai/, docs/modelo-chico-para-el-pixel.md) suma tres cosas y nada
 	# más: connect-src a la ruta del modelo en huggingface.co, no al host entero (su API acepta escrituras: sería un
 	# canal para sacar tokens), y a *.hf.co (los pesos redirigen a us.aws.cdn.hf.co; la región varía; CSP3 no mira la
 	# ruta después de un redirect). Transformers.js pide todo bajo {modelo}/resolve/{revisión}/.
@@ -24,7 +24,7 @@
 	# blob: (el worker propio; onnxruntime arma los suyos como blob: si hay hilos). default-src va primero:
 	# scripts/humo-imagen lo busca.
 	header {
-		Content-Security-Policy "default-src 'self'; script-src 'self' 'wasm-unsafe-eval' blob:; worker-src 'self' blob:; img-src 'self' data:; style-src 'self'; font-src 'self'; connect-src 'self' https://huggingface.co/onnx-community/gemma-4-E2B-it-ONNX/ https://*.hf.co; base-uri 'none'; form-action 'self'; frame-ancestors 'none'"
+		Content-Security-Policy "default-src 'self'; script-src 'self' 'wasm-unsafe-eval' blob:; worker-src 'self' blob:; img-src 'self' data:; style-src 'self'; font-src 'self'; connect-src 'self' https://huggingface.co/onnx-community/gemma-3-270m-it-ONNX/ https://*.hf.co; base-uri 'none'; form-action 'self'; frame-ancestors 'none'"
 		X-Content-Type-Options nosniff
 		Referrer-Policy no-referrer
 	}

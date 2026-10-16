@@ -69,26 +69,30 @@ describe("instalarCompatibilidad", () => {
 });
 
 describe("opcionesDeCarga", () => {
-  it("el Pixel (sin f16, buffers de 256 MB): q4, 3,6 GB, y avisa que la tabla de embeddings no entra en un buffer", () => {
+  it("el Pixel en compatibilidad (sin f16, buffers de 256 MB): q4, 343 MB, y la tabla de embeddings entra", () => {
     expect(opcionesDeCarga({ f16: false, maxStorageBufferBindingSize: 268_435_456 })).toEqual({
       dtype: "q4",
-      bytes: 3_646_000_000,
-      embedExcedeBinding: true,
-      tablaDeEmbed: 1_174_405_120,
+      bytes: 343_498_783,
+      embedExcedeBinding: false,
+      tablaDeEmbed: 83_886_080,
       maxStorageBufferBindingSize: 268_435_456,
     });
   });
 
-  it("escritorio (f16, buffers de 2 GB): q4f16, 3,1 GB, sin aviso", () => {
+  it("el Pixel en core con la flag (buffers de 128 MB) también entra", () => {
+    expect(opcionesDeCarga({ f16: true, maxStorageBufferBindingSize: 134_217_728 }).embedExcedeBinding).toBe(false);
+  });
+
+  it("escritorio (f16, buffers de 2 GB): q4f16, 293 MB, sin aviso", () => {
     expect(opcionesDeCarga({ f16: true, maxStorageBufferBindingSize: 2_147_483_648 })).toMatchObject({
       dtype: "q4f16",
-      bytes: 3_130_000_000,
+      bytes: 293_279_906,
       embedExcedeBinding: false,
     });
   });
 
-  it("el límite es el tensor más grande de embed_tokens (u8 [262144, 4480]), en los dos dtypes", () => {
-    expect(TENSOR_MAS_GRANDE_DE_EMBED).toBe(1_174_405_120);
+  it("el límite es el tensor más grande del modelo (embed_tokens, u8 [262144, 320]), en los dos dtypes", () => {
+    expect(TENSOR_MAS_GRANDE_DE_EMBED).toBe(83_886_080);
     const justo = { maxStorageBufferBindingSize: TENSOR_MAS_GRANDE_DE_EMBED };
     expect(opcionesDeCarga({ f16: true, ...justo }).embedExcedeBinding).toBe(false);
     expect(opcionesDeCarga({ f16: false, ...justo }).embedExcedeBinding).toBe(false);

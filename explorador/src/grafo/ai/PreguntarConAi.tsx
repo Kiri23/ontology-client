@@ -1,4 +1,4 @@
-// "Preguntar con AI" en la consulta libre: Gemma 4 E2B en este dispositivo propone el SPARQL y lo deja en el editor.
+// "Preguntar con AI" en la consulta libre: Gemma 3 270M en este dispositivo propone el SPARQL y lo deja en el editor.
 // Nunca corre sola: alProponer la pone en el editor y la pasa por el validador; correr es tocar Correr.
 // Aparece solo con WebGPU. Antes de bajar nada dice cuánto pesa y espera un Continuar.
 import { type FormEvent, useEffect, useRef, useState, useSyncExternalStore } from "react";
@@ -12,7 +12,11 @@ import "../../estilos/ai.css";
 /** "El navegador no tiene WebGPU." → "el navegador no tiene WebGPU", para ir entre paréntesis. */
 const enMinuscula = (frase: string) => frase.charAt(0).toLowerCase() + frase.slice(1).replace(/\.$/, "");
 
-const gb = (bytes: number) => (bytes / 1e9).toLocaleString("es", { maximumFractionDigits: 1 });
+/** Un tamaño de descarga con su unidad: 343 498 783 → "343 MB"; desde 1 GB, en GB con un decimal ("1,2 GB"). */
+const tamano = (bytes: number) =>
+  bytes < 1e9
+    ? `${(bytes / 1e6).toLocaleString("es", { maximumFractionDigits: 0 })} MB`
+    : `${(bytes / 1e9).toLocaleString("es", { maximumFractionDigits: 1 })} GB`;
 
 interface Props {
   cliente: ClienteAi;
@@ -28,9 +32,9 @@ function NotaDeBinding({ variante }: { variante?: Variante }) {
   if (!variante?.embedExcedeBinding) return null;
   return (
     <p className="ai-nota">
-      La tabla de embeddings ({gb(variante.tablaDeEmbed)}{" "}
-      GB) supera lo que la GPU acepta por buffer ({mb(variante.maxStorageBufferBindingSize)}{" "}
-      MB): puede fallar al cargar; si falla, el error va a decir <code>maxStorageBufferBindingSize</code>.
+      La tabla de embeddings ({tamano(variante.tablaDeEmbed)}) supera lo que la GPU acepta por buffer{" "}
+      ({mb(variante.maxStorageBufferBindingSize)} MB): puede fallar al cargar; si falla, el error va a decir{" "}
+      <code>maxStorageBufferBindingSize</code>.
     </p>
   );
 }
@@ -55,7 +59,7 @@ function Descarga({ progreso, gpu, variante }: { progreso?: Progreso; gpu: Gpu; 
       </p>
       <progress aria-label="Descarga del modelo" value={pct} max={100} />
       <p className="ai-nota">
-        {gb(progreso.cargado)} de {gb(Math.max(progreso.total, esperado))} GB. Queda guardado en el navegador.
+        {tamano(progreso.cargado)} de {tamano(Math.max(progreso.total, esperado))}. Queda guardado en el navegador.
       </p>
       <NotaDeBinding variante={variante} />
     </div>
@@ -67,14 +71,14 @@ function Aviso({ gpu, continuar, cancelar }: { gpu: Gpu; continuar: () => void; 
     <div className="ai-aviso" role="group" aria-labelledby="ai-aviso-titulo">
       <p className="ai-aviso-titulo" id="ai-aviso-titulo">Antes de bajar el modelo</p>
       <p>
-        Gemma 4 E2B corre en este dispositivo, sin servidor ni cuenta.{" "}
-        <strong>Baja {gb(bytesDelModelo(gpu.f16))} GB una sola vez y queda en el navegador</strong>; las próximas veces
+        Gemma 3 270M corre en este dispositivo, sin servidor ni cuenta.{" "}
+        <strong>Baja {tamano(bytesDelModelo(gpu.f16))} una sola vez y queda en el navegador</strong>; las próximas veces
         lo lee del disco. Con datos móviles, mejor con Wi-Fi.
       </p>
       {gpu.modo === "compatibility" && (
         <p className="ai-nota">
-          En este dispositivo el navegador da WebGPU solo en modo compatibilidad: es la primera vez que la AI se prueba
-          así, y puede no andar.
+          En este dispositivo el navegador da WebGPU solo en modo compatibilidad. El modelo es el chico para que entre,
+          pero así puede andar lento o escribir cualquier cosa.
         </p>
       )}
       <div className="ai-botones">

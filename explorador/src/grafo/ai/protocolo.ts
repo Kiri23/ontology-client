@@ -1,8 +1,11 @@
 // Lo que se dicen la página y el worker de la AI (worker.ts). Un solo archivo para los dos lados: si un mensaje cambia,
 // tsc lo marca en ambos.
 
-/** El modelo: Gemma 4 E2B en ONNX, texto solo (docs/gemma-en-el-navegador.md). */
-export const MODELO = "onnx-community/gemma-4-E2B-it-ONNX";
+/**
+ * El modelo: Gemma 3 270M en ONNX, texto solo, el más chico de Gemma. Gemma 4 E2B no entra en el Pixel 10
+ * (docs/modelo-chico-para-el-pixel.md).
+ */
+export const MODELO = "onnx-community/gemma-3-270m-it-ONNX";
 
 /**
  * Cómo se pide el adaptador WebGPU. "compatibility" es WebGPU recortado (el de OpenGL ES): es lo único que Chrome da en
@@ -12,7 +15,7 @@ export type ModoWebGpu = "core" | "compatibility";
 
 /**
  * Lo que el worker sabe de la GPU después del `check`: con qué modo dio adaptador, si los shaders tienen f16 y el
- * buffer más grande que acepta un shader (de eso depende dónde corren los embeddings).
+ * buffer más grande que acepta un shader (si no entra la tabla de embeddings, se avisa).
  */
 export interface Gpu {
   modo: ModoWebGpu;
@@ -21,32 +24,29 @@ export interface Gpu {
 }
 
 /**
- * Qué variante del modelo baja y cuánto pesa la primera vez, con texto solo. Los tamaños salen de la API de Hugging Face
- * (`/api/models/onnx-community/gemma-4-E2B-it-ONNX/tree/main/onnx`, 2026-10-16), más el tokenizer y los .onnx chicos
- * (19 MB):
- * - `q4f16` (pesos de 4 bits, cuentas en f16): decoder 1 520 MB + embed_tokens 1 591 MB = 3,13 GB.
- * - `q4` (pesos de 4 bits, cuentas en f32): decoder 1 864 MB + embed_tokens 1 763 MB = 3,65 GB. Es la que queda sin
+ * Qué variante del modelo baja y cuánto pesa la primera vez: `model_<dtype>.onnx` + `.onnx_data` + `tokenizer.json`
+ * (20 323 013 B), de la API de Hugging Face (`/api/models/onnx-community/gemma-3-270m-it-ONNX/tree/main/onnx`,
+ * 2026-10-16). Los .json chicos (config, tokenizer_config) no suman ni 5 kB.
+ * - `q4f16` (pesos de 4 bits, cuentas en f16): 330 717 + 272 626 176 + tokenizer = 293 MB.
+ * - `q4` (pesos de 4 bits, cuentas en f32): 242 522 + 322 933 248 + tokenizer = 343 MB. Es la que queda sin
  *   `shader-f16`: un shader de f16 en una GPU sin f16 no compila.
  */
 const VARIANTES = {
-  q4f16: 3_130_000_000,
-  q4: 3_646_000_000,
+  q4f16: 330_717 + 272_626_176 + 20_323_013,
+  q4: 242_522 + 322_933_248 + 20_323_013,
 } as const;
 
 /**
- * El tensor más grande de `embed_tokens`: `model_embed_tokens_per_layer_weight_quant`, u8 [262144, 4480] = 1 174 MB.
- * Pesa lo mismo en `q4` y en `q4f16` (los pesos cuantizados son u8 en los dos). Lo usa `GatherBlockQuantized`, que en
- * WebGPU lo ata entero a un binding; si la GPU no acepta un buffer así (el Pixel acepta 256 MB), la sesión no se crea
- * ("exceeding maxStorageBufferBindingSize of"). Después viene `per_layer_weight_scales`, f32, 293,6 MB. El decoder no
- * pasa de 201 MB (`lm_head`). Revisión del PR #11, con los .onnx de Hugging Face.
+ * El tensor más grande del modelo: `model_embed_tokens_weight_quant`, u8 [262144, 320] = 84 MB, igual en `q4` y en
+ * `q4f16`. Lo usa `GatherBlockQuantized`, que en WebGPU lo ata entero a un binding; si la GPU no acepta un buffer así,
+ * la sesión no se crea ("exceeding maxStorageBufferBindingSize of"). Entra en los dos límites medidos en el Pixel 10:
+ * 256 MB en modo compatibilidad y 128 MB en core (con la blocklist desactivada por flag).
  *
- * Mandar `embed_tokens` a wasm no sirve: este build de onnxruntime-web no trae el kernel de CPU de
- * `GatherBlockQuantized` (solo `contrib_ops/webgpu/quantization/gather_block_quantized.cc`; con EP wasm da "Could not
- * find an implementation for GatherBlockQuantized(1)"), y las variantes que usan Gather común (fp16, fp32) pesan 5,5 y
- * 11 GB. Por eso es solo un dato para avisar. El plan B, trabajo aparte: un lookup propio de los embeddings con Range
- * requests sobre `embed_tokens_q4.onnx_data`.
+ * Con Gemma 4 E2B este tensor era la tabla per-layer, u8 [262144, 4480] = 1 174 MB, y no entraba en ninguno de los
+ * dos; tampoco podía ir a wasm, porque este onnxruntime-web solo trae `GatherBlockQuantized` para WebGPU
+ * (docs/webgpu-en-el-pixel-10.md). El aviso queda para cualquier GPU con un binding más chico que 84 MB.
  */
-export const TENSOR_MAS_GRANDE_DE_EMBED = 262_144 * 4_480;
+export const TENSOR_MAS_GRANDE_DE_EMBED = 262_144 * 320;
 
 /** La variante que eligió el worker al empezar la carga, con los números para avisar si la tabla de embeddings no entra. */
 export interface Variante {
@@ -84,10 +84,13 @@ export interface Mensaje {
 }
 
 export type APagina =
-  /** Si hay adaptador WebGPU en el worker, y cuál. Sin WebGPU no hay plan B: por WASM no entra en memoria. */
+  /**
+   * Si hay adaptador WebGPU en el worker, y cuál. Sin WebGPU no hay plan B: `GatherBlockQuantized` no tiene kernel de
+   * CPU en este onnxruntime-web.
+   */
   | ({ tipo: "check"; webgpu: true } & Gpu)
   | { tipo: "check"; webgpu: false; motivo: string }
-  /** Al empezar `load`: qué variante baja y dónde corre. */
+  /** Al empezar `load`: qué variante baja y si su tabla de embeddings entra en un buffer. */
   | ({ tipo: "variante" } & Variante)
   /** `cargado` y `total` suman todos los archivos que empezaron a bajar; `archivo` es el último que avanzó. */
   | { tipo: "progreso"; archivo: string; cargado: number; total: number }
