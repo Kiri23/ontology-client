@@ -5,8 +5,12 @@ produjo.
 
 ## Decisión
 
-1. **Primero: API externa detrás de un proxy en el mismo origen.** `POST /ai/sparql` en ontology-web llama a OpenRouter
-   con `google/gemma-4-26b-a4b-it`. La key queda en el servidor, con límite de crédito y rate limit por IP.
+1. **Primero: API externa detrás de un proxy en el mismo origen.** `POST /ai/sparql` en ontology-web llama a los
+   Inference Providers de Hugging Face (`https://router.huggingface.co/v1/chat/completions`, API compatible con OpenAI)
+   con `google/gemma-4-26B-A4B-it`. La key ya existe: `HUGGING_FACE` en Doppler, proyecto `global`, config `dev`, con
+   scope `inference.serverless.write` (verificado el 2026-10-16 con `/api/whoami-v2`). Queda en el servidor, con rate
+   limit por IP. OpenRouter era la primera opción antes de saber que esa key existía; cuesta lo mismo y queda como
+   alternativa.
 2. **Por qué 26B-A4B y no 31B:** cuesta un tercio ($0.0765 / $0.255 por 1M contra $0.20 / $0.40) y en código queda cerca
    (LiveCodeBench 77.1 % contra 80.0 %).
 3. **Costo:** ~$0.00027 por consulta (2 500 tokens de entrada y 300 de salida). Unas 3 700 consultas por dólar.
@@ -348,9 +352,10 @@ Por qué este orden:
 
 ## Necesita a Christian
 
-- **Crear la key de OpenRouter con límite de crédito** (sugiero $2–5/mes), comprar créditos (los modelos pagos los
-  piden) y guardarla en Doppler. No pude ver si ya hay una: el clasificador de auto mode bloqueó listar los nombres de
-  secretos.
+- **Créditos de inferencia en Hugging Face.** La key `HUGGING_FACE` funciona, pero el router contestó
+  `402 You have no remaining credits` el 2026-10-16. Hacen falta créditos pre-pagos o PRO en
+  <https://huggingface.co/settings/billing>. Verificación, sin ver la key:
+  `doppler run -p global -c dev --enable-dns-resolver -- sh -c 'curl -s https://router.huggingface.co/v1/chat/completions -H "Authorization: Bearer $HUGGING_FACE" -H "Content-Type: application/json" -d "{\"model\":\"google/gemma-4-26B-A4B-it\",\"max_tokens\":60,\"messages\":[{\"role\":\"user\",\"content\":\"hola\"}]}"'`
 - **O, si prefiere $0:** crear una key de Gemini API en AI Studio y mirar los límites de Gemma 4 en
   `aistudio.google.com/usage`. Las preguntas van a quedar como "Unpaid Service".
 - **Decidir si un endpoint público puede gastar plata**, aunque sea con tope.
