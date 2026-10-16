@@ -15,18 +15,20 @@ export async function sondear() {
   };
   if (!navigator.gpu) return r;
   try {
-    const adaptador = await navigator.gpu.requestAdapter();
-    r.adaptador = !!adaptador;
+    // Primero el modo core, que es el que piden Transformers.js y onnxruntime. En el Pixel 10 Chrome solo da
+    // adaptador en modo compatibilidad (webgpureport del 2026-10-16): un subconjunto de WebGPU sobre OpenGL ES.
+    let adaptador = await navigator.gpu.requestAdapter();
+    r.modo = adaptador ? "core" : null;
     if (!adaptador) {
-      const bajo = await navigator.gpu.requestAdapter({
-        powerPreference: "low-power",
+      adaptador = await navigator.gpu.requestAdapter({
+        featureLevel: "compatibility",
       });
-      const alto = await navigator.gpu.requestAdapter({
-        powerPreference: "high-performance",
-      });
-      r.conPreferencia = { "low-power": !!bajo, "high-performance": !!alto };
-      return r;
+      r.modo = adaptador ? "compatibility" : null;
     }
+    r.adaptador = !!adaptador;
+    if (!adaptador) return r;
+    r.f16 = adaptador.features.has("shader-f16");
+    r.subgroups = adaptador.features.has("subgroups");
     const info = adaptador.info ?? {};
     r.info = {
       vendor: info.vendor,
