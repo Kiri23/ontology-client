@@ -7,8 +7,9 @@ import contrato from "../contrato/openapi.json" with { type: "json" };
 import { docSdk } from "./vite/doc-sdk.ts";
 
 // /jobs, /proyectos, /preguntar, /reportes: el primer segmento de cada path del contrato. /sparql no está en el
-// contrato (su respuesta no es JSON de una forma fija) y el SDK lo usa en sparql.ts: va a mano.
-const rutasApi = [...new Set([...Object.keys(contrato.paths).map((p) => p.split("/")[1]), "sparql"])];
+// contrato (su respuesta no es JSON de una forma fija) y el SDK lo usa en sparql.ts: va a mano. /ai (POST /ai/sparql,
+// Preguntar con AI) todavía no está en contrato/openapi.json: también va a mano.
+const rutasApi = [...new Set([...Object.keys(contrato.paths).map((p) => p.split("/")[1]), "sparql", "ai"])];
 const PRODUCCION = "https://ontology.kiri231.com";
 
 export default defineConfig({

@@ -6,7 +6,9 @@
 // ejecuta módulos con imports, el otro quita los <script>). Acá el Chrome remoto navega a la URL de producción,
 // https://ontology.kiri231.com/explorador/, y cada pedido a /explorador/* se contesta con el dist/ local: la página
 // queda en su origen real y el SDK le pide los datos a la API de verdad. Solo GET: un pedido de otro método a la API
-// se aborta antes de salir, así una captura nunca escribe en producción. El token de browserless no sale de la VM.
+// se aborta antes de salir, así una captura nunca escribe en producción. POST /ai/sparql tampoco sale: lo contesta la
+// respuesta falsa de la captura (`ai`), y si una captura que no pregunta lo manda, el script sale 1. El token de
+// browserless no sale de la VM.
 import { spawnSync } from "node:child_process";
 import { Buffer } from "node:buffer";
 import { mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
@@ -62,9 +64,31 @@ const CAPTURAS = [
   },
   { nombre: "grafo-acciones-mas-usadas", hash: "#/grafo/acciones-mas-usadas", esperar: LIENZO },
   { nombre: "grafo-huecos", hash: "#/grafo/huecos", esperar: LIENZO },
-  // chromium-box no tiene GPU (navigator.gpu no existe): "Preguntar con AI" no aparece y una línea lo explica. El
-  // modelo no se carga nunca acá: por WASM colgó la VM (docs/gemma-en-el-navegador.md §2a).
-  { nombre: "grafo-consulta-sin-webgpu", hash: "#/grafo/consulta", esperar: ".ai-sin-webgpu" },
+  // chromium-box no tiene GPU (navigator.gpu no existe): "Preguntar con AI" va por el servidor y no se ofrece el modelo
+  // de este dispositivo, que acá no se carga nunca (por WASM colgó la VM, docs/gemma-en-el-navegador.md §2a).
+  { nombre: "grafo-consulta-ai", hash: "#/grafo/consulta", esperar: ".boton-ai" },
+  {
+    // La pregunta entera: el botón, la pregunta, Generar, y la consulta validada en el editor. /ai/sparql es falso.
+    nombre: "grafo-consulta-ai-propuesta",
+    hash: "#/grafo/consulta",
+    preguntar: "¿Cuántos puestos vienen de HN?",
+    ai: {
+      status: 200,
+      body: { texto: '```sparql\nSELECT (COUNT(?p) AS ?n) WHERE { ?p a j:JobPost ; dcterms:source "hn" }\n```' },
+    },
+    esperar: ".ai-veredicto",
+  },
+  {
+    nombre: "grafo-consulta-ai-limite",
+    hash: "#/grafo/consulta",
+    preguntar: "¿Qué acciones hay?",
+    ai: {
+      status: 429,
+      body: { error: "más de 5 pedidos por minuto desde esta IP" },
+      headers: { "Retry-After": "42" },
+    },
+    esperar: ".ai-pregunta .rechazo",
+  },
   {
     nombre: "grafo-consulta-rechazo",
     hash: `#/grafo/consulta?${new URLSearchParams({ sparql: CON_ERROR })}`,
@@ -112,9 +136,22 @@ const codigo = `export default async function ({ page, context }) {
   const tipo = (ruta) => tipos[ruta.slice(ruta.lastIndexOf("."))] ?? "text/html";
   const bytes = (b64) => Uint8Array.from(atob(b64), (c) => c.charCodeAt(0));
   await page.setRequestInterception(true);
+  // La respuesta falsa de /ai/sparql de la captura en curso, y los pedidos que le llegaron.
+  let ai;
+  let pedidosAi = [];
   page.on("request", (r) => {
     const url = new URL(r.url());
     if (url.origin !== origen) return r.continue();
+    if (url.pathname === "/ai/sparql" && r.method() === "POST") {
+      pedidosAi.push(JSON.parse(r.postData() ?? "null"));
+      const falsa = ai ?? { status: 503, body: { error: "la captura no tiene respuesta de AI" } };
+      return r.respond({
+        status: falsa.status,
+        contentType: "application/json",
+        headers: falsa.headers ?? {},
+        body: JSON.stringify(falsa.body),
+      });
+    }
     if (url.pathname.startsWith("/explorador/")) {
       const b64 = archivos[url.pathname];
       const headers = { "Content-Security-Policy": csp };
@@ -134,6 +171,8 @@ const codigo = `export default async function ({ page, context }) {
   for (const a of anchos) {
     await page.setViewport({ width: a.ancho, height: a.alto, deviceScaleFactor: a.escala });
     for (const c of capturas) {
+      ai = c.ai;
+      pedidosAi = [];
       await page.goto("about:blank");
       await page.goto(origen + "/explorador/" + c.hash, { waitUntil: "networkidle0" });
       // El token de una captura no pasa a la siguiente: mismo origen, misma pestaña.
@@ -146,13 +185,21 @@ const codigo = `export default async function ({ page, context }) {
         await page.waitForSelector(".boton-correr");
         await page.click(".boton-correr");
       }
+      if (c.preguntar) {
+        await page.waitForSelector(".boton-ai");
+        await page.click(".boton-ai");
+        await page.type("#ai-pregunta", c.preguntar);
+        await page.click(".ai-pregunta button[type=submit]");
+      }
       await page.waitForSelector(c.esperar, { timeout: 20000 });
       // Correr enfoca el botón y scrollea: arriba de todo, así la barra sticky del teléfono queda en su lugar.
       await page.evaluate(() => (document.activeElement?.blur(), window.scrollTo(0, 0), document.fonts.ready));
       await new Promise((listo) => setTimeout(listo, 700));
       const png = await page.screenshot({ fullPage: true, encoding: "base64" });
       const csp = await page.evaluate(() => window.__csp ?? []);
-      salida.push({ nombre: c.nombre + "-" + a.ancho, png, csp });
+      // Lo que le llegó a /ai/sparql: cuántos pedidos y la última pregunta (el último mensaje).
+      const preguntas = pedidosAi.map((p) => p?.mensajes?.at(-1)?.content ?? "?");
+      salida.push({ nombre: c.nombre + "-" + a.ancho, png, csp, preguntas, pregunta: c.preguntar ?? null });
     }
   }
   return { data: salida, type: "application/json" };
@@ -185,10 +232,19 @@ if (!Array.isArray(capturas)) {
   process.exit(1);
 }
 let violaciones = 0;
-for (const { nombre, png, csp } of capturas) {
+for (const { nombre, png, csp, preguntas, pregunta } of capturas) {
   const ruta = `${salida}/${nombre}.png`;
   writeFileSync(ruta, Buffer.from(png, "base64"));
-  console.log(`${ruta}  CSP: ${csp.length ? csp.join("; ") : "sin violaciones"}`);
+  const ai = preguntas.length ? `  /ai/sparql: ${preguntas.map((p) => JSON.stringify(p)).join(", ")}` : "";
+  console.log(`${ruta}  CSP: ${csp.length ? csp.join("; ") : "sin violaciones"}${ai}`);
   violaciones += csp.length;
+  // Sin tocar Generar no se manda nada; tocándolo, una vez y con la pregunta escrita.
+  const esperadas = pregunta ? [pregunta] : [];
+  if (JSON.stringify(preguntas) !== JSON.stringify(esperadas)) {
+    console.error(
+      `${nombre}: /ai/sparql recibió ${JSON.stringify(preguntas)}, se esperaba ${JSON.stringify(esperadas)}`,
+    );
+    violaciones++;
+  }
 }
 process.exit(violaciones ? 1 : 0);

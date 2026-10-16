@@ -2,6 +2,12 @@
 
 Superado el 2026-10-16: el explorador usa Gemma 3 270M; ver modelo-chico-para-el-pixel.md.
 
+Superado otra vez el mismo día: 270M no corre en el Pixel 10. Ahora el botón va por defecto a `POST /ai/sparql` en el
+mismo origen (ontologyLearning#31), que le pasa los mensajes de `armarMensajes` a Gemma 4 26B-A4B en Google AI Studio,
+gratis; es el punto 7 de abajo con otro proveedor y sin cobrar. El servidor no arma el prompt ni valida: devuelve el
+texto y el navegador lo extrae y lo valida como antes. 270M queda como opción "en este dispositivo" con WebGPU core.
+Detalle en el README del explorador, sección "Indagar con AI".
+
 Investigación R2, 2026-10-16. Sin código: solo la decisión y sus fuentes. Cada número trae el comando o la URL que lo
 produjo.
 

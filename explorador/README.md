@@ -28,7 +28,7 @@ explorador/
   src/estilos/     un CSS por sección (base, barra, panel, ficha, recibo, tabla, grafo); cada componente importa el suyo
   vite/doc-sdk.ts  plugin de Vite: el JSDoc y la firma de cada función, leídos del código del SDK
   pruebas/         vitest: historias, hooks y panel con un fetch falso; grafo.test.ts con datos/grafo.ttl (sin red)
-  docs/            diseno.md (el plan visual) y consultas-por-ai.md (la AI que viene)
+  docs/            diseno.md (el plan visual) y la investigación de la AI (consultas-por-ai.md y los del Pixel)
   scripts/         humo-imagen (CI) y capturas.mjs (capturas para un PR)
   Dockerfile       node → Caddy; el contexto es la raíz del repo
   Caddyfile        el servidor estático del contenedor
@@ -100,11 +100,35 @@ bloquea: `Lienzo.tsx` ocupa antes su id con un `<meta>` y su única regla (`posi
 ## Indagar con AI
 
 En la consulta libre (`#/grafo/consulta`), **Preguntar con AI** escribe el SPARQL a partir de una pregunta en
-castellano. El modelo es Gemma 3 270M (`onnx-community/gemma-3-270m-it-ONNX`, `q4f16` o `q4` sin f16, texto solo con
-`Gemma3ForCausalLM` y `AutoTokenizer`) y corre en el dispositivo, por WebGPU, con Transformers.js 4.3.1 dentro de un
-worker (`src/grafo/ai/worker.ts`). Cuesta $0, no hay key y no hay servidor. Es el Gemma más chico: Gemma 4 E2B (3,6 GB)
-no entra en la GPU del Pixel 10 ([docs/modelo-chico-para-el-pixel.md](docs/modelo-chico-para-el-pixel.md)). Cómo se
-llegó, con E2B y la receta de DocsifyTemplate: `docs/consultas-por-ai.md` y `docs/gemma-en-el-navegador.md`.
+castellano. Hay dos vías; el estado de las dos vive en `src/grafo/ai/cliente.ts`.
+
+**Por el servidor, la de siempre.** El botón abre la pregunta; Generar manda `{"mensajes": […]}` (lo que arma
+`armarMensajes`) por `POST /ai/sparql` al mismo origen (`src/grafo/ai/servidor.ts`), y ontologyLearning se los pasa a
+Gemma 4 26B-A4B en Google AI Studio, gratis (ontologyLearning#31, `vistas/web/ai.py`). Contesta `{"texto": "…"}` en unos
+2 s. Anda en cualquier navegador, el Pixel incluido: no baja nada ni necesita WebGPU, y la CSP no cambia
+(`connect-src 'self'`). Abrir la vista o la pregunta no manda nada: solo Generar. La nota de la pregunta dice adónde va,
+y que Google puede usar lo que le llega (es su servicio gratis). El servidor tiene la key, el límite (5 por minuto por
+IP, 10 por minuto en total) y un tope de 32 KiB por pedido. Cada error se dice en una frase:
+
+| El servidor | La página dice                                                                                                                                                                                                                |
+| ----------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 429         | "Se llegó al límite de preguntas por minuto: probá de nuevo en N s." (N es `Retry-After`)                                                                                                                                     |
+| 502         | lo que le pasó a Google ("Google no contestó en 30 s.") y "Probá de nuevo en un rato." Sin `{"error"}` (un 502 de Cloudflare o kiri-edge con el origen caído o en deploy): "El servidor no contestó (502)."                   |
+| 503         | el error del servidor; con `Retry-After` (falla pasajera: un 5xx de Google, un timeout) suma "Probá de nuevo en N s", sin él (no hay key, cuota) va solo; sin `{"error"}`, "La AI no está configurada en el servidor todavía" |
+| 404, 405    | "Este servidor todavía no tiene Preguntar con AI" (un servidor sin #31)                                                                                                                                                       |
+| 413, 400    | la pregunta es demasiado larga; el servidor no aceptó la pregunta y por qué                                                                                                                                                   |
+| sin red     | "No se pudo hablar con el servidor: revisá la conexión y probá de nuevo."                                                                                                                                                     |
+
+No va por el SDK: `/ai/sparql` no es una historia del explorador y todavía no está en `contrato/openapi.json`.
+`npm run dev` lo manda a producción, como las demás rutas.
+
+**En este dispositivo, opcional.** Con WebGPU en modo core aparece además **Preguntar en este dispositivo**: Gemma 3
+270M (`onnx-community/gemma-3-270m-it-ONNX`, `q4f16` o `q4` sin f16, texto solo con `Gemma3ForCausalLM` y
+`AutoTokenizer`) por WebGPU, con Transformers.js 4.3.1 dentro de un worker (`src/grafo/ai/worker.ts`). La pregunta no
+sale del dispositivo. Es el Gemma más chico: Gemma 4 E2B (3,6 GB) no entra en la GPU del Pixel 10
+([docs/modelo-chico-para-el-pixel.md](docs/modelo-chico-para-el-pixel.md)). Con el modelo cargado, o si falla la carga,
+**Usar el servidor** lo suelta y vuelve a la otra vía. Cómo se llegó: `docs/consultas-por-ai.md` y
+`docs/gemma-en-el-navegador.md`. Lo que sigue es de esta vía, salvo "Nunca corre sola", que vale para las dos.
 
 - **Qué baja:** 293 MB la primera vez con f16 (`onnx/model_q4f16.onnx` y su `.onnx_data`, 273 MB, más el tokenizer, 20
   MB), 343 MB sin f16 (`model_q4`, 323 MB más el tokenizer), desde Hugging Face. Quedan en la Cache API del navegador
@@ -115,20 +139,23 @@ llegó, con E2B y la receta de DocsifyTemplate: `docs/consultas-por-ai.md` y `do
   compartida, y ~300 MB no tienen por qué quedar tomados mientras se leen otras historias. Volver lo carga de nuevo
   desde la Cache API, sin bajarlo (tarda la creación de las sesiones, no la descarga). Si la GPU se pierde ("device
   lost"), pasa lo mismo y el error queda a la vista.
-- **Solo WebGPU en modo core.** El botón aparece solo si `navigator.gpu.requestAdapter()` da un adaptador core en el
-  worker. Si solo da modo compatibilidad (lo único que da Chrome en el Pixel 10 Pro XL: el driver PowerVR 25.1 está en
-  la blocklist de WebGPU de Chromium), una línea dice que está apagado: ahí 270M trabó el teléfono, y en core (con la
+- **Solo WebGPU en modo core.** El botón del dispositivo aparece solo si `navigator.gpu.requestAdapter()` da un
+  adaptador core en el worker. Si solo da modo compatibilidad (lo único que da Chrome en el Pixel 10 Pro XL: el driver
+  PowerVR 25.1 está en la blocklist de WebGPU de Chromium), no se ofrece: ahí 270M trabó el teléfono, y en core (con la
   flag que saca la blocklist) perdió el device al generar. Se vuelve a probar cuando cambie el driver o la blocklist
-  ([docs/webgpu-en-el-pixel-10.md](docs/webgpu-en-el-pixel-10.md) §4). Sin WebGPU, otra línea lo explica. No hay
-  fallback a WASM: el op de los embeddings (`GatherBlockQuantized`) no tiene kernel de CPU en este onnxruntime-web. La
-  tabla de embeddings (84 MB) entra en el buffer más grande del Pixel (256 MB en compatibilidad, 128 MB en core); si una
-  GPU acepta menos, la descarga avisa que puede fallar al cargar.
+  ([docs/webgpu-en-el-pixel-10.md](docs/webgpu-en-el-pixel-10.md) §4). Sin WebGPU tampoco, y el botón del servidor no
+  espera ese check. No hay fallback a WASM: el op de los embeddings (`GatherBlockQuantized`) no tiene kernel de CPU en
+  este onnxruntime-web. La tabla de embeddings (84 MB) entra en el buffer más grande del Pixel (256 MB en
+  compatibilidad, 128 MB en core); si una GPU acepta menos, la descarga avisa que puede fallar al cargar.
 - **Nunca corre sola.** El prompt (`src/grafo/ai/prompt.ts`) lleva el esquema sacado del Store: los prefijos, las clases
   con cuántas instancias tienen y cada propiedad con su `rdfs:domain`, `rdfs:range` y `rdfs:comment`, o con las clases
-  que la usan. También lleva tres prearmadas como ejemplo, sin las líneas PREFIX. `extraer.ts` saca el bloque
-  `` ```sparql `` y agrega los PREFIX que falten. La consulta va al editor y pasa por el validador. Si el validador la
-  rechaza, muestra el motivo y la deja en el editor para corregirla. Corre solo si se toca Correr.
-- **Cuánto pesa una visita sin AI:** nada de esto. La vista Grafo abre un worker de 2 kB para el `check`, y solo si
+  que la usan. Las propiedades con pocos literales llevan sus valores, como van en SPARQL
+  (`dcterms:source … Valores: "hn", "remotive".`): sin eso Gemma 4 escribió `"HN"`. Salen de `CONSULTA_VALORES`: hasta
+  10 distintos, ninguno de más de 40 caracteres, y solo de instancias con clase (la procedencia de cada carga no).
+  También lleva tres prearmadas como ejemplo, sin las líneas PREFIX. `extraer.ts` saca el bloque `` ```sparql `` y
+  agrega los PREFIX que falten. La consulta va al editor y pasa por el validador. Si el validador la rechaza, muestra el
+  motivo y la deja en el editor para corregirla. Corre solo si se toca Correr.
+- **Cuánto pesa una visita sin AI:** nada del modelo. La vista Grafo abre un worker de 2 kB para el `check`, y solo si
   existe `navigator.gpu`. Transformers.js (581 kB) es un chunk aparte que el worker importa con `import()` al tocar
   Continuar. El wasm de onnxruntime (27 MB, `ort-wasm-simd-threaded.asyncify`) sale como asset propio con hash (`?url`)
   y se le pasa a `env.backends.onnx.wasm.wasmPaths`, así no se baja de jsdelivr. Esto lo verifica
@@ -143,14 +170,19 @@ llegó, con E2B y la receta de DocsifyTemplate: `docs/consultas-por-ai.md` y `do
   haya corrido una vez en el Pixel; después se prueba sacarlos. `scripts/humo-imagen` exige las tres, y además que los
   dos wasm salgan como `application/wasm`. El costo es que la página que guarda tokens puede hablar con un origen más.
 
-**Cómo probarlo.** Con el modelo de verdad, solo en un dispositivo con WebGPU: Chrome de Android 12+ o de escritorio
-(que `navigator.gpu.requestAdapter` dé un adaptador, en core o en compatibilidad: lo dice
-`public/diagnostico-webgpu.html`). Se abre el preview del PR en `#/grafo/consulta`, se toca Preguntar con AI y después
-Continuar, se espera la descarga y se pregunta. **Nunca en chromium-box ni en Node**: no tienen GPU, y sin GPU el modelo
-no corre (no hay kernel de CPU para sus embeddings). El resto lo cubren los tests con un worker falso:
-`pruebas/ai.test.ts` (prompt, extractor y cliente) y `pruebas/ai-vista.test.tsx` (sin WebGPU no hay botón, el aviso va
-antes de la descarga, y lo generado pasa por el validador y no corre). La captura `grafo-consulta-sin-webgpu` muestra la
-línea sin el botón.
+**Cómo probarlo.** La vía del servidor, en cualquier navegador: el preview del PR pasa `POST /ai/sparql` a producción
+(ver abajo), así que anda cuando ontologyLearning#31 esté desplegado; antes, la página dice que el servidor no la tiene.
+`pruebas/ai-servidor.test.tsx` la prueba sin Google: `servidor.ts` con un fetch falso, el cliente, y la consulta libre
+de punta a punta contra un HTTP local que imita `/ai/sparql` (pregunta → POST con el prompt → consulta validada en el
+editor; un 429; el servidor caído). `scripts/capturas.mjs` hace lo mismo en Chrome con la CSP real.
+
+Con el modelo de este dispositivo, solo en un dispositivo con WebGPU: Chrome de Android 12+ o de escritorio (que
+`navigator.gpu.requestAdapter` dé un adaptador, en core o en compatibilidad: lo dice `public/diagnostico-webgpu.html`).
+Se abre el preview del PR en `#/grafo/consulta`, se toca Preguntar con AI y después Continuar (en Preguntar en este
+dispositivo), se espera la descarga y se pregunta. **Nunca en chromium-box ni en Node**: no tienen GPU, y sin GPU el
+modelo no corre (no hay kernel de CPU para sus embeddings). El resto lo cubren los tests con un worker falso:
+`pruebas/ai.test.ts` (prompt, extractor y cliente) y `pruebas/ai-vista.test.tsx` (las dos vías: el botón del dispositivo
+solo con WebGPU core, el aviso va antes de la descarga, y lo generado pasa por el validador y no corre).
 
 ## Correrlo
 
@@ -196,8 +228,9 @@ construye esta imagen, la manda por ssh a la VM y deja un comentario en el PR co
 la VM. Como este repo es público y kiriInfra privado, el workflow baja la action con el PAT de solo lectura
 `KIRIINFRA_READ` y la usa como local; además necesita el secret `EXE_SSH_KEY`. La imagen corre con
 `API_UPSTREAM=https://ontology.kiri231.com`: el Caddyfile manda los GET de la API y de `/sparql` al servidor real y la
-raíz redirige a `/explorador/`. Solo GET: una acción corrida desde el preview no escribe en producción. En producción la
-variable no existe y ese bloque no matchea.
+raíz redirige a `/explorador/`. De los POST pasa uno solo, `POST /ai/sparql` (Preguntar con AI no escribe nada; el
+límite y la key quedan en el servidor): una acción corrida desde el preview no escribe en producción. En producción la
+variable no existe y esos bloques no matchean; ahí kiri-edge manda `/ai/sparql` a ontology-web, no a este contenedor.
 
 ## Deploy
 
@@ -222,11 +255,12 @@ curl -s https://ontology.kiri231.com/explorador/ | grep -c 'id="raiz"'   # → 1
 
 `kiri-pr-shots` y `chromium-shot.py` no sirven para una SPA. `scripts/capturas.mjs` hace que chromium-box navegue a la
 URL de producción y contesta `/explorador/*` con el `dist/` local y la misma CSP del Caddyfile; la API real responde los
-GET y cualquier otro método se aborta antes de salir. Sale 1 si la página tuvo alguna violación de CSP (así apareció una
-fuente `data:` que la CSP bloqueaba: por eso `assetsInlineLimit: 0` en `vite.config.ts`). Las del Grafo esperan a que el
-lienzo tenga su canvas y termine el layout (`.lienzo[data-listo="true"] canvas`).
+GET y cualquier otro método se aborta antes de salir. `POST /ai/sparql` lo contesta la respuesta falsa de cada captura
+(`ai`), y el script sale 1 si una captura que no pregunta lo manda. Sale 1 si la página tuvo alguna violación de CSP
+(así apareció una fuente `data:` que la CSP bloqueaba: por eso `assetsInlineLimit: 0` en `vite.config.ts`). Las del
+Grafo esperan a que el lienzo tenga su canvas y termine el layout (`.lienzo[data-listo="true"] canvas`).
 
 ```sh
-npm run build && node scripts/capturas.mjs ~/tmp/capturas   # 10 capturas × 390 y 1280 px, 6 del Grafo
+npm run build && node scripts/capturas.mjs ~/tmp/capturas   # 12 capturas × 390 y 1280 px, 8 del Grafo
 kiri-pr-shots subir <pr#> ~/tmp/capturas/*.png
 ```

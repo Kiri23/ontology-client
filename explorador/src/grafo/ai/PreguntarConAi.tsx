@@ -1,16 +1,16 @@
-// "Preguntar con AI" en la consulta libre: Gemma 3 270M en este dispositivo propone el SPARQL y lo deja en el editor.
-// Nunca corre sola: alProponer la pone en el editor y la pasa por el validador; correr es tocar Correr.
-// Aparece solo con WebGPU en modo core (en compatibilidad, una línea dice por qué no). Antes de bajar nada dice cuánto pesa y espera un Continuar.
-import { type FormEvent, useEffect, useRef, useState, useSyncExternalStore } from "react";
+// "Preguntar con AI" en la consulta libre: una AI propone el SPARQL y lo deja en el editor. Nunca corre sola:
+// alProponer la pone en el editor y la pasa por el validador; correr es tocar Correr.
+// Dos vías (cliente.ts). Por defecto, el servidor (POST /ai/sparql, Gemma 4 en Google AI Studio): anda en cualquier
+// navegador, y no le llega nada hasta que se toca Generar. Con WebGPU en modo core se ofrece además Gemma 3 270M en
+// este dispositivo; antes de bajar nada dice cuánto pesa y espera un Continuar. En compatibilidad (el Pixel 10) no se
+// ofrece: ahí el modelo trabó el teléfono (docs/webgpu-en-el-pixel-10.md).
+import { type FormEvent, type ReactNode, useEffect, useRef, useState, useSyncExternalStore } from "react";
 import type { Grafo } from "../motor.ts";
-import { type ClienteAi, type EstadoAi, porcentaje, type Progreso } from "./cliente.ts";
+import { type ClienteAi, porcentaje, type Progreso } from "./cliente.ts";
 import { consultaPropuesta } from "./extraer.ts";
 import { armarMensajes, type Consultar, type Esquema, leerEsquema } from "./prompt.ts";
-import { bytesDelModelo, type Gpu, type Variante } from "./protocolo.ts";
+import { bytesDelModelo, type Gpu, type Mensaje, type Variante } from "./protocolo.ts";
 import "../../estilos/ai.css";
-
-/** "El navegador no tiene WebGPU." → "el navegador no tiene WebGPU", para ir entre paréntesis. */
-const enMinuscula = (frase: string) => frase.charAt(0).toLowerCase() + frase.slice(1).replace(/\.$/, "");
 
 /** Un tamaño de descarga, en MB como los da Hugging Face: 343 498 783 → "343 MB". El modelo no llega a 1 GB. */
 const tamano = (bytes: number) => `${(bytes / 1e6).toLocaleString("es", { maximumFractionDigits: 0 })} MB`;
@@ -83,12 +83,24 @@ function Aviso({ gpu, continuar, cancelar }: { gpu: Gpu; continuar: () => void; 
   );
 }
 
-function Pregunta({ estado, generar }: { estado: EstadoAi; generar: (pregunta: string) => void }) {
+interface PropsPregunta {
+  ocupado: boolean;
+  /** Lo que se ve mientras está ocupado: lo que va escribiendo el modelo, o que se espera al servidor. */
+  progreso: ReactNode;
+  /** El último error: por qué no generó y qué hacer. */
+  error?: string;
+  pista?: string;
+  nota: string;
+  generar: (pregunta: string) => void;
+  /** Abajo de todo: cambiar de vía. */
+  children?: ReactNode;
+}
+
+function Pregunta({ ocupado, progreso, error, pista, nota, generar, children }: PropsPregunta) {
   const [pregunta, setPregunta] = useState("");
-  const generando = estado.fase === "generando";
   const enviar = (e: FormEvent) => {
     e.preventDefault();
-    if (pregunta.trim() && !generando) generar(pregunta);
+    if (pregunta.trim() && !ocupado) generar(pregunta);
   };
   return (
     <form className="ai-pregunta" onSubmit={enviar} noValidate>
@@ -101,103 +113,71 @@ function Pregunta({ estado, generar }: { estado: EstadoAi; generar: (pregunta: s
         onChange={(e) => setPregunta(e.target.value)}
       />
       <div className="ai-botones">
-        <button type="submit" className="boton-correr" disabled={generando || !pregunta.trim()}>
-          {generando ? "Generando…" : "Generar"}
+        <button type="submit" className="boton-correr" disabled={ocupado || !pregunta.trim()}>
+          {ocupado ? "Generando…" : "Generar"}
         </button>
       </div>
-      {generando && (
-        <pre className="ai-parcial" role="status" aria-label="Lo que va escribiendo la AI">
-          {estado.parcial || "Leyendo la pregunta…"}
-        </pre>
-      )}
-      {estado.fase === "listo" && estado.error && (
+      {ocupado && progreso}
+      {!ocupado && error && (
         <div className="rechazo" role="alert">
           <p className="rechazo-titulo">La AI no pudo generar la consulta</p>
-          <p>{estado.error}</p>
-          <p className="grafo-pista">Probá de nuevo o con otras palabras. El modelo sigue cargado.</p>
+          <p>{error}</p>
+          {pista && <p className="grafo-pista">{pista}</p>}
         </div>
       )}
-      <p className="ai-nota">
-        Lo que proponga va al editor y pasa por el validador. Corre solo si tocás Correr.
-      </p>
+      <p className="ai-nota">{nota}</p>
+      {children}
     </form>
   );
 }
 
+const NOTA_SERVIDOR =
+  "La pregunta y el esquema del grafo van al servidor de este sitio, que se los pasa a Gemma 4 en " +
+  "Google AI Studio (Google puede usar lo que le llega). Lo que proponga va al editor y pasa por el validador. Corre " +
+  "solo si tocás Correr.";
+
+const NOTA_DISPOSITIVO =
+  "Gemma 3 270M, en este dispositivo: la pregunta no sale de acá. Lo que proponga va al editor y " +
+  "pasa por el validador. Corre solo si tocás Correr.";
+
 export function PreguntarConAi({ cliente, grafo, alProponer }: Props) {
   const estado = useSyncExternalStore(cliente.suscribir, cliente.estado);
+  const servidor = useSyncExternalStore(cliente.suscribir, cliente.servidor);
+  // Lo que es solo de la vista: la pregunta al servidor abierta, y el aviso de tamaño antes de bajar el modelo.
+  const [abierta, setAbierta] = useState(false);
   const [avisando, setAvisando] = useState(false);
   // El esquema sale del Store recién al generar: abrir la consulta libre no corre nada en el motor.
   const esquema = useRef<Esquema>(undefined);
-  // Al salir de la vista, el worker se termina y una generación en curso se abandona: no vuelve a escribir en una
-  // consulta libre que ya no está (ni la reabre por la URL).
+  // Al salir de la vista, el worker se termina y lo que esté en curso (en el servidor o en el modelo) se abandona: no
+  // vuelve a escribir en una consulta libre que ya no está (ni la reabre por la URL).
   useEffect(() => {
     cliente.revisar();
     return () => cliente.cerrar();
   }, [cliente]);
 
-  const generar = async (pregunta: string) => {
+  const proponer = async (pregunta: string, pedir: (mensajes: Mensaje[]) => Promise<string>) => {
     esquema.current ??= leerEsquema((q) => grafo.store.query(q) as ReturnType<Consultar>);
     try {
-      alProponer(consultaPropuesta(await cliente.generar(armarMensajes(esquema.current, pregunta))));
+      alProponer(consultaPropuesta(await pedir(armarMensajes(esquema.current, pregunta))));
     } catch {
-      // El estado ya trae el error (listo con error): se muestra en Pregunta.
+      // El estado ya trae el error: se muestra en Pregunta.
     }
   };
 
+  // El modelo de este dispositivo se ofrece solo con WebGPU core, y mientras no esté en uso.
+  const ofrecerDispositivo = estado.fase === "disponible" && estado.gpu.modo === "core";
+  const usarDispositivo = ofrecerDispositivo && (
+    <button
+      type="button"
+      className="boton-secundario"
+      onClick={() => setAvisando(true)}
+    >
+      Preguntar en este dispositivo
+    </button>
+  );
+
   let cuerpo;
   switch (estado.fase) {
-    case "revisando":
-      return null;
-    case "sin-webgpu":
-      return (
-        <p className="ai-sin-webgpu">
-          Preguntar con AI necesita WebGPU, y acá no está ({enMinuscula(estado.motivo)}). El modelo corre en tu
-          dispositivo y sin GPU no entra en memoria. En Chrome de escritorio con WebGPU aparece el botón.
-        </p>
-      );
-    case "sin-worker":
-      return (
-        <p className="ai-sin-webgpu" role="alert">
-          Preguntar con AI no arrancó: el navegador no cargó su worker (lo pudo bloquear la CSP de la página o la red).
-          Detalle: {estado.motivo}
-        </p>
-      );
-    case "disponible":
-      // En modo compatibilidad no se ofrece: en el Pixel 10 el modelo trabó el teléfono (docs/webgpu-en-el-pixel-10.md).
-      if (estado.gpu.modo === "compatibility") {
-        return (
-          <p className="ai-sin-webgpu">
-            Preguntar con AI está apagado en este dispositivo: el navegador da WebGPU solo en modo compatibilidad, y ahí
-            el modelo trabó el teléfono (Pixel 10, 2026-10-16). En Chrome de escritorio aparece el botón.
-          </p>
-        );
-      }
-      cuerpo = avisando
-        ? (
-          <Aviso
-            gpu={estado.gpu}
-            continuar={() => (setAvisando(false), cliente.cargar())}
-            cancelar={() => setAvisando(false)}
-          />
-        )
-        : (
-          <>
-            {estado.error && (
-              <div className="rechazo" role="alert">
-                <p className="rechazo-titulo">Se perdió la GPU y el modelo salió de la memoria</p>
-                <p>{estado.error}</p>
-                <p className="grafo-pista">
-                  Tocá Preguntar con AI para cargarlo de nuevo: lo lee del disco, no lo vuelve a bajar.
-                </p>
-              </div>
-            )}
-            <button type="button" className="boton-ai" onClick={() => setAvisando(true)}>
-              Preguntar con AI
-            </button>
-          </>
-        );
-      break;
     case "bajando":
       cuerpo = <Descarga progreso={estado.progreso} gpu={estado.gpu} variante={estado.variante} />;
       break;
@@ -215,12 +195,82 @@ export function PreguntarConAi({ cliente, grafo, alProponer }: Props) {
           <p className="rechazo-titulo">No se pudo cargar el modelo</p>
           <p>{estado.mensaje}</p>
           <p className="grafo-pista">{estado.pista}</p>
-          <button type="button" className="boton-secundario" onClick={() => cliente.cargar()}>Probar de nuevo</button>
+          <div className="ai-botones">
+            <button type="button" className="boton-secundario" onClick={() => cliente.cargar()}>Probar de nuevo</button>
+            <button type="button" className="boton-secundario" onClick={() => (cliente.cerrar(), setAbierta(true))}>
+              Usar el servidor
+            </button>
+          </div>
         </div>
       );
       break;
+    case "listo":
+    case "generando":
+      cuerpo = (
+        <Pregunta
+          ocupado={estado.fase === "generando"}
+          progreso={
+            <pre className="ai-parcial" role="status" aria-label="Lo que va escribiendo la AI">
+              {estado.fase === "generando" && estado.parcial || "Leyendo la pregunta…"}
+            </pre>
+          }
+          error={estado.fase === "listo" ? estado.error : undefined}
+          pista="Probá de nuevo o con otras palabras. El modelo sigue cargado."
+          nota={NOTA_DISPOSITIVO}
+          generar={(pregunta) => proponer(pregunta, (m) => cliente.generar(m))}
+        >
+          <div className="ai-botones">
+            <button type="button" className="boton-secundario" onClick={() => (cliente.cerrar(), setAbierta(true))}>
+              Usar el servidor
+            </button>
+          </div>
+        </Pregunta>
+      );
+      break;
     default:
-      cuerpo = <Pregunta estado={estado} generar={generar} />;
+      // revisando, sin WebGPU, sin worker o disponible: la vía es el servidor, y no espera al check de WebGPU.
+      if (avisando && estado.fase === "disponible") {
+        cuerpo = (
+          <Aviso
+            gpu={estado.gpu}
+            continuar={() => (setAvisando(false), cliente.cargar())}
+            cancelar={() => setAvisando(false)}
+          />
+        );
+        break;
+      }
+      cuerpo = (
+        <>
+          {estado.fase === "disponible" && estado.error && (
+            <div className="rechazo" role="alert">
+              <p className="rechazo-titulo">Se perdió la GPU y el modelo salió de la memoria</p>
+              <p>{estado.error}</p>
+              <p className="grafo-pista">
+                Tocá Preguntar en este dispositivo para cargarlo de nuevo (lo lee del disco, no lo vuelve a bajar), o
+                preguntá al servidor.
+              </p>
+            </div>
+          )}
+          {abierta
+            ? (
+              <Pregunta
+                ocupado={servidor.fase === "preguntando"}
+                progreso={<p className="ai-nota" role="status">Preguntando a la AI. Tarda unos segundos.</p>}
+                error={servidor.fase === "libre" ? servidor.error : undefined}
+                nota={NOTA_SERVIDOR}
+                generar={(pregunta) => proponer(pregunta, (m) => cliente.preguntarAlServidor(m))}
+              >
+                {usarDispositivo && <div className="ai-botones">{usarDispositivo}</div>}
+              </Pregunta>
+            )
+            : (
+              <div className="ai-botones">
+                <button type="button" className="boton-ai" onClick={() => setAbierta(true)}>Preguntar con AI</button>
+                {usarDispositivo}
+              </div>
+            )}
+        </>
+      );
   }
   return <section className="ai" aria-label="Preguntar con AI">{cuerpo}</section>;
 }

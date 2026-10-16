@@ -34,8 +34,10 @@
 
 	# Preview de un PR (.github/workflows/preview.yml): el contenedor corre solo en una VM, sin kiri-edge ni la API al
 	# lado. Con API_UPSTREAM, la raíz lleva al explorador y los GET de la API (lo que el SDK pide por el mismo origen)
-	# van al servidor real. Solo GET: una acción corrida desde un preview no escribe en producción. Sin la variable
-	# (producción, humo-imagen) nada de esto matchea: / y /jobs dan 404 como siempre.
+	# van al servidor real. De los POST pasa uno solo, POST /ai/sparql (Preguntar con AI, src/grafo/ai/servidor.ts):
+	# no escribe nada, y el límite por IP y la key quedan en el servidor. Las acciones no pasan: una corrida desde un
+	# preview no escribe en producción. Sin la variable (producción, humo-imagen) nada de esto matchea: /, /jobs y
+	# /ai/sparql dan 404 como siempre (en producción, kiri-edge manda /ai/sparql a la API, no acá).
 	@preview-raiz {
 		expression `{env.API_UPSTREAM} != ""`
 		path /
@@ -46,7 +48,17 @@
 		method GET
 		path /sparql /sparql/* /jobs /jobs/* /proyectos /preguntar /reportes/* /openapi.json
 	}
+	@preview-ai {
+		expression `{env.API_UPSTREAM} != ""`
+		method POST
+		path /ai/sparql
+	}
 	handle @preview-api {
+		reverse_proxy {$API_UPSTREAM} {
+			header_up Host {upstream_hostport}
+		}
+	}
+	handle @preview-ai {
 		reverse_proxy {$API_UPSTREAM} {
 			header_up Host {upstream_hostport}
 		}

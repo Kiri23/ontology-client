@@ -1,7 +1,12 @@
-// La AI vista desde la página: el worker y un estado que React lee con useSyncExternalStore. Uno solo por pestaña
-// (clienteCompartido). Al salir de la consulta libre, cerrar() termina el worker: los ~300 MB del modelo no quedan
-// tomados en la GPU mientras se leen otras historias. Volver lo carga de nuevo desde la Cache API, sin bajarlo.
+// La AI vista desde la página, por sus dos vías, con un estado que React lee con useSyncExternalStore. Uno solo por
+// pestaña (clienteCompartido).
+// - El servidor (servidor.ts, POST /ai/sparql) es la vía por defecto: anda en cualquier navegador. Su estado es
+//   `servidor()`: libre o preguntando, y la frase del último error.
+// - Este dispositivo: Gemma 3 270M en un worker, por WebGPU. Su estado es `estado()`, con las fases de la carga. Al salir
+//   de la consulta libre, cerrar() termina el worker: los ~300 MB del modelo no quedan tomados en la GPU mientras se
+//   leen otras historias. Volver lo carga de nuevo desde la Cache API, sin bajarlo.
 import type { AlWorker, APagina, Gpu, Mensaje, Variante } from "./protocolo.ts";
+import { FalloDelServidor, type Pedir, pedirAlServidor } from "./servidor.ts";
 
 export interface Progreso {
   archivo: string;
@@ -27,6 +32,9 @@ export type EstadoAi =
   | { fase: "listo"; gpu: Gpu; error?: string }
   | { fase: "generando"; gpu: Gpu; parcial: string }
   | { fase: "fallo-carga"; gpu: Gpu; mensaje: string; pista: string };
+
+/** La vía del servidor. `error`: el último pedido no dio texto, en una frase para quien preguntó (servidor.ts). */
+export type EstadoServidor = { fase: "libre"; error?: string } | { fase: "preguntando" };
 
 /** Lo que el cliente usa de un Worker: así las pruebas le pasan uno falso. */
 export interface WorkerAi {
@@ -74,13 +82,23 @@ export class ClienteAi {
   #oyentes = new Set<() => void>();
   #worker?: WorkerAi;
   #pedido?: { resolver(texto: string): void; rechazar(e: Error): void; parcial: string };
+  #servidor: EstadoServidor = { fase: "libre" };
+  /** Corta el pedido al servidor en curso: cerrar() lo abandona. */
+  #corte?: AbortController;
 
-  /** `hayGpu` se fija en el hilo de la página antes de abrir el worker: sin `navigator.gpu` no se baja ni el worker. */
-  constructor(private crear: () => WorkerAi, hayGpu: () => boolean) {
+  /**
+   * `hayGpu` se fija en el hilo de la página antes de abrir el worker: sin `navigator.gpu` no se baja ni el worker.
+   * `pedir` habla con el servidor; las pruebas pasan uno falso.
+   */
+  constructor(private crear: () => WorkerAi, hayGpu: () => boolean, private pedir: Pedir = pedirAlServidor) {
     this.#estado = hayGpu() ? { fase: "revisando" } : { fase: "sin-webgpu", motivo: "El navegador no tiene WebGPU." };
   }
 
+  /** El estado del modelo en este dispositivo. */
   estado = () => this.#estado;
+
+  /** El estado de la vía del servidor. */
+  servidor = () => this.#servidor;
 
   suscribir = (oyente: () => void) => {
     this.#oyentes.add(oyente);
@@ -89,6 +107,15 @@ export class ClienteAi {
 
   #poner(estado: EstadoAi) {
     this.#estado = estado;
+    this.#avisar();
+  }
+
+  #ponerServidor(estado: EstadoServidor) {
+    this.#servidor = estado;
+    this.#avisar();
+  }
+
+  #avisar() {
     for (const o of this.#oyentes) o();
   }
 
@@ -186,11 +213,42 @@ export class ClienteAi {
   }
 
   /**
-   * Termina el worker y libera el modelo. Una generación en curso se abandona (su promesa rechaza), así nada de lo que
-   * termine después toca una vista que ya no está. Lo que se sabe de WebGPU queda: el botón sigue ahí.
+   * El texto que escribió la AI del servidor. Sale solo de acá, y la UI lo llama solo desde Generar: abrir la vista no
+   * manda nada. Rechaza si el pedido falló (el estado queda libre, con la frase del error) o si cerrar() lo abandonó.
+   */
+  async preguntarAlServidor(mensajes: Mensaje[]): Promise<string> {
+    if (this.#servidor.fase === "preguntando") throw new Error("Ya hay una pregunta en curso.");
+    const corte = (this.#corte = new AbortController());
+    this.#ponerServidor({ fase: "preguntando" });
+    try {
+      const texto = await this.pedir(mensajes, corte.signal);
+      if (corte.signal.aborted) throw new Error("Se cerró la AI.");
+      this.#ponerServidor({ fase: "libre" });
+      return texto;
+    } catch (e) {
+      if (!corte.signal.aborted) {
+        const error = e instanceof FalloDelServidor ? e.message : `La AI falló: ${e instanceof Error ? e.message : e}`;
+        this.#ponerServidor({ fase: "libre", error });
+      }
+      throw e;
+    } finally {
+      if (this.#corte === corte) this.#corte = undefined;
+    }
+  }
+
+  /**
+   * Termina el worker y libera el modelo, y corta el pedido al servidor que haya. Lo que esté en curso se abandona (su
+   * promesa rechaza), así nada de lo que termine después toca una vista que ya no está. Lo que se sabe de WebGPU
+   * queda: el botón sigue ahí.
    */
   cerrar() {
+    this.#corte?.abort();
+    this.#corte = undefined;
+    if (this.#servidor.fase !== "libre" || this.#servidor.error) this.#ponerServidor({ fase: "libre" });
     this.#soltar();
+    // Después de un fallo de carga el worker ya estaba terminado: se vuelve a empezar desde el botón.
+    const e = this.#estado;
+    if (e.fase === "fallo-carga") this.#poner({ fase: "disponible", gpu: e.gpu });
   }
 
   /** Termina el worker, si hay uno: lo que diga después ya no cuenta (#abrir). Devuelve si había. */

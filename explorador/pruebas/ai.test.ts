@@ -3,11 +3,14 @@
 import { beforeAll, describe, expect, it, vi } from "vitest";
 import { ClienteAi, pistaDeCarga, porcentaje } from "../src/grafo/ai/cliente.ts";
 import { completarPrefijos, consultaPropuesta, extraerSparql } from "../src/grafo/ai/extraer.ts";
+import { Store } from "oxigraph/web.js";
 import {
   armarMensajes,
+  type Consultar,
   EJEMPLOS,
   type Esquema,
   leerEsquema,
+  literalSparql,
   sinPrefijos,
   textoDelEsquema,
 } from "../src/grafo/ai/prompt.ts";
@@ -23,7 +26,7 @@ let esquema: Esquema;
 
 beforeAll(async () => {
   grafo = await grafoDePrueba();
-  esquema = leerEsquema((q) => grafo.store.query(q) as Map<string, { value: string }>[]);
+  esquema = leerEsquema((q) => grafo.store.query(q) as ReturnType<Consultar>);
 });
 
 describe("esquema del prompt", () => {
@@ -41,6 +44,50 @@ describe("esquema del prompt", () => {
     expect(texto).toContain("k: <https://kiri23.dev/catalogo#>");
     // rdf:type va como `a`, y las propiedades que solo usa el esquema (rdfs:domain, rdfs:range) no se preguntan.
     expect(texto).not.toMatch(/- rdf:type|- rdfs:domain|- rdfs:range/);
+  });
+
+  it("las propiedades con pocos literales llevan sus valores, tal cual van en SPARQL; las de muchos, no", () => {
+    const texto = textoDelEsquema(esquema);
+    // La procedencia de cada carga (<urn:kiri-jobs:hn:…> dcterms:source "kiri-jobs -j (hn)") no tiene clase: no va.
+    expect(texto).toContain('- dcterms:source: j:JobPost → ?. Valores: "hn", "remotive".');
+    expect(texto).toMatch(/- k:esPublico: [^\n]* Valores: false, true\.$/m);
+    // rdfs:label tiene 132 distintos y j:empresa 125: ninguno lleva lista.
+    expect(texto).not.toMatch(/- (rdfs:label|j:empresa): [^\n]*Valores/);
+    expect(armarMensajes(esquema, "x")[0].content).toContain(
+      "escribí el literal igual que ahí, con las mismas mayúsculas",
+    );
+  });
+
+  it('los valores salen del Store: "hn" y "remotive" sí; 11 distintos, uno largo o un sujeto sin clase, no', () => {
+    const store = new Store();
+    const puestos = Array.from(
+      { length: 11 },
+      (_, i) => `j:p${i} a j:JobPost ; j:empresa "Empresa ${i}" ; dcterms:source "${i % 2 ? "hn" : "remotive"}" .`,
+    );
+    store.load(
+      `@prefix j: <https://kiri23.dev/jobs#> . @prefix dcterms: <http://purl.org/dc/terms/> .
+       @prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+       ${puestos.join("\n")}
+       j:p0 rdfs:comment "${"una descripción larga ".repeat(3)}" .
+       <urn:carga> dcterms:source "procedencia, sin clase" .`,
+      { format: "text/turtle" },
+    );
+    const texto = textoDelEsquema(leerEsquema((q) => store.query(q) as ReturnType<Consultar>));
+    expect(texto).toContain('- dcterms:source: j:JobPost → ?. Valores: "hn", "remotive".');
+    expect(texto).toMatch(/- j:empresa: j:JobPost → \?\.$/m);
+    expect(texto).toMatch(/- rdfs:comment: j:JobPost → \?\.$/m);
+  });
+
+  it("un literal como se escribe en SPARQL: con comillas, idioma o tipo; booleanos y enteros, sueltos", () => {
+    const xsd = (t: string) => ({ value: "http://www.w3.org/2001/XMLSchema#" + t });
+    const l = (value: string, datatype?: { value: string }, language?: string) =>
+      literalSparql({ termType: "Literal", value, datatype, language });
+    expect(l("hn", xsd("string"))).toBe('"hn"');
+    expect(l('di "hola"')).toBe('"di \\"hola\\""');
+    expect(l("hola", undefined, "es")).toBe('"hola"@es');
+    expect(l("true", xsd("boolean"))).toBe("true");
+    expect(l("42", xsd("integer"))).toBe("42");
+    expect(l("2026-10-12T15:49:24Z", xsd("dateTime"))).toBe('"2026-10-12T15:49:24Z"^^xsd:dateTime');
   });
 
   it("los mensajes: sistema con reglas y esquema, tres ejemplos sin PREFIX y la pregunta al final", () => {
