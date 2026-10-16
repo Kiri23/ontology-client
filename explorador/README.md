@@ -203,9 +203,12 @@ instalar ahí. Se trabaja en un `git worktree` en el home nativo:
 ```sh
 git -C ~/Code/ontology-client worktree add ~/wt/ontology-client-explorador <rama>
 cd ~/wt/ontology-client-explorador/explorador && npm ci
-node node_modules/vitest/vitest.mjs run      # los .bin con #!/usr/bin/env no corren por nombre en Android
-node node_modules/vite/bin/vite.js build
+npm test && npm run build
 ```
+
+Los scripts de `package.json` llaman a cada herramienta por su ruta (`node node_modules/vite/bin/vite.js`), no por
+nombre: los `.bin` con `#!/usr/bin/env` no corren en Android y `vite` a secas sale 127. Así andan igual en Termux, en CI
+y en el Dockerfile. Una herramienta nueva en un script va igual, con el `bin` de su `package.json`.
 
 Los bindings nativos (`@rolldown/binding-android-arm64`, `lightningcss-android-arm64`) existen y funcionan; el
 `package-lock.json` trae también los de linux para la imagen. Un build tarda un par de segundos.
