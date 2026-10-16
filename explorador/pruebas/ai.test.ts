@@ -155,9 +155,27 @@ describe("cliente", () => {
     cliente.cargar();
     f.emitir({ tipo: "listo" });
     const texto = cliente.generar([{ role: "user", content: "hola" }]);
-    f.emitir({ tipo: "error", cuando: "generacion", mensaje: "GPU device lost" });
-    await expect(texto).rejects.toThrow("GPU device lost");
-    expect(cliente.estado()).toEqual({ fase: "listo", error: "GPU device lost" });
+    f.emitir({ tipo: "error", cuando: "generacion", mensaje: "out of tokens" });
+    await expect(texto).rejects.toThrow("out of tokens");
+    expect(cliente.estado()).toEqual({ fase: "listo", error: "out of tokens" });
+    expect(f.estado.terminado).toBe(false);
+  });
+
+  it("con la GPU perdida termina el worker y vuelve a sin cargar, con el error; cargar abre uno nuevo", async () => {
+    const fakes: ReturnType<typeof workerFalso>[] = [];
+    const cliente = new ClienteAi(() => (fakes.push(workerFalso()), fakes.at(-1)!.worker), () => true);
+    cliente.revisar();
+    fakes[0].emitir({ tipo: "check", webgpu: true });
+    cliente.cargar();
+    fakes[0].emitir({ tipo: "listo" });
+    const texto = cliente.generar([{ role: "user", content: "hola" }]);
+    fakes[0].emitir({ tipo: "error", cuando: "generacion", mensaje: "GPU device was lost: unknown" });
+    await expect(texto).rejects.toThrow("device was lost");
+    expect(fakes[0].estado.terminado).toBe(true);
+    expect(cliente.estado()).toEqual({ fase: "disponible", error: "GPU device was lost: unknown" });
+    cliente.cargar();
+    expect(fakes).toHaveLength(2);
+    expect(fakes[1].recibidos).toEqual([{ tipo: "load" }]);
   });
 
   it("el porcentaje se mide contra los 3,1 GB aunque el total todavía no los sume", () => {

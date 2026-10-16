@@ -120,9 +120,17 @@ describe("Preguntar con AI", () => {
     consulta.mockRestore();
   });
 
+  it("con la GPU perdida, el error queda a la vista y el botón carga de nuevo", async () => {
+    const m = preguntar("¿Qué acciones hay?");
+    await act(() => Promise.resolve(m.emitir({ tipo: "error", cuando: "generacion", mensaje: "GPUDevice lost" })));
+    expect(screen.getByRole("alert").textContent).toContain("Se perdió la GPU y el modelo salió de la memoria");
+    expect(m.estado.terminado).toBe(true);
+    expect(screen.getByRole("button", BOTON)).toBeTruthy();
+  });
+
   it("un error del worker al generar se explica y deja preguntar de nuevo", async () => {
     const m = preguntar("¿Qué acciones hay?");
-    await act(() => Promise.resolve(m.emitir({ tipo: "error", cuando: "generacion", mensaje: "GPU device lost" })));
+    await act(() => Promise.resolve(m.emitir({ tipo: "error", cuando: "generacion", mensaje: "Generación cortada" })));
     expect(screen.getByRole("alert").textContent).toContain("La AI no pudo generar la consulta");
     expect((screen.getByRole("button", { name: "Generar" }) as HTMLButtonElement).disabled).toBe(false);
   });

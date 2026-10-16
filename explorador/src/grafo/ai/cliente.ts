@@ -14,7 +14,8 @@ export type EstadoAi =
   | { fase: "sin-webgpu"; motivo: string }
   /** El worker no arrancó (la CSP o la red bloquearon su script): no es que falte WebGPU. */
   | { fase: "sin-worker"; motivo: string }
-  | { fase: "disponible" }
+  /** `error`: se perdió la GPU y el modelo se descargó de la memoria; hay que cargarlo de nuevo. */
+  | { fase: "disponible"; error?: string }
   | { fase: "bajando"; progreso?: Progreso }
   | { fase: "preparando" }
   /** `error`: la última generación falló; el modelo sigue cargado. */
@@ -47,6 +48,9 @@ export function pistaDeCarga(mensaje: string, nombre = ""): string {
   }
   return "Probá de nuevo; si sigue, recargá la página.";
 }
+
+/** La GPU se perdió (driver reiniciado, memoria): las sesiones de WebGPU quedan muertas y reintentar no sirve. */
+export const GPU_PERDIDA = /device (was )?lost|GPUDevice|DeviceLost/i;
 
 export class ClienteAi {
   #estado: EstadoAi;
@@ -106,7 +110,8 @@ export class ClienteAi {
       this.#poner({ fase: "listo" });
       pedido.resolver(m.texto);
     } else if (m.tipo === "error") {
-      if (m.cuando === "generacion" || this.#pedido) {
+      if (GPU_PERDIDA.test(m.mensaje)) this.#soltar(m.mensaje);
+      else if (m.cuando === "generacion" || this.#pedido) {
         const pedido = this.#pedido;
         this.#pedido = undefined;
         this.#poner({ fase: "listo", error: m.mensaje });
@@ -144,15 +149,22 @@ export class ClienteAi {
    * termine después toca una vista que ya no está. Lo que se sabe de WebGPU queda: el botón sigue ahí.
    */
   cerrar() {
+    this.#soltar();
+  }
+
+  /** Termina el worker y vuelve a "disponible" (con el error, si lo hubo). Cargar después abre uno nuevo. */
+  #soltar(error?: string) {
     const w = this.#worker;
     if (!w) return;
     w.terminate();
     this.#worker = undefined;
     const pedido = this.#pedido;
     this.#pedido = undefined;
-    pedido?.rechazar(new Error("Se cerró la AI."));
+    pedido?.rechazar(new Error(error ?? "Se cerró la AI."));
     const { fase } = this.#estado;
-    if (fase !== "revisando" && fase !== "sin-webgpu" && fase !== "sin-worker") this.#poner({ fase: "disponible" });
+    if (fase !== "revisando" && fase !== "sin-webgpu" && fase !== "sin-worker") {
+      this.#poner(error ? { fase: "disponible", error } : { fase: "disponible" });
+    }
   }
 }
 

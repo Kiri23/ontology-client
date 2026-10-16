@@ -141,9 +141,20 @@ export function PreguntarConAi({ cliente, grafo, alProponer }: Props) {
       cuerpo = avisando
         ? <Aviso continuar={() => (setAvisando(false), cliente.cargar())} cancelar={() => setAvisando(false)} />
         : (
-          <button type="button" className="boton-ai" onClick={() => setAvisando(true)}>
-            Preguntar con AI
-          </button>
+          <>
+            {estado.error && (
+              <div className="rechazo" role="alert">
+                <p className="rechazo-titulo">Se perdió la GPU y el modelo salió de la memoria</p>
+                <p>{estado.error}</p>
+                <p className="grafo-pista">
+                  Tocá Preguntar con AI para cargarlo de nuevo: lo lee del disco, no lo vuelve a bajar.
+                </p>
+              </div>
+            )}
+            <button type="button" className="boton-ai" onClick={() => setAvisando(true)}>
+              Preguntar con AI
+            </button>
+          </>
         );
       break;
     case "bajando":
