@@ -1,7 +1,8 @@
 // Los hooks y el panel, con el DOM de happy-dom y un fetch falso.
 import { act, cleanup, fireEvent, render, renderHook, screen, waitFor } from "@testing-library/react";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { App } from "../src/App.tsx";
+import { SiFalla } from "../src/componentes/SiFalla.tsx";
 import { buscarHistoria } from "../src/historias/index.ts";
 import { useLlamada } from "../src/hooks/useLlamada.ts";
 import { fetchFalso, JOBS, json } from "./falso.ts";
@@ -157,5 +158,24 @@ describe("App", () => {
     expect(links[0]).toEqual(["Mapa", "#/grafo/mapa"]);
     expect(links).toContainEqual(["Huecos", "#/grafo/huecos"]);
     expect(links.at(-1)).toEqual(["Consulta libre", "#/grafo/consulta"]);
+  });
+});
+
+describe("SiFalla", () => {
+  it("si la vista Grafo tira (su chunk no llegó), dice qué pasó y ofrece recargar en vez de dejar la página en blanco", () => {
+    const Rota = () => {
+      throw new Error("Failed to fetch dynamically imported module: VistaGrafo-viejo.js");
+    };
+    const silencio = vi.spyOn(console, "error").mockImplementation(() => {});
+    render(
+      <SiFalla>
+        <Rota />
+      </SiFalla>,
+    );
+    silencio.mockRestore();
+    const alerta = screen.getByRole("alert");
+    expect(alerta.textContent).toContain("No se pudo abrir la vista Grafo");
+    expect(alerta.textContent).toContain("VistaGrafo-viejo.js");
+    expect(screen.getByRole("button", { name: "Recargar" })).toBeTruthy();
   });
 });

@@ -4,6 +4,7 @@ import doc from "virtual:doc-sdk";
 import { lazy, Suspense, useMemo } from "react";
 import { Barra } from "./componentes/Barra.tsx";
 import { PanelHistoria } from "./componentes/PanelHistoria.tsx";
+import { SiFalla } from "./componentes/SiFalla.tsx";
 import { esRutaDeGrafo, leerVista, nombreDeVista } from "./grafo/logica/vistas.ts";
 import { buscarHistoria, CLASES, type Historia, HISTORIAS, type Valores } from "./historias/index.ts";
 import { useRuta } from "./hooks/useRuta.ts";
@@ -80,9 +81,12 @@ export function App({ url = globalThis.location.origin, fetch }: Props) {
       <main className="principal">
         {enGrafo
           ? (
-            <Suspense fallback={<p className="grafo-cargando" role="status">Abriendo la vista Grafo…</p>}>
-              <VistaGrafo ruta={ruta} navegar={navegar} url={url} fetch={fetch} />
-            </Suspense>
+            // key: cambiar de vista del Grafo limpia un error anterior.
+            <SiFalla key={ruta.id}>
+              <Suspense fallback={<p className="grafo-cargando" role="status">Abriendo la vista Grafo…</p>}>
+                <VistaGrafo ruta={ruta} navegar={navegar} url={url} fetch={fetch} />
+              </Suspense>
+            </SiFalla>
           )
           : <VistaHistoria ruta={ruta} navegar={navegar} url={url} fetch={fetch} />}
       </main>

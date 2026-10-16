@@ -1,0 +1,31 @@
+/* ---- los estados de la vista Grafo que se ven antes de que cargue su chunk (y su grafo.css) ---- */
+/* Abriendo la vista, y el ErrorBoundary (SiFalla.tsx) cuando el chunk no llega: por eso viven en el bundle principal. */
+
+.grafo-cargando {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin: 0;
+  color: var(--tinta-suave);
+}
+
+.grafo-cargando progress {
+  width: 6rem;
+  accent-color: var(--tinta);
+}
+
+.grafo-error {
+  padding: 1rem;
+  border: 1.5px solid var(--rojo);
+  border-radius: 3px;
+  background: var(--rojo-fondo);
+}
+
+.grafo-error p {
+  margin: 0 0 0.6rem;
+}
+
+.grafo-error-titulo {
+  font-weight: 700;
+  color: var(--rojo);
+}
