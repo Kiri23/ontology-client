@@ -165,4 +165,41 @@ describe("cliente", () => {
     expect(porcentaje({ archivo: "", cargado: 4e9, total: 4e9 })).toBe(100);
     expect(pistaDeCarga("Failed to fetch")).toContain("retoma");
   });
+
+  it("un segundo cargar mientras baja no manda otro load", () => {
+    const f = workerFalso();
+    const cliente = new ClienteAi(() => f.worker, () => true);
+    cliente.revisar();
+    f.emitir({ tipo: "check", webgpu: true });
+    cliente.cargar();
+    cliente.cargar();
+    f.emitir({ tipo: "preparando" });
+    cliente.cargar();
+    expect(f.recibidos.filter((m) => m.tipo === "load")).toHaveLength(1);
+  });
+
+  it("generar fuera de listo rechaza y no le manda nada al worker", async () => {
+    const f = workerFalso();
+    const cliente = new ClienteAi(() => f.worker, () => true);
+    cliente.revisar();
+    f.emitir({ tipo: "check", webgpu: true });
+    await expect(cliente.generar([{ role: "user", content: "hola" }])).rejects.toThrow("no está listo");
+    expect(f.recibidos.some((m) => m.tipo === "generate")).toBe(false);
+    expect(cliente.estado()).toEqual({ fase: "disponible" });
+  });
+
+  it("el worker que no arranca en la revisión deja sin-worker con el motivo; después, es un fallo de carga", () => {
+    const f = workerFalso();
+    const cliente = new ClienteAi(() => f.worker, () => true);
+    cliente.revisar();
+    f.fallar("bloqueado por la CSP");
+    expect(cliente.estado()).toEqual({ fase: "sin-worker", motivo: "bloqueado por la CSP" });
+    const g = workerFalso();
+    const otro = new ClienteAi(() => g.worker, () => true);
+    otro.revisar();
+    g.emitir({ tipo: "check", webgpu: true });
+    otro.cargar();
+    g.fallar("");
+    expect(otro.estado()).toMatchObject({ fase: "fallo-carga", mensaje: "El worker de la AI no arrancó." });
+  });
 });

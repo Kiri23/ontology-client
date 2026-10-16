@@ -52,7 +52,7 @@ describe("Preguntar con AI", () => {
   it("sin WebGPU no hay botón, y una línea dice por qué", () => {
     const { recibidos } = montar(false);
     expect(screen.queryByRole("button", BOTON)).toBeNull();
-    expect(screen.getByText(/necesita WebGPU, y este navegador no lo tiene/)).toBeTruthy();
+    expect(screen.getByText(/necesita WebGPU, y acá no está \(sin adaptador\)/)).toBeTruthy();
     expect(recibidos).toEqual([{ tipo: "check" }]);
   });
 
@@ -165,5 +165,34 @@ describe("Preguntar con AI", () => {
     fireEvent.click(screen.getByRole("button", { name: "Continuar" }));
     expect(fakes).toHaveLength(2);
     expect(fakes[1].recibidos).toEqual([{ tipo: "load" }]);
+  });
+
+  it("si el worker no arranca (la CSP lo bloquea), lo dice: no culpa a WebGPU", () => {
+    const f = workerFalso();
+    render(<ConsultaLibre grafo={grafo} sparql="" ir={vi.fn()} ai={new ClienteAi(() => f.worker, () => true)} />);
+    act(() => f.fallar("Refused to load the script because it violates the Content Security Policy"));
+    const alerta = screen.getByRole("alert").textContent;
+    expect(alerta).toContain("no cargó su worker");
+    expect(alerta).toContain("violates the Content Security Policy");
+    expect(screen.queryByText(/necesita WebGPU/)).toBeNull();
+    expect(screen.queryByRole("button", BOTON)).toBeNull();
+  });
+
+  it("editar la consulta propuesta borra el veredicto de la AI", async () => {
+    const m = preguntar("¿Cuántas acciones hay?");
+    await act(() => Promise.resolve(m.emitir({ tipo: "generado", texto: "```sparql\nASK { ?a a k:Action }\n```" })));
+    expect(screen.getByText(/el validador la deja correr/)).toBeTruthy();
+    fireEvent.change(screen.getByLabelText("SPARQL"), { target: { value: editor() + " " } });
+    expect(screen.queryByText(/el validador la deja correr/)).toBeNull();
+  });
+
+  it("editar una propuesta rechazada borra el 'la propuso la AI'", async () => {
+    const m = preguntar("¿Qué acciones hay?");
+    await act(() =>
+      Promise.resolve(m.emitir({ tipo: "generado", texto: "```sparql\nSELECT ?a WHERE { ?a a k:Accion }\n```" }))
+    );
+    expect(screen.getByText(/La propuso la AI/)).toBeTruthy();
+    fireEvent.change(screen.getByLabelText("SPARQL"), { target: { value: editor().replace("Accion", "Action") } });
+    expect(screen.queryByText(/La propuso la AI/)).toBeNull();
   });
 });

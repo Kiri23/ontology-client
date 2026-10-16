@@ -12,6 +12,8 @@ export interface Progreso {
 export type EstadoAi =
   | { fase: "revisando" }
   | { fase: "sin-webgpu"; motivo: string }
+  /** El worker no arrancó (la CSP o la red bloquearon su script): no es que falte WebGPU. */
+  | { fase: "sin-worker"; motivo: string }
   | { fase: "disponible" }
   | { fase: "bajando"; progreso?: Progreso }
   | { fase: "preparando" }
@@ -75,11 +77,11 @@ export class ClienteAi {
     // Lo que diga un worker ya cerrado no cambia nada: cerrar() lo reemplaza.
     const vigente = () => w === this.#worker;
     w.addEventListener("message", (e) => vigente() && this.#recibir(e.data));
-    // El worker no arrancó (la CSP, un chunk que no llegó): en la revisión es "sin AI", después es un fallo de carga.
+    // El worker no arrancó (la CSP, un chunk que no llegó): en la revisión es "sin worker", después un fallo de carga.
     w.addEventListener("error", (e) => {
       if (!vigente()) return;
       const mensaje = e.message || "El worker de la AI no arrancó.";
-      if (this.#estado.fase === "revisando") this.#poner({ fase: "sin-webgpu", motivo: mensaje });
+      if (this.#estado.fase === "revisando") this.#poner({ fase: "sin-worker", motivo: mensaje });
       else this.#recibir({ tipo: "error", cuando: "carga", mensaje });
     });
     return (this.#worker = w);
@@ -150,7 +152,7 @@ export class ClienteAi {
     this.#pedido = undefined;
     pedido?.rechazar(new Error("Se cerró la AI."));
     const { fase } = this.#estado;
-    if (fase !== "revisando" && fase !== "sin-webgpu") this.#poner({ fase: "disponible" });
+    if (fase !== "revisando" && fase !== "sin-webgpu" && fase !== "sin-worker") this.#poner({ fase: "disponible" });
   }
 }
 

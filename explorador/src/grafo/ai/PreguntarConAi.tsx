@@ -126,8 +126,15 @@ export function PreguntarConAi({ cliente, grafo, alProponer }: Props) {
     case "sin-webgpu":
       return (
         <p className="ai-sin-webgpu">
-          Preguntar con AI necesita WebGPU, y este navegador no lo tiene: el modelo corre en tu dispositivo y sin GPU no
-          entra en memoria. En Chrome de escritorio o de Android aparece el botón.
+          Preguntar con AI necesita WebGPU, y acá no está ({estado.motivo.replace(/\.$/, "")}). El modelo corre en tu
+          dispositivo y sin GPU no entra en memoria. En Chrome de escritorio o de Android aparece el botón.
+        </p>
+      );
+    case "sin-worker":
+      return (
+        <p className="ai-sin-webgpu" role="alert">
+          Preguntar con AI no arrancó: el navegador no cargó su worker (lo pudo bloquear la CSP de la página o la red).
+          Detalle: {estado.motivo}
         </p>
       );
     case "disponible":
