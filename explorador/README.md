@@ -89,13 +89,50 @@ línea falta), lo que cambia datos (INSERT, DELETE, LOAD…), lo que no es SELEC
 lo caro (`costo.ts`: patrones sin variables en común, que son un producto cartesiano, y un `?s ?p ?o` suelto), y las
 clases (objetos de `rdf:type`) y propiedades que el grafo no tiene, con la más parecida: "La clase k:Accion no existe en
 el grafo; parecida: k:Action.". Las conocidas salen del Store (usadas y declaradas en el esquema). La plantilla de un
-CONSTRUCT puede inventar predicados; el WHERE no. Es la costura donde va a entrar la AI (`docs/consultas-por-ai.md`): lo
-que proponga un modelo pasa por acá antes de correr.
+CONSTRUCT puede inventar predicados; el WHERE no. Lo que propone la AI (Indagar con AI, abajo) pasa por acá antes de
+correr.
 
 **La CSP** suma `script-src 'self' 'wasm-unsafe-eval'`: sin eso el navegador no compila el WASM de oxigraph
 (`WebAssembly.instantiateStreaming` cae por `default-src 'self'`). `'wasm-unsafe-eval'` habilita solo WebAssembly, no
 `eval` de JS, y el WASM es un asset propio con hash. Cytoscape quiere inyectar un `<style>`, que `style-src 'self'`
 bloquea: `Lienzo.tsx` ocupa antes su id con un `<meta>` y su única regla (`position: relative`) vive en `grafo.css`.
+
+## Indagar con AI
+
+En la consulta libre (`#/grafo/consulta`), **Preguntar con AI** escribe el SPARQL a partir de una pregunta en
+castellano. El modelo es Gemma 4 E2B (`onnx-community/gemma-4-E2B-it-ONNX`, `q4f16`, texto solo con `Gemma4ForCausalLM`)
+y corre en el dispositivo, por WebGPU, con Transformers.js 4.3.1 dentro de un worker (`src/grafo/ai/worker.ts`). Cuesta
+$0, no hay key y no hay servidor. Es la receta de DocsifyTemplate; la decisión y sus mediciones están en
+`docs/consultas-por-ai.md` y `docs/gemma-en-el-navegador.md`.
+
+- **Qué baja:** 3,1 GB la primera vez (decoder 1 520 MB, embed_tokens 1 591 MB y tokenizer 19 MB), desde Hugging Face.
+  Quedan en la Cache API del navegador (`transformers-cache`, con `navigator.storage.persist()`), y las próximas veces
+  se leen del disco. Antes de bajar nada, un aviso dice el tamaño y espera Continuar. Después muestra el progreso por
+  archivo y compila los shaders con un token de prueba.
+- **Solo WebGPU.** El botón aparece solo si `navigator.gpu.requestAdapter()` da un adaptador en el worker. Sin WebGPU,
+  una línea lo explica. No hay fallback a WASM: con `q4` son 3,6 GB que onnxruntime copia al heap de wasm32, y en
+  chromium-box (8 GB) colgó la VM entera.
+- **Nunca corre sola.** El prompt (`src/grafo/ai/prompt.ts`) lleva el esquema sacado del Store: los prefijos, las clases
+  con cuántas instancias tienen y cada propiedad con su `rdfs:domain`, `rdfs:range` y `rdfs:comment`, o con las clases
+  que la usan. También lleva tres prearmadas como ejemplo, sin las líneas PREFIX. `extraer.ts` saca el bloque
+  `` ```sparql `` y agrega los PREFIX que falten. La consulta va al editor y pasa por el validador. Si el validador la
+  rechaza, muestra el motivo y la deja en el editor para corregirla. Corre solo si se toca Correr.
+- **Cuánto pesa una visita sin AI:** nada de esto. La vista Grafo abre un worker de 2 kB para el `check`, y solo si
+  existe `navigator.gpu`. Transformers.js (581 kB) es un chunk aparte que el worker importa con `import()` al tocar
+  Continuar. El wasm de onnxruntime (27 MB, `ort-wasm-simd-threaded.asyncify`) sale como asset propio con hash (`?url`)
+  y se le pasa a `env.backends.onnx.wasm.wasmPaths`, así no se baja de jsdelivr. Esto lo verifica
+  `scripts/chunks-ai.mjs`, que corre en cada `npm run build` y sale 1 si la AI entra en el bundle principal.
+- **La CSP** se abre así, y nada más: `connect-src 'self' https://huggingface.co https://*.hf.co` (los pesos redirigen a
+  `us.aws.cdn.hf.co`), `script-src 'self' 'wasm-unsafe-eval' blob:` (Transformers.js importa la fábrica del wasm como
+  Blob) y `worker-src 'self' blob:`. `scripts/humo-imagen` exige las tres, y además que los dos wasm salgan como
+  `application/wasm`. El costo es que la página que guarda tokens puede hablar con un origen más.
+
+**Cómo probarlo.** Con el modelo de verdad, solo en un dispositivo con WebGPU: Chrome de Android 12+ o de escritorio
+(`chrome://gpu` dice "WebGPU: Hardware accelerated"). Se abre el preview del PR en `#/grafo/consulta`, se toca Preguntar
+con AI y después Continuar, se espera la descarga y se pregunta. **Nunca en chromium-box ni en Node**: no tienen GPU y
+el camino WASM no entra en memoria. El resto lo cubren los tests con un worker falso: `pruebas/ai.test.ts` (prompt,
+extractor y cliente) y `pruebas/ai-vista.test.tsx` (sin WebGPU no hay botón, el aviso va antes de la descarga, y lo
+generado pasa por el validador y no corre). La captura `grafo-consulta-sin-webgpu` muestra la línea sin el botón.
 
 ## Correrlo
 
@@ -170,6 +207,6 @@ fuente `data:` que la CSP bloqueaba: por eso `assetsInlineLimit: 0` en `vite.con
 lienzo tenga su canvas y termine el layout (`.lienzo[data-listo="true"] canvas`).
 
 ```sh
-npm run build && node scripts/capturas.mjs ~/tmp/capturas   # 9 capturas × 390 y 1280 px, 5 del Grafo
+npm run build && node scripts/capturas.mjs ~/tmp/capturas   # 10 capturas × 390 y 1280 px, 6 del Grafo
 kiri-pr-shots subir <pr#> ~/tmp/capturas/*.png
 ```

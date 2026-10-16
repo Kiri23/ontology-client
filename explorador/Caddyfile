@@ -14,11 +14,15 @@
 	# Los assets cuelgan de /explorador/: sin la barra, el navegador los pediría a /assets/.
 	redir /explorador /explorador/ 308
 
-	# La página guarda tokens en sessionStorage: solo corre el JS propio y solo le habla a su origen (la API).
-	# 'wasm-unsafe-eval' deja compilar WebAssembly (el motor SPARQL de la vista Grafo, un asset propio); no habilita
-	# eval de JS. default-src va primero: scripts/humo-imagen lo busca.
+	# La página guarda tokens en sessionStorage: solo corre el JS propio y solo le habla a su origen (la API) y, por
+	# "Preguntar con AI", a Hugging Face. 'wasm-unsafe-eval' deja compilar WebAssembly (oxigraph y onnxruntime, assets
+	# propios); no habilita eval de JS. La AI (src/grafo/ai/, docs/gemma-en-el-navegador.md §3) suma tres cosas y nada
+	# más: connect-src a huggingface.co y *.hf.co (los pesos de Gemma redirigen a us.aws.cdn.hf.co; la región varía),
+	# blob: en script-src (Transformers.js importa la fábrica del wasm de onnxruntime como Blob) y worker-src 'self'
+	# blob: (el worker propio; onnxruntime arma los suyos como blob: si hay hilos). default-src va primero:
+	# scripts/humo-imagen lo busca.
 	header {
-		Content-Security-Policy "default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; img-src 'self' data:; style-src 'self'; font-src 'self'; connect-src 'self'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'"
+		Content-Security-Policy "default-src 'self'; script-src 'self' 'wasm-unsafe-eval' blob:; worker-src 'self' blob:; img-src 'self' data:; style-src 'self'; font-src 'self'; connect-src 'self' https://huggingface.co https://*.hf.co; base-uri 'none'; form-action 'self'; frame-ancestors 'none'"
 		X-Content-Type-Options nosniff
 		Referrer-Policy no-referrer
 	}

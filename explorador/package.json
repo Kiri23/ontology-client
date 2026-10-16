@@ -6,7 +6,7 @@
   "description": "El Storybook del SDK @kiri23/ontology-client: cada función es una historia que se corre contra el servidor.",
   "scripts": {
     "dev": "vite",
-    "build": "tsc --noEmit && vite build",
+    "build": "tsc --noEmit && vite build && node scripts/chunks-ai.mjs",
     "check": "tsc --noEmit",
     "test": "vitest run",
     "preview": "vite preview"
@@ -15,6 +15,7 @@
     "@fontsource-variable/literata": "5.3.0",
     "@fontsource-variable/martian-mono": "5.3.0",
     "@fontsource-variable/schibsted-grotesk": "5.3.0",
+    "@huggingface/transformers": "4.3.1",
     "@traqula/algebra-sparql-1-1": "1.4.0",
     "@traqula/parser-sparql-1-1": "1.4.0",
     "cytoscape": "3.34.3",

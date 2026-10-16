@@ -41,8 +41,10 @@ Reescrita el 2026-10-16 después de verificar la vía gratis: `gemma-en-el-naveg
    en segundos y usa un modelo mejor (LiveCodeBench 77 % contra 44 % de E2B). Es alternativa, no plan.
 8. **No:** Gemma en vps2 por CPU (2 vCPU, 7.9 GB, ya se colgó por RAM). Tampoco Node con Transformers.js en Termux:
    `onnxruntime-node` no tiene binario para android/arm64 (verificado con `npm i … --force`).
-9. **PR aparte, no el del explorador-grafo:** la historia "Indagar con AI" del explorador (Worker, botón, aviso de
-   descarga, validador) y la CSP del Caddyfile. El validador puede ir antes, en cuanto haya un editor SPARQL libre.
+9. **Este PR (rama `explorador-ai`, apilado sobre `explorador-grafo`):** la historia "Indagar con AI" del explorador
+   (Worker, botón, aviso de descarga, prompt con el esquema y tres prearmadas) y la CSP del Caddyfile. El validador ya
+   venía en el PR del grafo, con la consulta libre; lo que propone la AI pasa por él. Detalle en el README del
+   explorador, sección "Indagar con AI".
 10. **Qué cambia respecto a la versión anterior de este doc:** el orden. Antes iba primero el proxy pago y el navegador
     quedaba "para después"; Christian no paga y ya tiene el camino gratis hecho en DocsifyTemplate. Lo que sigue igual:
     el validador, el few-shot y el no a vps2.

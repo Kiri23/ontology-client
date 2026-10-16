@@ -1,7 +1,10 @@
 // La consulta libre: un SPARQL escrito a mano, que pasa por el validador antes de correr en el motor local. SELECT y
 // ASK dan una tabla o un sí/no (y los nodos del resultado se resaltan); CONSTRUCT se dibuja en el lienzo. El texto vive
-// en la URL (?sparql=), así un link abre la consulta lista para correr.
+// en la URL (?sparql=), así un link abre la consulta lista para correr. Arriba, "Preguntar con AI" (ai/) propone una
+// consulta: queda en el editor con el veredicto del validador, y corre solo si se toca Correr.
 import { type FormEvent, useMemo, useState } from "react";
+import { type ClienteAi, clienteCompartido } from "../ai/cliente.ts";
+import { PreguntarConAi } from "../ai/PreguntarConAi.tsx";
 import { Copiar } from "../componentes/Copiar.tsx";
 import { Cuerpo } from "../componentes/Cuerpo.tsx";
 import { Lienzo } from "../componentes/Lienzo.tsx";
@@ -30,9 +33,19 @@ function correrValidada(grafo: Grafo, consulta: string): Corrida {
   }
 }
 
-export function ConsultaLibre({ grafo, sparql, ir }: { grafo: Grafo; sparql: string; ir: Ir }) {
+interface Props {
+  grafo: Grafo;
+  sparql: string;
+  ir: Ir;
+  /** La AI de la pestaña; las pruebas pasan una con un worker falso. */
+  ai?: ClienteAi;
+}
+
+export function ConsultaLibre({ grafo, sparql, ir, ai = clienteCompartido() }: Props) {
   const { modelo } = grafo;
   const [texto, setTexto] = useState(sparql || EJEMPLO);
+  // Lo último que propuso la AI y si el validador la deja correr. Se borra al editar o al correr.
+  const [propuesta, setPropuesta] = useState<"valida" | "rechazada">();
   // Un link con ?sparql= solo llena el editor: corre al tocar Correr. Una consulta cara congela la pestaña, y si
   // corriera al abrir, recargar la congelaría de nuevo (el hash sigue ahí).
   const [corrida, setCorrida] = useState<Corrida>();
@@ -46,9 +59,23 @@ export function ConsultaLibre({ grafo, sparql, ir }: { grafo: Grafo; sparql: str
     return { nodos: todos, aristas: modelo.aristas, resaltados, etiquetas: "clave" as const };
   }, [corrida, modelo, todos]);
 
+  const escribir = (nuevo: string) => {
+    setTexto(nuevo);
+    ir("grafo/consulta", { sparql: nuevo }, "reemplazo");
+  };
+
   const enviar = (e: FormEvent) => {
     e.preventDefault();
+    setPropuesta(undefined);
     setCorrida(correrValidada(grafo, texto));
+  };
+
+  // Lo que propone la AI va al editor y al validador, nunca al motor.
+  const proponer = (consulta: string) => {
+    escribir(consulta);
+    const veredicto = validar(consulta, grafo.conocidas);
+    setPropuesta(veredicto.ok ? "valida" : "rechazada");
+    setCorrida(veredicto.ok ? undefined : { fase: "rechazada", motivos: veredicto.motivos });
   };
 
   return (
@@ -69,6 +96,7 @@ export function ConsultaLibre({ grafo, sparql, ir }: { grafo: Grafo; sparql: str
       }
       panel={
         <>
+          <PreguntarConAi cliente={ai} grafo={grafo} alProponer={proponer} />
           <form className="consulta" onSubmit={enviar} noValidate>
             <label htmlFor="consulta-sparql" className="consulta-rotulo">SPARQL</label>
             <textarea
@@ -81,8 +109,8 @@ export function ConsultaLibre({ grafo, sparql, ir }: { grafo: Grafo; sparql: str
               aria-invalid={corrida?.fase === "rechazada" || undefined}
               aria-describedby={corrida?.fase === "rechazada" ? "consulta-motivos" : undefined}
               onChange={(e) => {
-                setTexto(e.target.value);
-                ir("grafo/consulta", { sparql: e.target.value }, "reemplazo");
+                setPropuesta(undefined);
+                escribir(e.target.value);
               }}
             />
             <div className="consulta-pie">
@@ -90,9 +118,15 @@ export function ConsultaLibre({ grafo, sparql, ir }: { grafo: Grafo; sparql: str
               <Copiar texto={texto} />
             </div>
           </form>
+          {propuesta === "valida" && (
+            <p className="ai-veredicto" role="status">
+              La AI propuso esta consulta y el validador la deja correr. Revisala y tocá Correr.
+            </p>
+          )}
           {corrida?.fase === "rechazada" && (
             <div className="rechazo" id="consulta-motivos" role="alert">
               <p className="rechazo-titulo">El validador no la deja correr</p>
+              {propuesta === "rechazada" && <p>La propuso la AI: quedó en el editor para que la corrijas.</p>}
               <ul>{corrida.motivos.map((m) => <li key={m}>{m}</li>)}</ul>
             </div>
           )}
