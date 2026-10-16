@@ -1,0 +1,15 @@
+# Solo en la VM de exe.dev (en la VM se copia como compose.override.yaml): Caddy une el Browser y bolt en un origen, detrás del proxy privado de exe.dev.
+services:
+  web:
+    image: caddy:2.8.4-alpine
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+    depends_on: [neo4j]
+    mem_limit: 64m
+  neo4j:
+    environment:
+      # neo4j:// pide la tabla de routing: que anuncie la IP de la tailnet (sin MagicDNS) y no localhost.
+      NEO4J_server_default__advertised__address: 100.123.48.55

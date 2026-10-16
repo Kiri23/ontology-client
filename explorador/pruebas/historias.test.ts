@@ -79,10 +79,12 @@ describe("doc-sdk", () => {
 
   it("lee las funciones de jobs.ts y sparql.ts por su export * as, sin clases ni constantes", () => {
     expect(Object.keys(doc).sort()).toEqual([
+      "configurar",
       "crearCliente",
       "jobs.descartar",
       "jobs.get",
       "jobs.marcarAplicado",
+      "motorHttp.jobs.get",
       "sparql.consultar",
       "validarProyecto",
     ]);
@@ -90,5 +92,16 @@ describe("doc-sdk", () => {
     expect(doc["jobs.get"].descripcion).toContain("Los puestos, lo más nuevo primero");
     expect(doc["jobs.get"].descripcion).toContain("`ErrorServidor`");
     expect(doc["sparql.consultar"].archivo).toBe("sparql.ts");
+  });
+
+  it("los métodos de motorHttp salen de la interfaz Motor: su firma con tipos, y el JSDoc del const y del método", () => {
+    expect(doc["motorHttp.jobs.get"]).toEqual({
+      descripcion: "El motor por default: GET /jobs del servidor, por HTTP.\n\n" +
+        "Los puestos con la forma y el orden de GET /jobs.",
+      firma: "motorHttp.jobs.get(\n  filtros: FiltrosJobs,\n  opciones: OpcionesJobs,\n): Promise<JobPost[]>",
+      archivo: "motor.ts",
+    });
+    expect(doc.configurar.archivo).toBe("motor.ts");
+    expect(doc.configurar.descripcion).toContain("Elige de dónde lee el SDK");
   });
 });

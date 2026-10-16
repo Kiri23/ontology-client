@@ -1,0 +1,7 @@
+# Un solo origen para el proxy privado de exe.dev (https://neo4j-ontology.exe.xyz, puerto 8000 de la VM):
+# el WebSocket de bolt va a 7687 y todo lo demás (el Browser) a 7474.
+:8000 {
+	@bolt header Upgrade websocket
+	reverse_proxy @bolt neo4j:7687
+	reverse_proxy neo4j:7474
+}

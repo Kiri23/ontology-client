@@ -19,6 +19,7 @@ explorador/
     jobs.ts          jobs.get, jobs.descartar, jobs.marcarAplicado
     proyectos.ts     validarProyecto
     sparql.ts        sparql.consultar
+    motor.ts         configurar (con motorHttp, el único que corre en el navegador) y motorHttp.jobs.get
     cliente.ts       crearCliente: una historia por cada GET de contrato/openapi.json
     index.ts         CLASES, el orden de la barra
   src/hooks/       useLlamada (useActionState), useRuta (el hash), useToken (sessionStorage)

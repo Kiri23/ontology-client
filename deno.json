@@ -4,19 +4,23 @@
   "license": "MIT",
   "exports": {
     ".": "./mod.ts",
-    "./cli": "./cli.ts"
+    "./cli": "./cli.ts",
+    "./neo4j": "./neo4j.ts"
   },
   "imports": {
     "@cfworker/json-schema": "npm:@cfworker/json-schema@4.1.1",
     "@std/assert": "jsr:@std/assert@^1.0.13",
     "@std/cli": "jsr:@std/cli@^1.0.20",
+    "neo4j-driver": "npm:neo4j-driver@^6.2.0",
     "openapi-fetch": "npm:openapi-fetch@^0.17.0",
     "openapi-typescript": "npm:openapi-typescript@7.13.0"
   },
   "tasks": {
     "contrato": "deno run --allow-net --allow-env=ONTOLOGY_CONTRATO_URL --allow-write=contrato --allow-read --allow-run scripts/contrato.ts",
+    "neo4j:cargar": "deno run --allow-net --allow-env --allow-sys=osRelease scripts/neo4j-cargar.ts",
+    "neo4j:hola": "deno run --allow-net --allow-env=NEO4J_URL,NEO4J_PASSWORD --allow-sys=osRelease ejemplos/hola-neo4j.ts",
     "generar": "deno run --allow-read --allow-write=generado --allow-env --allow-sys scripts/generar.ts",
-    "test": "deno test --allow-net --allow-read --allow-env --allow-run"
+    "test": "deno test --allow-net --allow-read --allow-env --allow-run --allow-sys=osRelease"
   },
   "lock": {
     "frozen": true
@@ -37,11 +41,15 @@
       "mod.ts",
       "cliente.ts",
       "jobs.ts",
+      "motor.ts",
+      "neo4j.ts",
+      "vista-neo4j.ts",
       "sparql.ts",
       "cli.ts",
       "generado/api.ts",
       "contrato/openapi.json",
       "README.md",
+      "neo4j/README.md",
       "LICENSE"
     ],
     "exclude": ["explorador/"]
