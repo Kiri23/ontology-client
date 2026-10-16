@@ -1,0 +1,169 @@
+/* ---- barra: el cajón del fichero ---- */
+
+.barra {
+  border-right: 1px solid var(--regla);
+  padding: 1.5rem 1rem 2rem;
+}
+
+.barra-cajon {
+  position: sticky;
+  top: 1.5rem;
+  display: grid;
+  gap: 1.75rem;
+}
+
+.barra-plegar {
+  display: none;
+}
+
+.clase-titulo {
+  margin: 0;
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.5rem;
+  padding: 0.3rem 0.75rem 0.25rem;
+  background: var(--papel-hundido);
+  border: 1px solid var(--regla);
+  border-bottom: none;
+  border-radius: 6px 6px 0 0;
+  font: 650 0.95rem var(--f-ui);
+}
+
+.clase-titulo small {
+  font: 400 0.68rem var(--f-mono);
+  color: var(--tinta-suave);
+}
+
+.clase ul {
+  list-style: none;
+  margin: 0;
+  padding: 0.35rem 0 0;
+  border-top: 1px solid var(--regla);
+}
+
+.clase a {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.38rem 0.75rem;
+  border-radius: 4px;
+  text-decoration: none;
+  font-size: 0.92rem;
+  transition: background-color 160ms var(--salida);
+}
+
+.clase a:hover {
+  background: var(--papel-hundido);
+}
+
+.clase a[aria-current="page"] {
+  background: var(--tinta);
+  color: var(--papel);
+}
+
+.historia-nombre {
+  overflow-wrap: anywhere;
+}
+
+.marca-escribe {
+  flex: none;
+  font: 600 0.72rem var(--f-ui);
+  color: var(--rojo);
+}
+
+/* El Grafo no es una clase del SDK: su pestaña lleva un renglón de tinta arriba, sin relleno (relleno de tinta es lo
+   que marca la entrada elegida). */
+.clase-grafo .clase-titulo {
+  border-top: 2px solid var(--tinta);
+}
+
+/* Indagar sin un nodo abierto todavía: está, pero no lleva a ningún lado hasta tocar un nodo. */
+.entrada-apagada {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+  padding: 0.38rem 0.75rem;
+  font-size: 0.92rem;
+  color: var(--tinta-suave);
+}
+
+.entrada-apagada small {
+  font-size: 0.75rem;
+}
+
+.clase a[aria-current="page"] .marca-escribe {
+  color: inherit;
+}
+
+@media (max-width: 52rem) {
+  .barra {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    padding: 0;
+    border-right: 0;
+    border-bottom: 1px solid var(--regla);
+    background: var(--papel);
+  }
+
+  .barra-plegar {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    width: 100%;
+    min-height: 3rem;
+    padding: 0 1rem;
+    border: 0;
+    background: none;
+    color: var(--tinta);
+    text-align: left;
+  }
+
+  .barra-plegar-seccion {
+    font-size: 0.85rem;
+    color: var(--tinta-suave);
+  }
+
+  .barra-plegar-actual {
+    flex: 1;
+    min-width: 0;
+    font: 650 0.95rem var(--f-ui);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  /* Un chevrón dibujado con bordes: apunta abajo cerrado y arriba abierto. */
+  .barra-plegar-signo {
+    width: 0.6rem;
+    height: 0.6rem;
+    margin: 0 0.3rem 0.25rem;
+    border-right: 2px solid currentColor;
+    border-bottom: 2px solid currentColor;
+    transform: rotate(45deg);
+    transition: transform 200ms var(--salida);
+  }
+
+  .barra[data-abierta="true"] .barra-plegar-signo {
+    transform: translateY(0.25rem) rotate(-135deg);
+  }
+
+  .barra-cajon {
+    position: static;
+    gap: 1.25rem;
+    padding: 0.5rem 1rem 1.25rem;
+    max-height: 72dvh;
+    overflow-y: auto;
+    border-top: 1px solid var(--regla);
+  }
+
+  .clase a {
+    min-height: var(--toque);
+    align-items: center;
+  }
+
+  .barra[data-abierta="false"] .barra-cajon {
+    display: none;
+  }
+}

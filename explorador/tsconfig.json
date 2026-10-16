@@ -1,0 +1,28 @@
+{
+  // Un solo tsconfig: src/ (la app), pruebas/ (vitest) y la config de Vite. El SDK (../mod.ts y lo que importa)
+  // entra por import y se chequea con estas reglas: allowImportingTsExtensions porque el SDK es de Deno y sus
+  // imports llevan .ts, y paths porque su "openapi-fetch" sale del import map de deno.json, no de node_modules.
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": ["ES2023", "DOM", "DOM.Iterable"],
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "allowImportingTsExtensions": true,
+    "resolveJsonModule": true,
+    "verbatimModuleSyntax": true,
+    "isolatedModules": true,
+    "noEmit": true,
+    "jsx": "react-jsx",
+    "strict": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noFallthroughCasesInSwitch": true,
+    "noImplicitOverride": true,
+    "skipLibCheck": true,
+    "types": ["vite/client"],
+    "paths": {
+      "openapi-fetch": ["./node_modules/openapi-fetch"]
+    }
+  },
+  "include": ["src", "pruebas", "vite", "vite.config.ts"]
+}

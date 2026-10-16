@@ -164,6 +164,20 @@ await driver.close(); // el driver es tuyo: el motor no lo cierra
 La vista (el container, cómo se carga con n10s, el mapeo RDF → Neo4j, los named graphs, la memoria) está en
 [`neo4j/README.md`](neo4j/README.md).
 
+### SPARQL crudo: `sparql`
+
+```ts
+import { sparql } from "@kiri23/ontology-client";
+
+const { tipo, texto } = await sparql.consultar("SELECT ?c (COUNT(*) AS ?n) WHERE { ?s a ?c } GROUP BY ?c");
+const filas = JSON.parse(texto).results.bindings; // tipo: application/sparql-results+json
+```
+
+`sparql.consultar(consulta, { accept?, url?, fetch?, timeoutMs? })` va a `GET /sparql?query=` sin token y devuelve la
+respuesta tal cual (`{ tipo, texto }`). El `Accept` por default es `application/sparql-results+json`; el servidor
+respeta `text/csv` en SELECT, pero en CONSTRUCT siempre manda Turtle. Tira `ErrorServidor` con el `{"error"}` del
+servidor (400 si la consulta no parsea) o `status: null` si no hubo respuesta.
+
 ### El cliente tipado, sin envoltorio
 
 `validarProyecto` está hecha encima de [openapi-fetch](https://openapi-ts.dev/openapi-fetch/), y esa librería queda a la
@@ -304,6 +318,14 @@ OIDC exige que el paquete exista en jsr.io y esté vinculado a este repo:
 1. Crear el paquete: <https://jsr.io/new?scope=kiri23&package=ontology-client>.
 2. En <https://jsr.io/@kiri23/ontology-client/settings>, **GitHub repository** → `Kiri23/ontology-client` → Link.
 3. Correr el publish: `gh workflow run publish.yml -R Kiri23/ontology-client`.
+
+## Explorador
+
+<https://ontology.kiri231.com/explorador/> es un Storybook del SDK: cada función de `mod.ts` es una historia que se
+corre contra el servidor, con controles para sus parámetros. Vive en `explorador/` (Vite + React) y no entra en el
+paquete de JSR. `tests/explorador.test.ts` falla si una función exportada no tiene su historia: ver
+[explorador/README.md](explorador/README.md). Su vista Grafo trae el grafo entero con `sparql.consultar` y lo consulta
+en el navegador.
 
 ## Licencia
 

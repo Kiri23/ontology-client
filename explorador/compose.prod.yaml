@@ -1,0 +1,51 @@
+name: ontology-explorador
+
+# https://ontology.kiri231.com/explorador/ en vps2. La copia y la levanta .github/workflows/deploy.yml en
+# /home/ci/deploy/ontology-explorador/. Sin secretos: cada usuario escribe sus tokens en su navegador.
+#
+# Un contenedor más en el sitio ontology.kiri231.com, que ya arman ontology-web (el catch-all, sin path) y
+# ontology-grlc (/api-local* y /static/*) desde el compose de Kiri23/ontologyLearning. Cómo se mezclan, según
+# caddy-docker-proxy (lucaslorentz/caddy-docker-proxy@c2c2b0e):
+#
+# - Las labels de cada contenedor con la misma label `caddy` terminan en un solo bloque de sitio: los bloques con las
+#   mismas claves se fusionan (caddyfile/merge.go, Merge).
+# - El sufijo _N no choca entre contenedores. Solo separa directivas dentro de las labels de UN contenedor ("Suffix
+#   _<number> isolates directives that otherwise would be grouped", README, "Ordering and isolation") y no llega al
+#   Caddyfile: labelParserRegex en caddyfile/fromlabels.go lo saca del nombre. Acá separa los dos reverse_proxy de
+#   este contenedor; que grlc también use _0 y _1 no importa.
+# - Lo que sí choca es el matcher: dos reverse_proxy con el mismo matcher se funden en uno solo que balancea entre los
+#   upstreams de los dos (merge.go, mergeReverseProxyLike). Por eso dos matchers exactos, /explorador y /explorador/*,
+#   y no /explorador*, que también tomaría /exploradorX o cualquier ruta futura de la API que empiece igual.
+# - Caddy ordena los reverse_proxy con un solo path por especificidad, y el que no tiene matcher va último
+#   (https://caddyserver.com/docs/caddyfile/directives#sorting-algorithm).
+#
+# Verificado con el código de caddy-docker-proxy en c2c2b0e (FromLabels + Merge + Marshal con las labels de web, grlc y
+# este) y `caddy adapt` sobre el resultado: quedan cinco reverse_proxy separados, en este orden: /explorador/*,
+# /explorador, /api-local*, /static/* y, último, el de web sin matcher.
+#
+# https://github.com/lucaslorentz/caddy-docker-proxy/blob/c2c2b0e265f26d67526d5e64b17755a3ad8603af/README.md#ordering-and-isolation
+# https://github.com/lucaslorentz/caddy-docker-proxy/blob/c2c2b0e265f26d67526d5e64b17755a3ad8603af/caddyfile/merge.go
+#
+# SIN `ports:`: solo kiri-edge llega al contenedor.
+
+services:
+  # El servicio se llama como su contenedor: en kiri-edge, una red compartida, un nombre a secas lo resolvería otra app.
+  ontology-explorador:
+    build:
+      context: ..
+      dockerfile: explorador/Dockerfile
+    image: ghcr.io/kiri23/ontology-explorador:${IMAGE_TAG:-latest}
+    container_name: ontology-explorador
+    restart: unless-stopped
+    mem_limit: 64m
+    networks:
+      - kiri-edge
+    labels:
+      caddy: ontology.kiri231.com
+      caddy.reverse_proxy_0: "/explorador {{upstreams 8080}}"
+      caddy.reverse_proxy_1: "/explorador/* {{upstreams 8080}}"
+
+networks:
+  kiri-edge:
+    # La crea deploy.yml en vps2 antes del up; compose no la maneja.
+    external: true

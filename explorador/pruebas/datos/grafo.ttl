@@ -1,0 +1,1546 @@
+@prefix dcterms: <http://purl.org/dc/terms/> .
+@prefix doap: <http://usefulinc.com/ns/doap#> .
+@prefix ns1: <https://kiri23.dev/catalogo#> .
+@prefix ns2: <https://kiri23.dev/jobs#> .
+@prefix prov: <http://www.w3.org/ns/prov#> .
+@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix skos: <http://www.w3.org/2004/02/skos/core#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+
+ns1:Action a rdfs:Class ;
+    rdfs:comment "Una GitHub Action, identificada por el repo que la aloja y su ruta dentro de él." .
+
+ns1:Uso a rdfs:Class ;
+    rdfs:comment "Una dependencia `uses:` de un workflow: la arista hecha objeto, con su ref." .
+
+ns1:Workflow a rdfs:Class ;
+    rdfs:comment "Un archivo .github/workflows/x.yml de un repo: un nodo con IRI, que el proyecto puede referenciar." .
+
+ns2:JobPost a rdfs:Class ;
+    rdfs:comment "Un puesto publicado por una fuente (Remotive, HN). Su URI es el link del puesto." .
+
+<https://kiri23.dev/tech#Technology> a rdfs:Class ;
+    rdfs:label "Technology" ;
+    rdfs:comment "Herramienta o plataforma documentable: tiene body propio más allá de back-references." .
+
+<https://github.com/Kiri23/ApiScripts> a doap:Project ;
+    doap:name "ApiScripts" ;
+    ns1:ejecutaEnCI <https://github.com/Kiri23/TermuxConfig#.github/actions/pm-actividad> ;
+    ns1:esPublico false ;
+    ns1:tieneWorkflow <https://kiri23.dev/repos/workflow/ApiScripts.kiri-pm> .
+
+<https://github.com/Kiri23/JobSearch> a doap:Project ;
+    doap:name "JobSearch" ;
+    ns1:ejecutaEnCI <https://github.com/Kiri23/TermuxConfig#.github/actions/pm-actividad>,
+        <https://github.com/actions/checkout#.>,
+        <https://github.com/actions/setup-python#.> ;
+    ns1:esPublico false ;
+    ns1:tieneWorkflow <https://kiri23.dev/repos/workflow/JobSearch.kiri-pm>,
+        <https://kiri23.dev/repos/workflow/JobSearch.valida-issues> .
+
+<https://github.com/Kiri23/MyClaudeSkills> a doap:Project ;
+    doap:name "MyClaudeSkills" ;
+    ns1:ejecutaEnCI <https://github.com/Kiri23/TermuxConfig#.github/actions/pm-actividad> ;
+    ns1:esPublico false ;
+    ns1:tieneWorkflow <https://kiri23.dev/repos/workflow/MyClaudeSkills.kiri-pm> .
+
+<https://github.com/Kiri23/ontologyLearning> a doap:Project ;
+    doap:name "ontologyLearning" ;
+    ns1:ejecutaEnCI <https://github.com/Kiri23/TermuxConfig#.github/actions/pm-actividad>,
+        <https://github.com/actions/checkout#.>,
+        <https://github.com/docker/build-push-action#.>,
+        <https://github.com/docker/login-action#.>,
+        <https://github.com/docker/setup-buildx-action#.>,
+        <https://github.com/tailscale/github-action#.> ;
+    ns1:esPublico false ;
+    ns1:tieneWorkflow <https://kiri23.dev/repos/workflow/ontologyLearning.deploy>,
+        <https://kiri23.dev/repos/workflow/ontologyLearning.kiri-pm> .
+
+<https://github.com/Kiri23/portfolio> a doap:Project ;
+    doap:name "portfolio" ;
+    ns1:ejecutaEnCI <https://github.com/Kiri23/TermuxConfig#.github/actions/pm-actividad>,
+        <https://github.com/actions/checkout#.>,
+        <https://github.com/docker/build-push-action#.>,
+        <https://github.com/docker/login-action#.>,
+        <https://github.com/docker/setup-buildx-action#.>,
+        <https://github.com/tailscale/github-action#.> ;
+    ns1:esPublico true ;
+    ns1:tieneWorkflow <https://kiri23.dev/repos/workflow/portfolio.container>,
+        <https://kiri23.dev/repos/workflow/portfolio.kiri-pm> .
+
+<https://github.com/Kiri23/rutero> a doap:Project ;
+    doap:name "rutero" ;
+    ns1:ejecutaEnCI <https://github.com/Kiri23/TermuxConfig#.github/actions/pm-actividad>,
+        <https://github.com/actions/checkout#.>,
+        <https://github.com/docker/build-push-action#.>,
+        <https://github.com/docker/login-action#.>,
+        <https://github.com/docker/setup-buildx-action#.>,
+        <https://github.com/tailscale/github-action#.> ;
+    ns1:esPublico false ;
+    ns1:tieneWorkflow <https://kiri23.dev/repos/workflow/rutero.deploy>,
+        <https://kiri23.dev/repos/workflow/rutero.e2e>,
+        <https://kiri23.dev/repos/workflow/rutero.kiri-pm> .
+
+ns1:accion a rdf:Property ;
+    rdfs:comment "El uso apunta a esta action." ;
+    rdfs:domain ns1:Uso ;
+    rdfs:range ns1:Action .
+
+ns1:alojadaEn a rdf:Property ;
+    rdfs:comment "La action vive en este repo." ;
+    rdfs:domain ns1:Action ;
+    rdfs:range doap:Project .
+
+ns1:archivo a rdf:Property ;
+    rdfs:comment "La ruta del workflow dentro del repo, por ejemplo .github/workflows/kiri-pm.yml." ;
+    rdfs:domain ns1:Workflow ;
+    rdfs:range xsd:string .
+
+ns1:ejecutaEnCI a rdf:Property ;
+    rdfs:comment "Atajo de tieneWorkflow/tieneUso/accion: el CI del repo ejecuta esta action en alguno de sus workflows. Lo escribe el generador junto con cada Uso; SHACL verifica que coincidan. No es la dependencia declarada (eso va en proyecto.ttl)." ;
+    rdfs:domain doap:Project ;
+    rdfs:range ns1:Action .
+
+ns1:esPublico a rdf:Property ;
+    rdfs:comment "Un repo público no puede usar una action de un repo privado." ;
+    rdfs:domain doap:Project ;
+    rdfs:range xsd:boolean .
+
+ns1:ref a rdf:Property ;
+    rdfs:comment "La versión que pide el uso: una rama, un tag o un SHA." ;
+    rdfs:domain ns1:Uso ;
+    rdfs:range xsd:string .
+
+ns1:ruta a rdf:Property ;
+    rdfs:comment "Ruta de la action dentro de su repo, por ejemplo .github/actions/pm-actividad." ;
+    rdfs:domain ns1:Action ;
+    rdfs:range xsd:string .
+
+ns1:tieneUso a rdf:Property ;
+    rdfs:comment "El workflow declara este uso." ;
+    rdfs:domain ns1:Workflow ;
+    rdfs:range ns1:Uso .
+
+ns1:tieneWorkflow a rdf:Property ;
+    rdfs:comment "El repo tiene este workflow." ;
+    rdfs:domain doap:Project ;
+    rdfs:range ns1:Workflow .
+
+ns2:aplicadoEl a rdf:Property ;
+    rdfs:comment "Cuándo apliqué. Lo escribe la acción j:MarcarAplicado." ;
+    rdfs:domain ns2:JobPost ;
+    rdfs:range xsd:dateTime .
+
+ns2:descartadoEl a rdf:Property ;
+    rdfs:comment "Cuándo lo descarté. Lo escribe la acción j:Descartar." ;
+    rdfs:domain ns2:JobPost ;
+    rdfs:range xsd:dateTime .
+
+ns2:empresa a rdf:Property ;
+    rdfs:comment "Quién publica el puesto." ;
+    rdfs:domain ns2:JobPost .
+
+ns2:pide a rdf:Property ;
+    rdfs:comment "El texto del puesto menciona esta Technology (por nombre o sinónimo)." ;
+    rdfs:domain ns2:JobPost ;
+    rdfs:range <https://kiri23.dev/tech#Technology> .
+
+ns2:porque a rdf:Property ;
+    rdfs:comment "Por qué lo descarté, en mis palabras." ;
+    rdfs:domain ns2:JobPost ;
+    rdfs:range xsd:string .
+
+<https://kiri23.dev/tech#Caddy> a <https://kiri23.dev/tech#Technology> ;
+    skos:prefLabel "Caddy" .
+
+<https://kiri23.dev/tech#Deno> a <https://kiri23.dev/tech#Technology> ;
+    skos:prefLabel "Deno" .
+
+<https://kiri23.dev/tech#Doppler> a <https://kiri23.dev/tech#Technology> ;
+    skos:prefLabel "Doppler" .
+
+<https://kiri23.dev/tech#Neo4j> a <https://kiri23.dev/tech#Technology> ;
+    skos:prefLabel "Neo4j" .
+
+<https://kiri23.dev/tech#Supabase> a <https://kiri23.dev/tech#Technology> ;
+    skos:prefLabel "Supabase" .
+
+<https://kiri23.dev/tech#Tailscale> a <https://kiri23.dev/tech#Technology> ;
+    skos:prefLabel "Tailscale" .
+
+<https://kiri23.dev/tech#Traefik> a <https://kiri23.dev/tech#Technology> ;
+    skos:prefLabel "Traefik" .
+
+<https://news.ycombinator.com/item?id=49922584> a ns2:JobPost ;
+    rdfs:label "PrairieLearn (Remote US) — Full-Stack Software Engineer — TypeScript / Postgres / React / AI" ;
+    dcterms:source "hn" ;
+    prov:generatedAtTime "2026-10-13T21:03:57+00:00"^^xsd:dateTime ;
+    ns2:empresa "PrairieLearn (Remote US) — Full-Stack Software Engineer — TypeScript / Postgres / React / AI" ;
+    ns2:pide <https://kiri23.dev/tech#AWS>,
+        <https://kiri23.dev/tech#NodeJs>,
+        <https://kiri23.dev/tech#React>,
+        <https://kiri23.dev/tech#TypeScript> .
+
+<https://news.ycombinator.com/item?id=49922609> a ns2:JobPost ;
+    rdfs:label "Senior SWE, R&D Engineer, Intelligence Engineer | REMOTE (US Timezones) | Full-time | $170k to $230k Base + Equity + Health" ;
+    dcterms:source "hn" ;
+    prov:generatedAtTime "2026-10-13T21:03:57+00:00"^^xsd:dateTime ;
+    ns2:empresa "Sidekick Labs" ;
+    ns2:pide <https://kiri23.dev/tech#Python> .
+
+<https://news.ycombinator.com/item?id=49922621> a ns2:JobPost ;
+    rdfs:label "Multiple Engineering + Product Roles | Remote US or Ontario, Canada | Full Time" ;
+    dcterms:source "hn" ;
+    prov:generatedAtTime "2026-10-13T21:03:57+00:00"^^xsd:dateTime ;
+    ns2:empresa "Snout https://snout.com/" ;
+    ns2:pide <https://kiri23.dev/tech#AWS>,
+        <https://kiri23.dev/tech#NodeJs>,
+        <https://kiri23.dev/tech#Python>,
+        <https://kiri23.dev/tech#React>,
+        <https://kiri23.dev/tech#TypeScript> .
+
+<https://news.ycombinator.com/item?id=49922695> a ns2:JobPost ;
+    rdfs:label "London, UK | Full-Time | ONSITE+PART REMOTE | https://www.openrent.co.uk" ;
+    dcterms:source "hn" ;
+    prov:generatedAtTime "2026-10-13T21:03:57+00:00"^^xsd:dateTime ;
+    ns2:empresa "OpenRent" .
+
+<https://news.ycombinator.com/item?id=49922711> a ns2:JobPost ;
+    rdfs:label "Multiple engineering + go-to-market roles | Remote-first" ;
+    dcterms:source "hn" ;
+    prov:generatedAtTime "2026-10-13T21:03:57+00:00"^^xsd:dateTime ;
+    ns2:empresa "CareerJumpShip" .
+
+<https://news.ycombinator.com/item?id=49922803> a ns2:JobPost ;
+    rdfs:label "Android Software Engineer | Remote | Full-time https://flexibits.com/jobs" ;
+    dcterms:source "hn" ;
+    prov:generatedAtTime "2026-10-13T21:03:57+00:00"^^xsd:dateTime ;
+    ns2:empresa "Flexibits" ;
+    ns2:pide <https://kiri23.dev/tech#CSharp> .
+
+<https://news.ycombinator.com/item?id=49922910> a ns2:JobPost ;
+    rdfs:label "Product Engineer | Berlin, Germany / REMOTE (CET ±3 preferred) | Freelance / employment" ;
+    dcterms:source "hn" ;
+    prov:generatedAtTime "2026-10-13T21:03:57+00:00"^^xsd:dateTime ;
+    ns2:empresa "OpenSanctions" ;
+    ns2:pide <https://kiri23.dev/tech#Python>,
+        <https://kiri23.dev/tech#React> .
+
+<https://news.ycombinator.com/item?id=49922970> a ns2:JobPost ;
+    rdfs:label "Growth Lead, Expansion & Lifecycle | REMOTE | Fixed-fee project ($12K, milestone-based) + equity tied to ARR results → founding role | https://arrangr.com" ;
+    dcterms:source "hn" ;
+    prov:generatedAtTime "2026-10-13T21:03:57+00:00"^^xsd:dateTime ;
+    ns2:empresa "Arrangr" .
+
+<https://news.ycombinator.com/item?id=49923010> a ns2:JobPost ;
+    rdfs:label "Staff Engineers (Elixir) | NYC or REMOTE (US, Europe, South America) | Full-Time | $200K-$250K + equity | https://jobs.ashbyhq.com/river?utm_source=Zp9nJyqvd4" ;
+    dcterms:source "hn" ;
+    prov:generatedAtTime "2026-10-13T21:03:57+00:00"^^xsd:dateTime ;
+    ns2:empresa "River" ;
+    ns2:pide <https://kiri23.dev/tech#Python>,
+        <https://kiri23.dev/tech#React> .
+
+<https://news.ycombinator.com/item?id=49923320> a ns2:JobPost ;
+    rdfs:label "Multiple Engineering, AI/ML Data Science, Revenue, and Ops Roles | ONSITE NYC or REMOTE (US/Can) | $130-240K+ (depending on role/level) + equity" ;
+    dcterms:source "hn" ;
+    prov:generatedAtTime "2026-10-13T21:03:57+00:00"^^xsd:dateTime ;
+    ns2:empresa "Spade" .
+
+<https://news.ycombinator.com/item?id=49923756> a ns2:JobPost ;
+    rdfs:label "Senior Product Engineer | NYC or Remote | Full-time |" ;
+    dcterms:source "hn" ;
+    prov:generatedAtTime "2026-10-13T21:03:57+00:00"^^xsd:dateTime ;
+    ns2:empresa "Starbridge" ;
+    ns2:pide <https://kiri23.dev/tech#React>,
+        <https://kiri23.dev/tech#TypeScript> .
+
+<https://news.ycombinator.com/item?id=49923784> a ns2:JobPost ;
+    rdfs:label "San Francisco, CA / New York, NY / Zurich, Switzerland / Remote | Full-time | REMOTE or HYBRID | https://namespace.so" ;
+    dcterms:source "hn" ;
+    prov:generatedAtTime "2026-10-13T21:03:57+00:00"^^xsd:dateTime ;
+    ns2:empresa "Namespace" .
+
+<https://news.ycombinator.com/item?id=49923870> a ns2:JobPost ;
+    rdfs:label "Senior/Staff Software Engineer (Interactives) | Remote (North America), SF, NYC | Full-time | $180k-$250k | https://brilliant.org" ;
+    dcterms:source "hn" ;
+    prov:generatedAtTime "2026-10-13T21:03:57+00:00"^^xsd:dateTime ;
+    ns2:empresa "Brilliant.org" .
+
+<https://news.ycombinator.com/item?id=49923964> a ns2:JobPost ;
+    rdfs:label "Lead Engineer | Remote (US/Canada only) | Full-time" ;
+    dcterms:source "hn" ;
+    prov:generatedAtTime "2026-10-13T21:03:57+00:00"^^xsd:dateTime ;
+    ns2:empresa "Relevant Healthcare" ;
+    ns2:pide <https://kiri23.dev/tech#React>,
+        <https://kiri23.dev/tech#TypeScript> .
+
+<https://news.ycombinator.com/item?id=49924016> a ns2:JobPost ;
+    rdfs:label "Full Stack Product Engineer (Design & Geospatial) | Tuscaloosa, AL | REMOTE (US) | Full-time | $110k–$159k + equity" ;
+    dcterms:source "hn" ;
+    prov:generatedAtTime "2026-10-13T21:03:57+00:00"^^xsd:dateTime ;
+    ns2:empresa "City Detect" ;
+    ns2:pide <https://kiri23.dev/tech#AWS>,
+        <https://kiri23.dev/tech#Python>,
+        <https://kiri23.dev/tech#React>,
+        <https://kiri23.dev/tech#TypeScript> .
+
+<https://news.ycombinator.com/item?id=49924327> a ns2:JobPost ;
+    rdfs:label "Multiple Engineering Roles | REMOTE (US) | Full-time | No visa sponsorship offered" ;
+    dcterms:source "hn" ;
+    prov:generatedAtTime "2026-10-13T21:03:57+00:00"^^xsd:dateTime ;
+    ns2:empresa "Solace Health" ;
+    ns2:pide <https://kiri23.dev/tech#NodeJs>,
+        <https://kiri23.dev/tech#React>,
+        <https://kiri23.dev/tech#TypeScript> .
+
+<https://news.ycombinator.com/item?id=49924556> a ns2:JobPost ;
+    rdfs:label "https://sudowrite.com | √ REMOTE (US) | √ PMF | √ PROFITABLE | Full-Time" ;
+    dcterms:source "hn" ;
+    prov:generatedAtTime "2026-10-13T21:03:57+00:00"^^xsd:dateTime ;
+    ns2:empresa "Sudowrite" ;
+    ns2:pide <https://kiri23.dev/tech#React> .
+
+<https://news.ycombinator.com/item?id=49924581> a ns2:JobPost ;
+    rdfs:label "AI Harness Engineer | REMOTE (Worldwide) | Full-time" ;
+    dcterms:source "hn" ;
+    prov:generatedAtTime "2026-10-13T21:03:57+00:00"^^xsd:dateTime ;
+    ns2:empresa "Tether" ;
+    ns2:pide <https://kiri23.dev/tech#TypeScript> .
+
+<https://news.ycombinator.com/item?id=49924674> a ns2:JobPost ;
+    rdfs:label "DuckDuckGo - we are looking for candidates that are excited to join us on a mission to raise the standard of trust online. All of our roles are fully-remote, except where specific locations are noted." ;
+    dcterms:source "hn" ;
+    prov:generatedAtTime "2026-10-13T21:03:57+00:00"^^xsd:dateTime ;
+    ns2:empresa "DuckDuckGo - we are looking for candidates that are excited to join us on a mission to raise the standard of trust online. All of our roles are fully-remote, except where specific locations are noted." .
+
+<https://news.ycombinator.com/item?id=49924889> a ns2:JobPost ;
+    rdfs:label "Earth | Part Time | REMOTE | Anything" ;
+    dcterms:source "hn" ;
+    prov:generatedAtTime "2026-10-13T21:03:57+00:00"^^xsd:dateTime ;
+    ns2:empresa "Trustworthy Technology" .
+
+<https://news.ycombinator.com/item?id=49924972> a ns2:JobPost ;
+    rdfs:label "Santa Clara, CA and Berlin, Germany | Full-time / Remote | ONSITE | https://www.quobyte.com/" ;
+    dcterms:source "hn" ;
+    prov:generatedAtTime "2026-10-13T21:03:57+00:00"^^xsd:dateTime ;
+    ns2:empresa "QUOBYTE" .
+
+<https://news.ycombinator.com/item?id=49924974> a ns2:JobPost ;
+    rdfs:label "Remote (US) | Full-time | https://curaihealth.com" ;
+    dcterms:source "hn" ;
+    prov:generatedAtTime "2026-10-13T21:03:57+00:00"^^xsd:dateTime ;
+    ns2:empresa "Curai" ;
+    ns2:pide <https://kiri23.dev/tech#AWS>,
+        <https://kiri23.dev/tech#Docker>,
+        <https://kiri23.dev/tech#Python>,
+        <https://kiri23.dev/tech#React> .
+
+<https://news.ycombinator.com/item?id=49925063> a ns2:JobPost ;
+    rdfs:label "Senior Software Engineer, Application Security | REMOTE (US West Coast) or San Francisco, CA | $196K-$245K base + equity" ;
+    dcterms:source "hn" ;
+    prov:generatedAtTime "2026-10-13T21:03:57+00:00"^^xsd:dateTime ;
+    ns2:empresa "Discord" ;
+    ns2:pide <https://kiri23.dev/tech#Python>,
+        <https://kiri23.dev/tech#React>,
+        <https://kiri23.dev/tech#TypeScript> .
+
+<https://news.ycombinator.com/item?id=49925300> a ns2:JobPost ;
+    rdfs:label "REMOTE (US) or Austin, TX | Full-time | https://applyapply.xyz" ;
+    dcterms:source "hn" ;
+    prov:generatedAtTime "2026-10-13T21:03:57+00:00"^^xsd:dateTime ;
+    ns2:empresa "applyapply" .
+
+<https://news.ycombinator.com/item?id=49925469> a ns2:JobPost ;
+    rdfs:label "Senior Software Engineer | REMOTE | Full-Time" ;
+    dcterms:source "hn" ;
+    prov:generatedAtTime "2026-10-13T21:03:57+00:00"^^xsd:dateTime ;
+    ns2:empresa "Descartes - Finale Inventory" ;
+    ns2:pide <https://kiri23.dev/tech#NodeJs>,
+        <https://kiri23.dev/tech#React> .
+
+<https://news.ycombinator.com/item?id=49925489> a ns2:JobPost ;
+    rdfs:label "Backend Software Engineer | Remote (Global) | https://enveritas.org/jobs/ Enveritas is a 501(c)(3) nonprofit working on sustainability issues facing smallholder coffee farmers. We collect field data in 30+ countries and build systems for analyzing risks in coffee, cocoa, and tea supply chains (including EUDR-related deforestation checks)." ;
+    dcterms:source "hn" ;
+    prov:generatedAtTime "2026-10-13T21:03:57+00:00"^^xsd:dateTime ;
+    ns2:empresa "Enveritas (YC S18, non-profit)" ;
+    ns2:pide <https://kiri23.dev/tech#AWS>,
+        <https://kiri23.dev/tech#Docker>,
+        <https://kiri23.dev/tech#Python> .
+
+<https://news.ycombinator.com/item?id=49925497> a ns2:JobPost ;
+    rdfs:label "Software Engineer (L4) | San Francisco HYBRID (3 days/wk) or REMOTE (US) | Full-time | $199K–$249K + equity" ;
+    dcterms:source "hn" ;
+    prov:generatedAtTime "2026-10-13T21:03:57+00:00"^^xsd:dateTime ;
+    ns2:empresa "Paramark" ;
+    ns2:pide <https://kiri23.dev/tech#Python>,
+        <https://kiri23.dev/tech#React>,
+        <https://kiri23.dev/tech#TypeScript> .
+
+<https://news.ycombinator.com/item?id=49925526> a ns2:JobPost ;
+    rdfs:label "Senior Software Engineer, Decisioning | REMOTE (US only) or NYC/Dallas | $130K to $170K base + bonus eligibility + employee stock options" ;
+    dcterms:source "hn" ;
+    prov:generatedAtTime "2026-10-13T21:03:57+00:00"^^xsd:dateTime ;
+    ns2:empresa "Octane" ;
+    ns2:pide <https://kiri23.dev/tech#Python> .
+
+<https://news.ycombinator.com/item?id=49926050> a ns2:JobPost ;
+    rdfs:label "GMT-2 <--> GMT+2 | Remote | Full time or part time or contract" ;
+    dcterms:source "hn" ;
+    prov:generatedAtTime "2026-10-13T21:03:57+00:00"^^xsd:dateTime ;
+    ns2:empresa "Audio/Video Collaboration company, worldwide" .
+
+<https://news.ycombinator.com/item?id=49926195> a ns2:JobPost ;
+    rdfs:label "https://rootly.com/ | design, engineering, GTM, sales | SF Bay, Toronto, APAC, Remote" ;
+    dcterms:source "hn" ;
+    prov:generatedAtTime "2026-10-13T21:03:57+00:00"^^xsd:dateTime ;
+    ns2:empresa "Rootly" .
+
+<https://news.ycombinator.com/item?id=49926228> a ns2:JobPost ;
+    rdfs:label "Full-Stack Developer (Node.js) | REMOTE |  €35-45k/year" ;
+    dcterms:source "hn" ;
+    prov:generatedAtTime "2026-10-13T21:03:57+00:00"^^xsd:dateTime ;
+    ns2:empresa "Trackerbot" ;
+    ns2:pide <https://kiri23.dev/tech#AWS>,
+        <https://kiri23.dev/tech#NodeJs> .
+
+<https://news.ycombinator.com/item?id=49926232> a ns2:JobPost ;
+    rdfs:label "Head of AI Sales / AI Go To Market | SF, ATX, or REMOTE (US) | Full-time | $180k–$250k OTE + Equity | https://toolhouse.ai" ;
+    dcterms:source "hn" ;
+    prov:generatedAtTime "2026-10-13T21:03:57+00:00"^^xsd:dateTime ;
+    ns2:empresa "Toolhouse AI" .
+
+<https://news.ycombinator.com/item?id=49926511> a ns2:JobPost ;
+    rdfs:label "Staff Product Engineer, Enterprise AI | REMOTE (US or Canada) | Full-Time | $185K–$220K USD / $155K–$185K CAD | https://grnh.se/viz7vum71us" ;
+    dcterms:source "hn" ;
+    prov:generatedAtTime "2026-10-13T21:03:57+00:00"^^xsd:dateTime ;
+    ns2:empresa "Mozilla / Thunderbird / Thunderbolt" .
+
+<https://news.ycombinator.com/item?id=49926618> a ns2:JobPost ;
+    rdfs:label "https://futo.tech/ | Austin, TX | REMOTE(Worldwide) or ONSITE | Full Time" ;
+    dcterms:source "hn" ;
+    prov:generatedAtTime "2026-10-13T21:03:57+00:00"^^xsd:dateTime ;
+    ns2:empresa "FUTO" .
+
+<https://news.ycombinator.com/item?id=49926771> a ns2:JobPost ;
+    rdfs:label "https://innolitics.com/join | Remote | Full-Time" ;
+    dcterms:source "hn" ;
+    prov:generatedAtTime "2026-10-13T21:03:57+00:00"^^xsd:dateTime ;
+    ns2:empresa "Innolitics" .
+
+<https://news.ycombinator.com/item?id=49926811> a ns2:JobPost ;
+    rdfs:label "Remote | Full-Time | Senior Backend Software Engineer | $200k to $250k USD Total Compensation + Benefits" ;
+    dcterms:source "hn" ;
+    prov:generatedAtTime "2026-10-13T21:03:57+00:00"^^xsd:dateTime ;
+    ns2:empresa "KSC Trading" .
+
+<https://news.ycombinator.com/item?id=49926872> a ns2:JobPost ;
+    rdfs:label "Toronto, Ontario | ONSITE, HYBRID, REMOTE (role-dependent) | Full-time | https://cardog.app/careers" ;
+    dcterms:source "hn" ;
+    prov:generatedAtTime "2026-10-13T21:03:57+00:00"^^xsd:dateTime ;
+    ns2:empresa "Cardog" ;
+    ns2:pide <https://kiri23.dev/tech#React>,
+        <https://kiri23.dev/tech#TypeScript> .
+
+<https://news.ycombinator.com/item?id=49926951> a ns2:JobPost ;
+    rdfs:label "Senior Full Stack Engineer | REMOTE (US or Canada) | $180k-$200k + Equity" ;
+    dcterms:source "hn" ;
+    prov:generatedAtTime "2026-10-13T21:03:57+00:00"^^xsd:dateTime ;
+    ns2:empresa "Postscript" .
+
+<https://news.ycombinator.com/item?id=49927132> a ns2:JobPost ;
+    rdfs:label "Principal Product Manager, AI Products | Full-Time | $213k-$288k + equity... | SF/NYC On-site / Remote US" ;
+    dcterms:source "hn" ;
+    prov:generatedAtTime "2026-10-13T21:03:57+00:00"^^xsd:dateTime ;
+    ns2:empresa "Komodo Health" .
+
+<https://news.ycombinator.com/item?id=49927319> a ns2:JobPost ;
+    rdfs:label "Multiple Roles | Remote (US)| Full-time" ;
+    dcterms:source "hn" ;
+    prov:generatedAtTime "2026-10-13T21:03:57+00:00"^^xsd:dateTime ;
+    ns2:empresa "Sumble" .
+
+<https://news.ycombinator.com/item?id=49927351> a ns2:JobPost ;
+    rdfs:label "Calibration Engineer | Remote (US preferred) | Full Time | $160k-$180k + equity" ;
+    dcterms:source "hn" ;
+    prov:generatedAtTime "2026-10-13T21:03:57+00:00"^^xsd:dateTime ;
+    ns2:empresa "Tangram Vision" .
+
+<https://news.ycombinator.com/item?id=49927692> a ns2:JobPost ;
+    rdfs:label "REMOTE (US or Canada) or San Francisco, Los Angeles, Chicago, Boston, New York City, New Jersey, Seattle, Austin, Toronto, or Washington DC | Software Engineer | Full-Time | Salary: $80k-$200k USD | https://www.rinse.com" ;
+    dcterms:source "hn" ;
+    prov:generatedAtTime "2026-10-13T21:03:57+00:00"^^xsd:dateTime ;
+    ns2:empresa "RINSE" ;
+    ns2:pide <https://kiri23.dev/tech#MCP>,
+        <https://kiri23.dev/tech#Python>,
+        <https://kiri23.dev/tech#React>,
+        <https://kiri23.dev/tech#TypeScript> .
+
+<https://news.ycombinator.com/item?id=49927984> a ns2:JobPost ;
+    rdfs:label "Remote | Full-Time | SWE, Tech Lead, ML Engineer, Product Manager, Product Marketing Manager | https://sourcegraph.com" ;
+    dcterms:source "hn" ;
+    prov:generatedAtTime "2026-10-13T21:03:57+00:00"^^xsd:dateTime ;
+    ns2:empresa "Sourcegraph" ;
+    ns2:pide <https://kiri23.dev/tech#MCP> .
+
+<https://news.ycombinator.com/item?id=49928023> a ns2:JobPost ;
+    rdfs:label "https://hrssystems.com | Remote (US) | Full-Time | SWE" ;
+    dcterms:source "hn" ;
+    prov:generatedAtTime "2026-10-13T21:03:57+00:00"^^xsd:dateTime ;
+    ns2:empresa "HRS Systems" .
+
+<https://news.ycombinator.com/item?id=49928334> a ns2:JobPost ;
+    rdfs:label "https://kaavio.ai | REMOTE (US or Canada) | Full Time" ;
+    dcterms:source "hn" ;
+    prov:generatedAtTime "2026-10-13T21:03:57+00:00"^^xsd:dateTime ;
+    ns2:empresa "Kaavio" .
+
+<https://news.ycombinator.com/item?id=49928358> a ns2:JobPost ;
+    rdfs:label "Canada | Full Time | Engineer | Remote(Canada)| QEMU" ;
+    dcterms:source "hn" ;
+    prov:generatedAtTime "2026-10-13T21:03:57+00:00"^^xsd:dateTime ;
+    ns2:empresa "Qualcomm" .
+
+<https://news.ycombinator.com/item?id=49928677> a ns2:JobPost ;
+    rdfs:label "Rust Systems Engineer, Browser Security | Remote (Global) | Full-time | $120k–$170k + Equity | https://datamint.xyz" ;
+    dcterms:source "hn" ;
+    prov:generatedAtTime "2026-10-13T21:03:57+00:00"^^xsd:dateTime ;
+    ns2:empresa "Datamint" ;
+    ns2:pide <https://kiri23.dev/tech#MCP>,
+        <https://kiri23.dev/tech#Python>,
+        <https://kiri23.dev/tech#React>,
+        <https://kiri23.dev/tech#TypeScript> .
+
+<https://news.ycombinator.com/item?id=49928755> a ns2:JobPost ;
+    rdfs:label "Principal Software Engineer, Senior Java Engineers, Account Executive, Customer Support Manager | Varies between REMOTE (in USA, also in Europe but only for the account exec position) and ONSITE in Denver, CO, USA, details in each job desc | Salary ranges for the Principal Software Engineer it is 225k-270k, but the Euro positions don't have them :(" ;
+    dcterms:source "hn" ;
+    prov:generatedAtTime "2026-10-13T21:03:57+00:00"^^xsd:dateTime ;
+    ns2:empresa "FusionAuth" ;
+    ns2:pide <https://kiri23.dev/tech#Docker> .
+
+<https://news.ycombinator.com/item?id=49929056> a ns2:JobPost ;
+    rdfs:label "Senior Software Engineer | REMOTE in select countries (listed here https://perfectwiki.page/p/iOeyfUha_9) | $181K base + 15% bonus index" ;
+    dcterms:source "hn" ;
+    prov:generatedAtTime "2026-10-13T21:03:57+00:00"^^xsd:dateTime ;
+    ns2:empresa "GiveDirectly" .
+
+<https://news.ycombinator.com/item?id=49929200> a ns2:JobPost ;
+    rdfs:label "https://serpapi.com | Junior to Senior Fullstack Engineer multiple positions | Customer Success Engineer | Hiring Coordinator | Python/Ruby/PHP/Js/Rust/Kotlin/C#/Crystal/Nim/Elixir Developer Advocate positions | Based in Austin, TX but remote-first structure | Full-time | ONSITE or FULLY REMOTE | $150K - 180K a year 1099 for US or local avg + 20% for outside the US" ;
+    dcterms:source "hn" ;
+    prov:generatedAtTime "2026-10-13T21:03:57+00:00"^^xsd:dateTime ;
+    ns2:empresa "SerpApi" ;
+    ns2:pide <https://kiri23.dev/tech#CSharp>,
+        <https://kiri23.dev/tech#Python>,
+        <https://kiri23.dev/tech#React> .
+
+<https://news.ycombinator.com/item?id=49929202> a ns2:JobPost ;
+    rdfs:label "Founding team | Southern California or REMOTE (US) | Profit share + founding equity, no salary" ;
+    dcterms:source "hn" ;
+    prov:generatedAtTime "2026-10-13T21:03:57+00:00"^^xsd:dateTime ;
+    ns2:empresa "IRLi" .
+
+<https://news.ycombinator.com/item?id=49929235> a ns2:JobPost ;
+    rdfs:label "Software Engineers (SRE, ML, backend, full-stack, mobile, security, QA) | Remote (US), NYC | Full Time | https://radar.com" ;
+    dcterms:source "hn" ;
+    prov:generatedAtTime "2026-10-13T21:03:57+00:00"^^xsd:dateTime ;
+    ns2:empresa "Radar Labs" ;
+    ns2:pide <https://kiri23.dev/tech#AWS>,
+        <https://kiri23.dev/tech#MCP>,
+        <https://kiri23.dev/tech#Python>,
+        <https://kiri23.dev/tech#TypeScript> .
+
+<https://news.ycombinator.com/item?id=49929283> a ns2:JobPost ;
+    rdfs:label "Software Engineer (Staff+ level) | US incl Remote + Canada + Ireland + UK + Switzerland + Japan | Full Time" ;
+    dcterms:source "hn" ;
+    prov:generatedAtTime "2026-10-13T21:03:57+00:00"^^xsd:dateTime ;
+    ns2:empresa "Anthropic" .
+
+<https://news.ycombinator.com/item?id=49929368> a ns2:JobPost ;
+    rdfs:label "Ambito (ambito.io) — Founding AI Engineer / Equity Partner — Remote but Boston based only" ;
+    dcterms:source "hn" ;
+    prov:generatedAtTime "2026-10-13T21:03:57+00:00"^^xsd:dateTime ;
+    ns2:empresa "Ambito (ambito.io) — Founding AI Engineer / Equity Partner — Remote but Boston based only" ;
+    ns2:pide <https://kiri23.dev/tech#NodeJs>,
+        <https://kiri23.dev/tech#React>,
+        <https://kiri23.dev/tech#TypeScript> .
+
+<https://news.ycombinator.com/item?id=49929522> a ns2:JobPost ;
+    rdfs:label "https://seeq.com | Staff/Principal Software Engineer (Full-Stack, AI, Backend, Platform) | REMOTE (Some crossover w/ PST required) | Full-time | $170k-$205k + annual cash bonus + equity. Salary range for US-based; local adjustments for other countries." ;
+    dcterms:source "hn" ;
+    prov:generatedAtTime "2026-10-13T21:03:57+00:00"^^xsd:dateTime ;
+    ns2:empresa "Seeq" ;
+    ns2:pide <https://kiri23.dev/tech#Python>,
+        <https://kiri23.dev/tech#React> .
+
+<https://news.ycombinator.com/item?id=49929588> a ns2:JobPost ;
+    rdfs:label "Europe / US Remote" ;
+    dcterms:source "hn" ;
+    prov:generatedAtTime "2026-10-13T21:03:57+00:00"^^xsd:dateTime ;
+    ns2:empresa "Looking for a commercial co-founder" .
+
+<https://news.ycombinator.com/item?id=49929655> a ns2:JobPost ;
+    rdfs:label "Remote | Hiring people to make calls | At your convenience, no set hours" ;
+    dcterms:source "hn" ;
+    prov:generatedAtTime "2026-10-13T21:03:57+00:00"^^xsd:dateTime ;
+    ns2:empresa "Wake Up Call Service" .
+
+<https://news.ycombinator.com/item?id=49929798> a ns2:JobPost ;
+    rdfs:label "tahoma.io | Austin, TX or Seattle, WA (ONSITE optional) | REMOTE (US) | Full-time | Founding Engineer" ;
+    dcterms:source "hn" ;
+    prov:generatedAtTime "2026-10-13T21:03:57+00:00"^^xsd:dateTime ;
+    ns2:empresa "Tahoma AI" ;
+    ns2:pide <https://kiri23.dev/tech#AWS>,
+        <https://kiri23.dev/tech#NodeJs>,
+        <https://kiri23.dev/tech#TypeScript> .
+
+<https://news.ycombinator.com/item?id=49930066> a ns2:JobPost ;
+    rdfs:label "Remote (see below) | Full-time | https://runway.com/ Runway is building foundational Real-World Intelligence that can understand, simulate and act in the world. We offer products and services built on-top of this intelligence to empower individuals and organizations to do more in the world. We're hiring across multiple roles, some specifically:" ;
+    dcterms:source "hn" ;
+    prov:generatedAtTime "2026-10-13T21:03:57+00:00"^^xsd:dateTime ;
+    ns2:empresa "Runway" .
+
+<https://news.ycombinator.com/item?id=49930919> a ns2:JobPost ;
+    rdfs:label "Senior Full-Stack Engineer | Berlin, Germany | REMOTE (CET) | Full-time | eventfirst.com" ;
+    dcterms:source "hn" ;
+    prov:generatedAtTime "2026-10-13T21:03:57+00:00"^^xsd:dateTime ;
+    ns2:empresa "eventfirst" ;
+    ns2:pide <https://kiri23.dev/tech#React>,
+        <https://kiri23.dev/tech#TypeScript> .
+
+<https://news.ycombinator.com/item?id=49931051> a ns2:JobPost ;
+    rdfs:label "Engineering Manager, Applied AI | REMOTE (CET ±2) | Full-time | Up to €160k base | https://jupus.de" ;
+    dcterms:source "hn" ;
+    prov:generatedAtTime "2026-10-13T21:03:57+00:00"^^xsd:dateTime ;
+    ns2:empresa "JUPUS" .
+
+<https://news.ycombinator.com/item?id=49931740> a ns2:JobPost ;
+    rdfs:label "Data Scientist, Classification and Scoring | REMOTE: North America / Europe, UTC-8 to UTC+2 | Full-time" ;
+    dcterms:source "hn" ;
+    prov:generatedAtTime "2026-10-13T21:03:57+00:00"^^xsd:dateTime ;
+    ns2:empresa "Lokker.com" ;
+    ns2:pide <https://kiri23.dev/tech#Python> .
+
+<https://news.ycombinator.com/item?id=49931746> a ns2:JobPost ;
+    rdfs:label "Product Engineer (Product Manager role, not a Full-stack role) | REMOTE (anywhere, EST hours) | Full-time contractor | $23-$34 USD/hour | https://careers.searchatlas.com/jobs/599248-product-engineer..." ;
+    dcterms:source "hn" ;
+    prov:generatedAtTime "2026-10-13T21:03:57+00:00"^^xsd:dateTime ;
+    ns2:empresa "Search Atlas" ;
+    ns2:pide <https://kiri23.dev/tech#Python>,
+        <https://kiri23.dev/tech#React>,
+        <https://kiri23.dev/tech#TypeScript> .
+
+<https://news.ycombinator.com/item?id=49932275> a ns2:JobPost ;
+    rdfs:label "Multiple Roles | Full-time / Contract | NYC / Remote" ;
+    dcterms:source "hn" ;
+    prov:generatedAtTime "2026-10-13T21:03:57+00:00"^^xsd:dateTime ;
+    ns2:empresa "Sundream Studio" .
+
+<https://news.ycombinator.com/item?id=49933969> a ns2:JobPost ;
+    rdfs:label "Equity + Salary | San Francisco / Remote (PST)  | Senior Fullstack Engineer / Engineering Manager Americas" ;
+    dcterms:source "hn" ;
+    prov:generatedAtTime "2026-10-13T21:03:57+00:00"^^xsd:dateTime ;
+    ns2:empresa "HIFI Labs (https://hifilabs.co)" ;
+    ns2:pide <https://kiri23.dev/tech#React>,
+        <https://kiri23.dev/tech#TypeScript> .
+
+<https://news.ycombinator.com/item?id=49934638> a ns2:JobPost ;
+    rdfs:label "Forward Deployed Engineers | Los Angeles, CA | REMOTE | $150k-$250k annual salary" ;
+    dcterms:source "hn" ;
+    prov:generatedAtTime "2026-10-13T21:03:57+00:00"^^xsd:dateTime ;
+    ns2:empresa "Fredrin" ;
+    ns2:pide <https://kiri23.dev/tech#TypeScript> .
+
+<https://news.ycombinator.com/item?id=49934993> a ns2:JobPost ;
+    rdfs:label "At Tether (https://tether.io/) we're hiring! We envision a world where technology enables financial freedom, educational empowerment, energy sustainability, and data sovereignty. All of our roles are fully remote, worldwide. Apply now:" ;
+    dcterms:source "hn" ;
+    prov:generatedAtTime "2026-10-13T21:03:57+00:00"^^xsd:dateTime ;
+    ns2:empresa "At Tether (https://tether.io/) we're hiring! We envision a world where technology enables financial freedom, educational empowerment, energy sustainability, and data sovereignty. All of our roles are fully remote, worldwide. Apply now:" .
+
+<https://news.ycombinator.com/item?id=49935083> a ns2:JobPost ;
+    rdfs:label "AI Scientist (Staff, Senior) | REMOTE (US) | Full-time | https://www.tempus.com" ;
+    dcterms:source "hn" ;
+    prov:generatedAtTime "2026-10-13T21:03:57+00:00"^^xsd:dateTime ;
+    ns2:empresa "Tempus AI" .
+
+<https://news.ycombinator.com/item?id=49935587> a ns2:JobPost ;
+    rdfs:label "Multiple roles - Software - AI - FDE - Cloud | Global (US/CAN/EU/India) | on-site and remote" ;
+    dcterms:source "hn" ;
+    prov:generatedAtTime "2026-10-13T21:03:57+00:00"^^xsd:dateTime ;
+    ns2:empresa "Wipro.com" .
+
+<https://news.ycombinator.com/item?id=49936182> a ns2:JobPost ;
+    rdfs:label "Remote (US) or Santa Clara or Brooklyn | Full time | https://oklo.com" ;
+    dcterms:source "hn" ;
+    prov:generatedAtTime "2026-10-13T21:03:57+00:00"^^xsd:dateTime ;
+    ns2:empresa "Oklo" .
+
+<https://news.ycombinator.com/item?id=49936893> a ns2:JobPost ;
+    rdfs:label "Remote | Full-time | https://clickhouse.com/" ;
+    dcterms:source "hn" ;
+    prov:generatedAtTime "2026-10-13T21:03:57+00:00"^^xsd:dateTime ;
+    ns2:empresa "ClickHouse" .
+
+<https://news.ycombinator.com/item?id=49937360> a ns2:JobPost ;
+    rdfs:label "Software Engineer — Remote — US Only" ;
+    dcterms:source "hn" ;
+    prov:generatedAtTime "2026-10-13T21:03:57+00:00"^^xsd:dateTime ;
+    ns2:empresa "Software Engineer — Remote — US Only" ;
+    ns2:pide <https://kiri23.dev/tech#CSharp>,
+        <https://kiri23.dev/tech#NodeJs>,
+        <https://kiri23.dev/tech#Python>,
+        <https://kiri23.dev/tech#React>,
+        <https://kiri23.dev/tech#TypeScript> .
+
+<https://news.ycombinator.com/item?id=49937789> a ns2:JobPost ;
+    rdfs:label "Principal Software Engineer (Java) | | [REMOTE (US) only currently residing in: Alabama, Florida, Georgia, Michigan, Mississippi, Missouri, North Carolina, Oklahoma, Tennessee, Texas, or Virginia.] | Full-time | [$170k–$190k + bonus]" ;
+    dcterms:source "hn" ;
+    prov:generatedAtTime "2026-10-13T21:03:57+00:00"^^xsd:dateTime ;
+    ns2:empresa "Tivly" ;
+    ns2:pide <https://kiri23.dev/tech#AWS> .
+
+<https://news.ycombinator.com/item?id=49939047> a ns2:JobPost ;
+    rdfs:label "Senior Mobile Developer (iOS) | https://www.perrystreet.com/careers | Remote (North America / LatAm) | Full-Time" ;
+    dcterms:source "hn" ;
+    prov:generatedAtTime "2026-10-13T21:03:57+00:00"^^xsd:dateTime ;
+    ns2:empresa "Perry Street Software" .
+
+<https://news.ycombinator.com/item?id=49939260> a ns2:JobPost ;
+    rdfs:label "Growth Marketing Engineer (AI-First) | REMOTE (Americas: US or LatAm) | Part-time contract, path to full-time | $3,500-$5,000 USD/month" ;
+    dcterms:source "hn" ;
+    prov:generatedAtTime "2026-10-13T21:03:57+00:00"^^xsd:dateTime ;
+    ns2:empresa "Privy.pro" .
+
+<https://news.ycombinator.com/item?id=49940381> a ns2:JobPost ;
+    rdfs:label "Various Software Engineering Roles | US – Remote and Hybrid | English fluency required | Full-time | $140K-$264K annual total comp (multiple)" ;
+    dcterms:source "hn" ;
+    prov:generatedAtTime "2026-10-13T21:03:57+00:00"^^xsd:dateTime ;
+    ns2:empresa "Prophet Town LLC" ;
+    ns2:pide <https://kiri23.dev/tech#Python>,
+        <https://kiri23.dev/tech#React>,
+        <https://kiri23.dev/tech#TypeScript> .
+
+<https://news.ycombinator.com/item?id=49943713> a ns2:JobPost ;
+    rdfs:label "Member of Technical Staff, Applied AI | REMOTE (US/Canada) | $180K–$430K + equity" ;
+    dcterms:source "hn" ;
+    prov:generatedAtTime "2026-10-13T21:03:57+00:00"^^xsd:dateTime ;
+    ns2:empresa "GC AI" ;
+    ns2:pide <https://kiri23.dev/tech#React>,
+        <https://kiri23.dev/tech#TypeScript> .
+
+<https://news.ycombinator.com/item?id=49945738> a ns2:JobPost ;
+    rdfs:label "Senior Software Engineer - AI Foundations | London, Paris, Berlin, Tokyo, New York, Remote | Full Time | https://kraken.tech" ;
+    dcterms:source "hn" ;
+    prov:generatedAtTime "2026-10-13T21:03:57+00:00"^^xsd:dateTime ;
+    ns2:empresa "Kraken Tech" .
+
+<https://news.ycombinator.com/item?id=49946276> a ns2:JobPost ;
+    rdfs:label "Remote (US and Canada) | FT | Multiple roles" ;
+    dcterms:source "hn" ;
+    prov:generatedAtTime "2026-10-13T21:03:57+00:00"^^xsd:dateTime ;
+    ns2:empresa "Mattermost" ;
+    ns2:pide <https://kiri23.dev/tech#React>,
+        <https://kiri23.dev/tech#TypeScript> .
+
+<https://news.ycombinator.com/item?id=49961408> a ns2:JobPost ;
+    rdfs:label "Founding Engineer, Forward Deployed (full-stack) | San Francisco Bay Area preferred, REMOTE (US) considered | Full-time | $175K–$225K + 0.5%–1.5% equity | opaxa.com" ;
+    dcterms:source "hn" ;
+    prov:generatedAtTime "2026-10-13T21:03:57+00:00"^^xsd:dateTime ;
+    ns2:empresa "Opaxa" ;
+    ns2:pide <https://kiri23.dev/tech#AWS>,
+        <https://kiri23.dev/tech#Python>,
+        <https://kiri23.dev/tech#React>,
+        <https://kiri23.dev/tech#TypeScript> .
+
+<https://news.ycombinator.com/item?id=49962075> a ns2:JobPost ;
+    rdfs:label "Senior Product Engineer | REMOTE [Europe / (GMT+2)] | Contract, full-time |" ;
+    dcterms:source "hn" ;
+    prov:generatedAtTime "2026-10-13T21:03:57+00:00"^^xsd:dateTime ;
+    ns2:empresa "Revieve Oy" ;
+    ns2:pide <https://kiri23.dev/tech#MCP>,
+        <https://kiri23.dev/tech#React>,
+        <https://kiri23.dev/tech#TypeScript> .
+
+<https://news.ycombinator.com/item?id=49962303> a ns2:JobPost ;
+    rdfs:label "Co-founder & CTO | London, UK-based preferred / REMOTE considered | Full-time | Pre-seed" ;
+    dcterms:source "hn" ;
+    prov:generatedAtTime "2026-10-13T21:03:57+00:00"^^xsd:dateTime ;
+    ns2:empresa "Elman (Deep Science Ventures)" .
+
+<https://news.ycombinator.com/item?id=49964448> a ns2:JobPost ;
+    rdfs:label "REMOTE ALMOST ANYWHERE IN THE WORLD| Hiring principal and distinguished engineers to build net new products | up to ~ $750k" ;
+    dcterms:source "hn" ;
+    prov:generatedAtTime "2026-10-13T21:03:57+00:00"^^xsd:dateTime ;
+    ns2:empresa "ALBERT" ;
+    ns2:pide <https://kiri23.dev/tech#Python>,
+        <https://kiri23.dev/tech#React> .
+
+<https://news.ycombinator.com/item?id=49966033> a ns2:JobPost ;
+    rdfs:label "https://betterstack.com/ | /^Full-?stack Engineer$/i | Remote (North America & Europe)" ;
+    dcterms:source "hn" ;
+    prov:generatedAtTime "2026-10-13T21:03:57+00:00"^^xsd:dateTime ;
+    ns2:empresa "Better Stack" .
+
+<https://news.ycombinator.com/item?id=49966852> a ns2:JobPost ;
+    rdfs:label "Senior SWE/Game dev | Contract preferred | Remote | C#" ;
+    dcterms:source "hn" ;
+    prov:generatedAtTime "2026-10-13T21:03:57+00:00"^^xsd:dateTime ;
+    ns2:empresa "MaFi Games" ;
+    ns2:pide <https://kiri23.dev/tech#CSharp> .
+
+<https://news.ycombinator.com/item?id=49967017> a ns2:JobPost ;
+    rdfs:label "Software Engineering | Remote (US Only) | https://www.sphinxdefense.com" ;
+    dcterms:source "hn" ;
+    prov:generatedAtTime "2026-10-13T21:03:57+00:00"^^xsd:dateTime ;
+    ns2:empresa "Sphinx Defense" .
+
+<https://news.ycombinator.com/item?id=49967489> a ns2:JobPost ;
+    rdfs:label "Backend Engineers, Sr. Software Engineer (Marketing) | REMOTE (US)" ;
+    dcterms:source "hn" ;
+    prov:generatedAtTime "2026-10-13T21:03:57+00:00"^^xsd:dateTime ;
+    ns2:empresa "Close" ;
+    ns2:pide <https://kiri23.dev/tech#MCP>,
+        <https://kiri23.dev/tech#Python> .
+
+<https://news.ycombinator.com/item?id=49971729> a ns2:JobPost ;
+    rdfs:label "Software Engineer & Data Analyst | Full-Time | REMOTE (US & Canada) | $150,000 - $180,000 USD" ;
+    dcterms:source "hn" ;
+    prov:generatedAtTime "2026-10-13T21:03:57+00:00"^^xsd:dateTime ;
+    ns2:empresa "Early-stage Startup" ;
+    ns2:pide <https://kiri23.dev/tech#Python> .
+
+<https://news.ycombinator.com/item?id=49972097> a ns2:JobPost ;
+    rdfs:label "https://www.sentilink.com/ | Engineering & Data Science | REMOTE, HYBRID, and ONSITE (UNITED STATES ONLY) | Full Time" ;
+    dcterms:source "hn" ;
+    prov:generatedAtTime "2026-10-13T21:03:57+00:00"^^xsd:dateTime ;
+    ns2:empresa "SentiLink" ;
+    ns2:pide <https://kiri23.dev/tech#Python> .
+
+<https://news.ycombinator.com/item?id=49974107> a ns2:JobPost ;
+    rdfs:label "Database Internals Engineers, Platform Engineers | Remote or hybrid in San Francisco | Full-time" ;
+    dcterms:source "hn" ;
+    prov:generatedAtTime "2026-10-13T21:03:57+00:00"^^xsd:dateTime ;
+    ns2:empresa "ParadeDB (YC S23, https://paradedb.com)" .
+
+<https://news.ycombinator.com/item?id=49976350> a ns2:JobPost ;
+    rdfs:label "Go-To-Market (GTM) Specialist | Remote (Global / US/EU/Africa time zones welcome) | Full-time / Contract - Equity only  for current stage." ;
+    dcterms:source "hn" ;
+    prov:generatedAtTime "2026-10-13T21:03:57+00:00"^^xsd:dateTime ;
+    ns2:empresa "Comograph" .
+
+<https://news.ycombinator.com/item?id=49978570> a ns2:JobPost ;
+    rdfs:label "Full-Time | Technical CSMs, Product Managers, AI Research Engineer | REMOTE (all remote) | Hiring GMT-8 to GMT+2 | PostHog makes your product self-driving. * we have a public handbook (posthog.com/handbook) if you want to learn how we work, pay and more in complete detail." ;
+    dcterms:source "hn" ;
+    prov:generatedAtTime "2026-10-13T21:03:57+00:00"^^xsd:dateTime ;
+    ns2:empresa "PostHog" .
+
+<https://news.ycombinator.com/item?id=49979600> a ns2:JobPost ;
+    rdfs:label "Senior Software Engineer – LLVM/Fuzzing/Program Analysis | Contract | REMOTE (US) | Full-Time" ;
+    dcterms:source "hn" ;
+    prov:generatedAtTime "2026-10-13T21:03:57+00:00"^^xsd:dateTime ;
+    ns2:empresa "Quantum Minds" ;
+    ns2:pide <https://kiri23.dev/tech#Python> .
+
+<https://news.ycombinator.com/item?id=49980137> a ns2:JobPost ;
+    rdfs:label "Product Engineer | REMOTE (US) | Full-time | https://www.realresponse.com" ;
+    dcterms:source "hn" ;
+    prov:generatedAtTime "2026-10-13T21:03:57+00:00"^^xsd:dateTime ;
+    ns2:empresa "RealResponse" ;
+    ns2:pide <https://kiri23.dev/tech#AWS> .
+
+<https://news.ycombinator.com/item?id=49980867> a ns2:JobPost ;
+    rdfs:label "https://www.purchasely.com | Senior iOS SDK Engineer | Paris, France | REMOTE (France) | Full-time (CDI) | Fluent French and English required | [€60k-€70k + BSPCE]" ;
+    dcterms:source "hn" ;
+    prov:generatedAtTime "2026-10-13T21:03:57+00:00"^^xsd:dateTime ;
+    ns2:empresa "Purchasely" ;
+    ns2:pide <https://kiri23.dev/tech#React> .
+
+<https://news.ycombinator.com/item?id=49982803> a ns2:JobPost ;
+    rdfs:label "Part-time B2B Sales Lead | REMOTE (US) | Part-time | Equity + commission | https://depproof.com" ;
+    dcterms:source "hn" ;
+    prov:generatedAtTime "2026-10-13T21:03:57+00:00"^^xsd:dateTime ;
+    ns2:empresa "depproof" .
+
+<https://news.ycombinator.com/item?id=49987144> a ns2:JobPost ;
+    rdfs:label "https://www.manifestcyber.com/ | REMOTE (US) | Full Time" ;
+    dcterms:source "hn" ;
+    prov:generatedAtTime "2026-10-13T21:03:57+00:00"^^xsd:dateTime ;
+    ns2:empresa "Manifest" ;
+    ns2:pide <https://kiri23.dev/tech#NodeJs>,
+        <https://kiri23.dev/tech#Python>,
+        <https://kiri23.dev/tech#TypeScript> .
+
+<https://news.ycombinator.com/item?id=49995549> a ns2:JobPost ;
+    rdfs:label "AI Engineer | REMOTE (AMER or EMEA time zones) | Full-time" ;
+    dcterms:source "hn" ;
+    prov:generatedAtTime "2026-10-13T21:03:57+00:00"^^xsd:dateTime ;
+    ns2:empresa "Mastra" ;
+    ns2:pide <https://kiri23.dev/tech#TypeScript> .
+
+<https://news.ycombinator.com/item?id=49996914> a ns2:JobPost ;
+    rdfs:label "Senior Software Engineer – Kubernetes / Distributed Systems | REMOTE – US / Canada / Brazil / Europe (CET-compatible) | Full-time" ;
+    dcterms:source "hn" ;
+    prov:generatedAtTime "2026-10-13T21:03:57+00:00"^^xsd:dateTime ;
+    ns2:empresa "Buoyant" .
+
+<https://news.ycombinator.com/item?id=49997244> a ns2:JobPost ;
+    rdfs:label "http://livekit.io/| VoiceAI | webRTC | Remote | Full Time" ;
+    dcterms:source "hn" ;
+    prov:generatedAtTime "2026-10-13T21:03:57+00:00"^^xsd:dateTime ;
+    ns2:empresa "LiveKit" .
+
+<https://news.ycombinator.com/item?id=50001801> a ns2:JobPost ;
+    rdfs:label "Berlin, Germany (or remote, CET/CEST overlap) | Full-time https://netbird.io/careers" ;
+    dcterms:source "hn" ;
+    prov:generatedAtTime "2026-10-13T21:03:57+00:00"^^xsd:dateTime ;
+    ns2:empresa "NetBird" .
+
+<https://news.ycombinator.com/item?id=50003866> a ns2:JobPost ;
+    rdfs:label "Blockchain Security Engineer | Full-time | INTERNS , HYBRID/REMOTE, Zurich, Switzerland | VISA possible (for an employment) | https://chainsecurity.com/" ;
+    dcterms:source "hn" ;
+    prov:generatedAtTime "2026-10-13T21:03:57+00:00"^^xsd:dateTime ;
+    ns2:empresa "ChainSecurity" .
+
+<https://news.ycombinator.com/item?id=50004401> a ns2:JobPost ;
+    rdfs:label "Lead Platform Engineer | HYBRID (Berlin) or REMOTE (CET ±2h) | Full-time" ;
+    dcterms:source "hn" ;
+    prov:generatedAtTime "2026-10-13T21:03:57+00:00"^^xsd:dateTime ;
+    ns2:empresa "Ojin" ;
+    ns2:pide <https://kiri23.dev/tech#AWS>,
+        <https://kiri23.dev/tech#Docker>,
+        <https://kiri23.dev/tech#TypeScript> .
+
+<https://news.ycombinator.com/item?id=50012248> a ns2:JobPost ;
+    rdfs:label "Engineering Manager, Data Platform (NYC, Hybrid) · Software Engineer, Quality / SDET (Flexible/U.S. Remote) | Full-Time" ;
+    dcterms:source "hn" ;
+    prov:generatedAtTime "2026-10-13T21:03:57+00:00"^^xsd:dateTime ;
+    ns2:empresa "OneChronos" ;
+    ns2:pide <https://kiri23.dev/tech#Python>,
+        <https://kiri23.dev/tech#TypeScript> .
+
+<https://news.ycombinator.com/item?id=50013152> a ns2:JobPost ;
+    rdfs:label "Worldbuilding and storytelling platform (Remote / EU/NA timezones)" ;
+    dcterms:source "hn" ;
+    prov:generatedAtTime "2026-10-13T21:03:57+00:00"^^xsd:dateTime ;
+    ns2:empresa "vvd" .
+
+<https://news.ycombinator.com/item?id=50020012> a ns2:JobPost ;
+    rdfs:label "Staff Full-Stack Engineer, Quality & Delivery | Remote (North America hours) | Full-time | https://propellabs.ai" ;
+    dcterms:source "hn" ;
+    prov:generatedAtTime "2026-10-13T21:03:57+00:00"^^xsd:dateTime ;
+    ns2:empresa "Propel Labs" ;
+    ns2:pide <https://kiri23.dev/tech#Python>,
+        <https://kiri23.dev/tech#React>,
+        <https://kiri23.dev/tech#TypeScript> .
+
+<https://news.ycombinator.com/item?id=50021373> a ns2:JobPost ;
+    rdfs:label "Product Manager (design-led) | REMOTE (US) | Full-time | $80k–$130k + equity | https://willowed.org/careers/product-manager" ;
+    dcterms:source "hn" ;
+    prov:generatedAtTime "2026-10-13T21:03:57+00:00"^^xsd:dateTime ;
+    ns2:empresa "Willow Education" .
+
+<https://news.ycombinator.com/item?id=50033036> a ns2:JobPost ;
+    rdfs:label "Platform Engineer | Full-Time | Remote (US) | $175,000 - $215,000 USD + equity" ;
+    dcterms:source "hn" ;
+    prov:generatedAtTime "2026-10-13T21:03:57+00:00"^^xsd:dateTime ;
+    ns2:empresa "Chronograph (chronograph.pe)" ;
+    ns2:pide <https://kiri23.dev/tech#AWS>,
+        <https://kiri23.dev/tech#Docker>,
+        <https://kiri23.dev/tech#NodeJs> .
+
+<https://news.ycombinator.com/item?id=50056667> a ns2:JobPost ;
+    rdfs:label "REMOTE (Worldwide: US / Canada / Europe / UK / LATAM) | Full-time | https://matcha.fm" ;
+    dcterms:source "hn" ;
+    prov:generatedAtTime "2026-10-13T21:03:57+00:00"^^xsd:dateTime ;
+    ns2:empresa "Matcha.fm" .
+
+<https://news.ycombinator.com/item?id=50059584> a ns2:JobPost ;
+    rdfs:label "AI Engineer Apprentice | Remote (UT or ID residents only) | Full-time | $7.25–$10/hr | startuphakk.com/jobs" ;
+    dcterms:source "hn" ;
+    prov:generatedAtTime "2026-10-13T21:03:57+00:00"^^xsd:dateTime ;
+    ns2:empresa "StartupHakk" ;
+    ns2:pide <https://kiri23.dev/tech#CSharp>,
+        <https://kiri23.dev/tech#React> .
+
+<https://news.ycombinator.com/item?id=50061040> a ns2:JobPost ;
+    rdfs:label "Growth Marketing Manager | Remote (US, Eastern hours) | Full-time | $140K–$160K + equity" ;
+    dcterms:source "hn" ;
+    prov:generatedAtTime "2026-10-13T21:03:57+00:00"^^xsd:dateTime ;
+    ns2:empresa "HiO (hio.ai)" .
+
+<https://news.ycombinator.com/item?id=50063001> a ns2:JobPost ;
+    rdfs:label "AI Application Engineer + Product Engineer | San Francisco (hybrid / remote available) | VISA | $80-120K USD (Negotiable) | galen@typify.dev" ;
+    dcterms:source "hn" ;
+    prov:generatedAtTime "2026-10-13T21:03:57+00:00"^^xsd:dateTime ;
+    ns2:empresa "Typify.dev (https://typify.dev)" ;
+    ns2:pide <https://kiri23.dev/tech#MCP> .
+
+<https://news.ycombinator.com/item?id=50066343> a ns2:JobPost ;
+    rdfs:label "iOS Engineer | Tokyo, Japan (no visa support, remote available) | Contract" ;
+    dcterms:source "hn" ;
+    prov:generatedAtTime "2026-10-13T21:03:57+00:00"^^xsd:dateTime ;
+    ns2:empresa "Sendery (https://sendery.co)" .
+
+<https://news.ycombinator.com/item?id=50068986> a ns2:JobPost ;
+    rdfs:label "Business Development Manager (Freelance, Commission-only) | REMOTE (Worldwide) | Contract" ;
+    dcterms:source "hn" ;
+    prov:generatedAtTime "2026-10-13T21:03:57+00:00"^^xsd:dateTime ;
+    ns2:empresa "Irash Tech" ;
+    ns2:pide <https://kiri23.dev/tech#NodeJs>,
+        <https://kiri23.dev/tech#Python>,
+        <https://kiri23.dev/tech#React> .
+
+<https://news.ycombinator.com/item?id=50071142> a ns2:JobPost ;
+    rdfs:label "US-Based / Remote | Full-time – https://estuary.dev/" ;
+    dcterms:source "hn" ;
+    prov:generatedAtTime "2026-10-13T21:03:57+00:00"^^xsd:dateTime ;
+    ns2:empresa "Estuary" .
+
+<https://remotive.com/remote-jobs/all-others/content-reviewer-united-states-2091144> a ns2:JobPost ;
+    rdfs:label "Content Reviewer - United States" ;
+    dcterms:source "remotive" ;
+    prov:generatedAtTime "2026-10-13T21:03:57+00:00"^^xsd:dateTime ;
+    ns2:empresa "TELUS Digital" .
+
+<https://remotive.com/remote-jobs/artificial-intelligence/senior-ai-engineer-2091131> a ns2:JobPost ;
+    rdfs:label "Senior AI Engineer" ;
+    dcterms:source "remotive" ;
+    prov:generatedAtTime "2026-10-13T21:03:57+00:00"^^xsd:dateTime ;
+    ns2:empresa "Lemon.io" ;
+    ns2:pide <https://kiri23.dev/tech#CSharp>,
+        <https://kiri23.dev/tech#NodeJs>,
+        <https://kiri23.dev/tech#Python>,
+        <https://kiri23.dev/tech#React>,
+        <https://kiri23.dev/tech#TypeScript> .
+
+<https://remotive.com/remote-jobs/data/senior-data-scientist-2091129> a ns2:JobPost ;
+    rdfs:label "Senior Data Scientist" ;
+    dcterms:source "remotive" ;
+    prov:generatedAtTime "2026-10-13T21:03:57+00:00"^^xsd:dateTime ;
+    ns2:empresa "Lemon.io" ;
+    ns2:pide <https://kiri23.dev/tech#CSharp>,
+        <https://kiri23.dev/tech#NodeJs>,
+        <https://kiri23.dev/tech#Python>,
+        <https://kiri23.dev/tech#React>,
+        <https://kiri23.dev/tech#TypeScript> .
+
+<https://remotive.com/remote-jobs/information-technology/tier-iii-service-desk-engineer-2091045> a ns2:JobPost ;
+    rdfs:label "Tier III Service Desk Engineer" ;
+    dcterms:source "remotive" ;
+    prov:generatedAtTime "2026-10-13T21:03:57+00:00"^^xsd:dateTime ;
+    ns2:empresa "Unio Digital" .
+
+<https://remotive.com/remote-jobs/marketing/remote-office-assistant-1680495> a ns2:JobPost ;
+    rdfs:label "Remote Office Assistant" ;
+    dcterms:source "remotive" ;
+    prov:generatedAtTime "2026-10-13T21:03:57+00:00"^^xsd:dateTime ;
+    ns2:empresa "Coalition Technologies " .
+
+<https://remotive.com/remote-jobs/sales/inside-sales-contractor-2086540> a ns2:JobPost ;
+    rdfs:label "Inside Sales Contractor" ;
+    dcterms:source "remotive" ;
+    prov:generatedAtTime "2026-10-13T21:03:57+00:00"^^xsd:dateTime ;
+    ns2:empresa "Credit Wellness, LLC" .
+
+<https://remotive.com/remote-jobs/software-development/senior-back-end-engineer-2091132> a ns2:JobPost ;
+    rdfs:label "Senior back-end Engineer" ;
+    dcterms:source "remotive" ;
+    prov:generatedAtTime "2026-10-13T21:03:57+00:00"^^xsd:dateTime ;
+    ns2:empresa "Lemon.io" ;
+    ns2:pide <https://kiri23.dev/tech#CSharp>,
+        <https://kiri23.dev/tech#NodeJs>,
+        <https://kiri23.dev/tech#Python>,
+        <https://kiri23.dev/tech#React>,
+        <https://kiri23.dev/tech#TypeScript> .
+
+<https://remotive.com/remote-jobs/software-development/senior-independent-ai-engineer-architect-1919266> a ns2:JobPost ;
+    rdfs:label "Senior Independent AI Engineer / Architect" ;
+    dcterms:source "remotive" ;
+    prov:generatedAtTime "2026-10-13T21:03:57+00:00"^^xsd:dateTime ;
+    ns2:empresa "A.Team" .
+
+<https://remotive.com/remote-jobs/software-development/senior-independent-software-developer-1919265> a ns2:JobPost ;
+    rdfs:label "Senior Independent Software Developer" ;
+    dcterms:source "remotive" ;
+    prov:generatedAtTime "2026-10-13T21:03:57+00:00"^^xsd:dateTime ;
+    ns2:empresa "A.Team" .
+
+<https://remotive.com/remote-jobs/software-development/senior-net-full-stack-developer-2091130> a ns2:JobPost ;
+    rdfs:label "Senior .NET Full-stack Developer" ;
+    dcterms:source "remotive" ;
+    prov:generatedAtTime "2026-10-13T21:03:57+00:00"^^xsd:dateTime ;
+    ns2:empresa "Lemon.io" ;
+    ns2:pide <https://kiri23.dev/tech#CSharp>,
+        <https://kiri23.dev/tech#NodeJs>,
+        <https://kiri23.dev/tech#Python>,
+        <https://kiri23.dev/tech#React>,
+        <https://kiri23.dev/tech#TypeScript> .
+
+<https://remotive.com/remote-jobs/software-development/senior-react-full-stack-developer-2091133> a ns2:JobPost ;
+    rdfs:label "Senior React Full-stack Developer" ;
+    dcterms:source "remotive" ;
+    prov:generatedAtTime "2026-10-13T21:03:57+00:00"^^xsd:dateTime ;
+    ns2:empresa "Lemon.io" ;
+    ns2:pide <https://kiri23.dev/tech#AWS>,
+        <https://kiri23.dev/tech#CSharp>,
+        <https://kiri23.dev/tech#NodeJs>,
+        <https://kiri23.dev/tech#Python>,
+        <https://kiri23.dev/tech#React>,
+        <https://kiri23.dev/tech#TypeScript> .
+
+<https://remotive.com/remote-jobs/software-development/senior-shopify-developer-2091140> a ns2:JobPost ;
+    rdfs:label "Senior Shopify Developer" ;
+    dcterms:source "remotive" ;
+    prov:generatedAtTime "2026-10-13T21:03:57+00:00"^^xsd:dateTime ;
+    ns2:empresa "Sanctuary Computer Inc" ;
+    ns2:pide <https://kiri23.dev/tech#NodeJs>,
+        <https://kiri23.dev/tech#TypeScript> .
+
+<https://remotive.com/remote-jobs/software-development/software-engineer-ai-code-trainer-python-web-full-stack-2091149> a ns2:JobPost ;
+    rdfs:label "Software Engineer / AI Code Trainer (Python, Web, Full Stack)" ;
+    dcterms:source "remotive" ;
+    prov:generatedAtTime "2026-10-13T21:03:57+00:00"^^xsd:dateTime ;
+    ns2:empresa "CodeForAI" ;
+    ns2:pide <https://kiri23.dev/tech#CSharp>,
+        <https://kiri23.dev/tech#NodeJs>,
+        <https://kiri23.dev/tech#Python>,
+        <https://kiri23.dev/tech#React>,
+        <https://kiri23.dev/tech#TypeScript> .
+
+<https://remotive.com/remote-jobs/software-development/tech-lead-full-stack-rails-engineer-2069746> a ns2:JobPost ;
+    rdfs:label "Tech Lead Full-Stack Rails Engineer" ;
+    dcterms:source "remotive" ;
+    prov:generatedAtTime "2026-10-13T21:03:57+00:00"^^xsd:dateTime ;
+    ns2:empresa "Mitre Media" ;
+    ns2:pide <https://kiri23.dev/tech#Docker>,
+        <https://kiri23.dev/tech#React> .
+
+<https://remotive.com/remote-jobs/writing/freelance-copywriter-1749306> a ns2:JobPost ;
+    rdfs:label "Freelance Copywriter" ;
+    dcterms:source "remotive" ;
+    prov:generatedAtTime "2026-10-13T21:03:57+00:00"^^xsd:dateTime ;
+    ns2:empresa "Coalition Technologies " .
+
+<https://remotive.com/remote-jobs/writing/freelance-writer-1185979> a ns2:JobPost ;
+    rdfs:label "Freelance Writer" ;
+    dcterms:source "remotive" ;
+    prov:generatedAtTime "2026-10-13T21:03:57+00:00"^^xsd:dateTime ;
+    ns2:empresa "IAPWE" .
+
+<urn:kiri-jobs:hn:2026-10-13T21:03:57+00:00> dcterms:source "kiri-jobs -j (hn)" ;
+    rdfs:comment "core/menciones.py: prefLabel y altLabel por palabra completa sobre puesto + descripción" ;
+    prov:generatedAtTime "2026-10-13T21:03:57+00:00"^^xsd:dateTime .
+
+<urn:kiri-jobs:remotive:2026-10-13T21:03:57+00:00> dcterms:source "kiri-jobs -j (remotive)" ;
+    rdfs:comment "core/menciones.py: prefLabel y altLabel por palabra completa sobre puesto + descripción" ;
+    prov:generatedAtTime "2026-10-13T21:03:57+00:00"^^xsd:dateTime .
+
+<urn:kiri-repos:workflows> dcterms:source "gh api: .github/workflows de repos.tsv" ;
+    rdfs:comment "core/repos.py: cada `uses:` de step de .github/workflows/ (sin docker:// ni workflows reutilizables); los locales tras un checkout de otro repo se resuelven a ese repo" ;
+    prov:generatedAtTime "2026-10-12T15:49:24+00:00"^^xsd:dateTime .
+
+<https://github.com/Kiri23/TermuxConfig> a doap:Project ;
+    doap:name "TermuxConfig" ;
+    ns1:ejecutaEnCI <https://github.com/Kiri23/TermuxConfig#.github/actions/pm-actividad>,
+        <https://github.com/actions/checkout#.> ;
+    ns1:esPublico false ;
+    ns1:tieneWorkflow <https://kiri23.dev/repos/workflow/TermuxConfig.kiri-pm>,
+        <https://kiri23.dev/repos/workflow/TermuxConfig.kiri-pm-backfill> .
+
+<https://github.com/actions/checkout> a doap:Project ;
+    doap:name "checkout" ;
+    ns1:esPublico true .
+
+<https://github.com/actions/setup-python> a doap:Project ;
+    doap:name "setup-python" ;
+    ns1:esPublico true .
+
+<https://github.com/denoland/setup-deno> a doap:Project ;
+    doap:name "setup-deno" ;
+    ns1:esPublico true .
+
+<https://github.com/docker/build-push-action> a doap:Project ;
+    doap:name "build-push-action" ;
+    ns1:esPublico true .
+
+<https://github.com/docker/login-action> a doap:Project ;
+    doap:name "login-action" ;
+    ns1:esPublico true .
+
+<https://github.com/docker/setup-buildx-action> a doap:Project ;
+    doap:name "setup-buildx-action" ;
+    ns1:esPublico true .
+
+<https://github.com/tailscale/github-action> a doap:Project ;
+    doap:name "github-action" ;
+    ns1:esPublico true .
+
+<https://kiri23.dev/repos/uso/ApiScripts.kiri-pm.pm-actividad> a ns1:Uso ;
+    ns1:accion <https://github.com/Kiri23/TermuxConfig#.github/actions/pm-actividad> ;
+    ns1:ref "main" .
+
+<https://kiri23.dev/repos/uso/JobSearch.kiri-pm.pm-actividad> a ns1:Uso ;
+    ns1:accion <https://github.com/Kiri23/TermuxConfig#.github/actions/pm-actividad> ;
+    ns1:ref "main" .
+
+<https://kiri23.dev/repos/uso/JobSearch.valida-issues.checkout> a ns1:Uso ;
+    ns1:accion <https://github.com/actions/checkout#.> ;
+    ns1:ref "v4" .
+
+<https://kiri23.dev/repos/uso/JobSearch.valida-issues.setup-python> a ns1:Uso ;
+    ns1:accion <https://github.com/actions/setup-python#.> ;
+    ns1:ref "v5" .
+
+<https://kiri23.dev/repos/uso/MyClaudeSkills.kiri-pm.pm-actividad> a ns1:Uso ;
+    ns1:accion <https://github.com/Kiri23/TermuxConfig#.github/actions/pm-actividad> ;
+    ns1:ref "main" .
+
+<https://kiri23.dev/repos/uso/TermuxConfig.kiri-pm-backfill.checkout> a ns1:Uso ;
+    ns1:accion <https://github.com/actions/checkout#.> ;
+    ns1:ref "v4" .
+
+<https://kiri23.dev/repos/uso/TermuxConfig.kiri-pm.pm-actividad> a ns1:Uso ;
+    ns1:accion <https://github.com/Kiri23/TermuxConfig#.github/actions/pm-actividad> ;
+    ns1:ref "main" .
+
+<https://kiri23.dev/repos/uso/kiriInfra.build-mainai-base.checkout> a ns1:Uso ;
+    ns1:accion <https://github.com/actions/checkout#.> ;
+    ns1:ref "v4" .
+
+<https://kiri23.dev/repos/uso/kiriInfra.build-mainai-base.docker-build-push> a ns1:Uso ;
+    ns1:accion <https://github.com/Kiri23/kiriInfra#.github/actions/docker-build-push> ;
+    ns1:ref "local" .
+
+<https://kiri23.dev/repos/uso/kiriInfra.build-mainai-base.docker-image-probe> a ns1:Uso ;
+    ns1:accion <https://github.com/Kiri23/kiriInfra#.github/actions/docker-image-probe> ;
+    ns1:ref "local" .
+
+<https://kiri23.dev/repos/uso/kiriInfra.build-mainai-base.github-action> a ns1:Uso ;
+    ns1:accion <https://github.com/tailscale/github-action#.> ;
+    ns1:ref "v4" .
+
+<https://kiri23.dev/repos/uso/kiriInfra.build-mainai-gateway.checkout> a ns1:Uso ;
+    ns1:accion <https://github.com/actions/checkout#.> ;
+    ns1:ref "v4" .
+
+<https://kiri23.dev/repos/uso/kiriInfra.build-mainai-gateway.docker-build-push> a ns1:Uso ;
+    ns1:accion <https://github.com/Kiri23/kiriInfra#.github/actions/docker-build-push> ;
+    ns1:ref "local" .
+
+<https://kiri23.dev/repos/uso/kiriInfra.check-setup-lib.checkout> a ns1:Uso ;
+    ns1:accion <https://github.com/actions/checkout#.> ;
+    ns1:ref "v4" .
+
+<https://kiri23.dev/repos/uso/kiriInfra.deploy-kiri-edge.checkout> a ns1:Uso ;
+    ns1:accion <https://github.com/actions/checkout#.> ;
+    ns1:ref "v4" .
+
+<https://kiri23.dev/repos/uso/kiriInfra.deploy-kiri-edge.github-action> a ns1:Uso ;
+    ns1:accion <https://github.com/tailscale/github-action#.> ;
+    ns1:ref "v4" .
+
+<https://kiri23.dev/repos/uso/kiriInfra.kiri-pm.pm-actividad> a ns1:Uso ;
+    ns1:accion <https://github.com/Kiri23/TermuxConfig#.github/actions/pm-actividad> ;
+    ns1:ref "main" .
+
+<https://kiri23.dev/repos/uso/kiriInfra.publish-wizard.checkout> a ns1:Uso ;
+    ns1:accion <https://github.com/actions/checkout#.> ;
+    ns1:ref "v4" .
+
+<https://kiri23.dev/repos/uso/kiriInfra.publish-wizard.setup-deno> a ns1:Uso ;
+    ns1:accion <https://github.com/denoland/setup-deno#.> ;
+    ns1:ref "v2" .
+
+<https://kiri23.dev/repos/uso/kiriInfra.setup-ci-tailscale.checkout> a ns1:Uso ;
+    ns1:accion <https://github.com/actions/checkout#.> ;
+    ns1:ref "v4" .
+
+<https://kiri23.dev/repos/uso/kiriInfra.setup-ci-tailscale.setup-deno> a ns1:Uso ;
+    ns1:accion <https://github.com/denoland/setup-deno#.> ;
+    ns1:ref "v2" .
+
+<https://kiri23.dev/repos/uso/kiriInfra.spin-up-exe-dev.checkout> a ns1:Uso ;
+    ns1:accion <https://github.com/actions/checkout#.> ;
+    ns1:ref "v4" .
+
+<https://kiri23.dev/repos/uso/kiriInfra.spin-up-exe-dev.setup-deno> a ns1:Uso ;
+    ns1:accion <https://github.com/denoland/setup-deno#.> ;
+    ns1:ref "v2" .
+
+<https://kiri23.dev/repos/uso/ontologyLearning.deploy.build-push-action> a ns1:Uso ;
+    ns1:accion <https://github.com/docker/build-push-action#.> ;
+    ns1:ref "v6" .
+
+<https://kiri23.dev/repos/uso/ontologyLearning.deploy.checkout> a ns1:Uso ;
+    ns1:accion <https://github.com/actions/checkout#.> ;
+    ns1:ref "v4" .
+
+<https://kiri23.dev/repos/uso/ontologyLearning.deploy.github-action> a ns1:Uso ;
+    ns1:accion <https://github.com/tailscale/github-action#.> ;
+    ns1:ref "v4" .
+
+<https://kiri23.dev/repos/uso/ontologyLearning.deploy.login-action> a ns1:Uso ;
+    ns1:accion <https://github.com/docker/login-action#.> ;
+    ns1:ref "v3" .
+
+<https://kiri23.dev/repos/uso/ontologyLearning.deploy.setup-buildx-action> a ns1:Uso ;
+    ns1:accion <https://github.com/docker/setup-buildx-action#.> ;
+    ns1:ref "v3" .
+
+<https://kiri23.dev/repos/uso/ontologyLearning.kiri-pm.pm-actividad> a ns1:Uso ;
+    ns1:accion <https://github.com/Kiri23/TermuxConfig#.github/actions/pm-actividad> ;
+    ns1:ref "main" .
+
+<https://kiri23.dev/repos/uso/portfolio.container.build-push-action> a ns1:Uso ;
+    ns1:accion <https://github.com/docker/build-push-action#.> ;
+    ns1:ref "v6" .
+
+<https://kiri23.dev/repos/uso/portfolio.container.checkout> a ns1:Uso ;
+    ns1:accion <https://github.com/actions/checkout#.> ;
+    ns1:ref "v4" .
+
+<https://kiri23.dev/repos/uso/portfolio.container.github-action> a ns1:Uso ;
+    ns1:accion <https://github.com/tailscale/github-action#.> ;
+    ns1:ref "v4" .
+
+<https://kiri23.dev/repos/uso/portfolio.container.login-action> a ns1:Uso ;
+    ns1:accion <https://github.com/docker/login-action#.> ;
+    ns1:ref "v3" .
+
+<https://kiri23.dev/repos/uso/portfolio.container.setup-buildx-action> a ns1:Uso ;
+    ns1:accion <https://github.com/docker/setup-buildx-action#.> ;
+    ns1:ref "v3" .
+
+<https://kiri23.dev/repos/uso/portfolio.kiri-pm.checkout> a ns1:Uso ;
+    ns1:accion <https://github.com/actions/checkout#.> ;
+    ns1:ref "v7" .
+
+<https://kiri23.dev/repos/uso/portfolio.kiri-pm.pm-actividad> a ns1:Uso ;
+    ns1:accion <https://github.com/Kiri23/TermuxConfig#.github/actions/pm-actividad> ;
+    ns1:ref "default" .
+
+<https://kiri23.dev/repos/uso/rutero.deploy.build-push-action> a ns1:Uso ;
+    ns1:accion <https://github.com/docker/build-push-action#.> ;
+    ns1:ref "v6" .
+
+<https://kiri23.dev/repos/uso/rutero.deploy.checkout> a ns1:Uso ;
+    ns1:accion <https://github.com/actions/checkout#.> ;
+    ns1:ref "v4" .
+
+<https://kiri23.dev/repos/uso/rutero.deploy.github-action> a ns1:Uso ;
+    ns1:accion <https://github.com/tailscale/github-action#.> ;
+    ns1:ref "v4" .
+
+<https://kiri23.dev/repos/uso/rutero.deploy.login-action> a ns1:Uso ;
+    ns1:accion <https://github.com/docker/login-action#.> ;
+    ns1:ref "v3" .
+
+<https://kiri23.dev/repos/uso/rutero.deploy.setup-buildx-action> a ns1:Uso ;
+    ns1:accion <https://github.com/docker/setup-buildx-action#.> ;
+    ns1:ref "v3" .
+
+<https://kiri23.dev/repos/uso/rutero.e2e.checkout> a ns1:Uso ;
+    ns1:accion <https://github.com/actions/checkout#.> ;
+    ns1:ref "v4" .
+
+<https://kiri23.dev/repos/uso/rutero.kiri-pm.pm-actividad> a ns1:Uso ;
+    ns1:accion <https://github.com/Kiri23/TermuxConfig#.github/actions/pm-actividad> ;
+    ns1:ref "main" .
+
+<https://kiri23.dev/repos/workflow/ApiScripts.kiri-pm> a ns1:Workflow ;
+    ns1:archivo ".github/workflows/kiri-pm.yml" ;
+    ns1:tieneUso <https://kiri23.dev/repos/uso/ApiScripts.kiri-pm.pm-actividad> .
+
+<https://kiri23.dev/repos/workflow/JobSearch.kiri-pm> a ns1:Workflow ;
+    ns1:archivo ".github/workflows/kiri-pm.yml" ;
+    ns1:tieneUso <https://kiri23.dev/repos/uso/JobSearch.kiri-pm.pm-actividad> .
+
+<https://kiri23.dev/repos/workflow/JobSearch.valida-issues> a ns1:Workflow ;
+    ns1:archivo ".github/workflows/valida-issues.yml" ;
+    ns1:tieneUso <https://kiri23.dev/repos/uso/JobSearch.valida-issues.checkout>,
+        <https://kiri23.dev/repos/uso/JobSearch.valida-issues.setup-python> .
+
+<https://kiri23.dev/repos/workflow/MyClaudeSkills.kiri-pm> a ns1:Workflow ;
+    ns1:archivo ".github/workflows/kiri-pm.yml" ;
+    ns1:tieneUso <https://kiri23.dev/repos/uso/MyClaudeSkills.kiri-pm.pm-actividad> .
+
+<https://kiri23.dev/repos/workflow/TermuxConfig.kiri-pm> a ns1:Workflow ;
+    ns1:archivo ".github/workflows/kiri-pm.yml" ;
+    ns1:tieneUso <https://kiri23.dev/repos/uso/TermuxConfig.kiri-pm.pm-actividad> .
+
+<https://kiri23.dev/repos/workflow/TermuxConfig.kiri-pm-backfill> a ns1:Workflow ;
+    ns1:archivo ".github/workflows/kiri-pm-backfill.yml" ;
+    ns1:tieneUso <https://kiri23.dev/repos/uso/TermuxConfig.kiri-pm-backfill.checkout> .
+
+<https://kiri23.dev/repos/workflow/kiriInfra.build-mainai-base> a ns1:Workflow ;
+    ns1:archivo ".github/workflows/build-mainai-base.yml" ;
+    ns1:tieneUso <https://kiri23.dev/repos/uso/kiriInfra.build-mainai-base.checkout>,
+        <https://kiri23.dev/repos/uso/kiriInfra.build-mainai-base.docker-build-push>,
+        <https://kiri23.dev/repos/uso/kiriInfra.build-mainai-base.docker-image-probe>,
+        <https://kiri23.dev/repos/uso/kiriInfra.build-mainai-base.github-action> .
+
+<https://kiri23.dev/repos/workflow/kiriInfra.build-mainai-gateway> a ns1:Workflow ;
+    ns1:archivo ".github/workflows/build-mainai-gateway.yml" ;
+    ns1:tieneUso <https://kiri23.dev/repos/uso/kiriInfra.build-mainai-gateway.checkout>,
+        <https://kiri23.dev/repos/uso/kiriInfra.build-mainai-gateway.docker-build-push> .
+
+<https://kiri23.dev/repos/workflow/kiriInfra.check-setup-lib> a ns1:Workflow ;
+    ns1:archivo ".github/workflows/check-setup-lib.yml" ;
+    ns1:tieneUso <https://kiri23.dev/repos/uso/kiriInfra.check-setup-lib.checkout> .
+
+<https://kiri23.dev/repos/workflow/kiriInfra.deploy-kiri-edge> a ns1:Workflow ;
+    ns1:archivo ".github/workflows/deploy-kiri-edge.yml" ;
+    ns1:tieneUso <https://kiri23.dev/repos/uso/kiriInfra.deploy-kiri-edge.checkout>,
+        <https://kiri23.dev/repos/uso/kiriInfra.deploy-kiri-edge.github-action> .
+
+<https://kiri23.dev/repos/workflow/kiriInfra.kiri-pm> a ns1:Workflow ;
+    ns1:archivo ".github/workflows/kiri-pm.yml" ;
+    ns1:tieneUso <https://kiri23.dev/repos/uso/kiriInfra.kiri-pm.pm-actividad> .
+
+<https://kiri23.dev/repos/workflow/kiriInfra.publish-wizard> a ns1:Workflow ;
+    ns1:archivo ".github/workflows/publish-wizard.yml" ;
+    ns1:tieneUso <https://kiri23.dev/repos/uso/kiriInfra.publish-wizard.checkout>,
+        <https://kiri23.dev/repos/uso/kiriInfra.publish-wizard.setup-deno> .
+
+<https://kiri23.dev/repos/workflow/kiriInfra.setup-ci-tailscale> a ns1:Workflow ;
+    ns1:archivo ".github/workflows/setup-ci-tailscale.yml" ;
+    ns1:tieneUso <https://kiri23.dev/repos/uso/kiriInfra.setup-ci-tailscale.checkout>,
+        <https://kiri23.dev/repos/uso/kiriInfra.setup-ci-tailscale.setup-deno> .
+
+<https://kiri23.dev/repos/workflow/kiriInfra.spin-up-exe-dev> a ns1:Workflow ;
+    ns1:archivo ".github/workflows/spin-up-exe-dev.yml" ;
+    ns1:tieneUso <https://kiri23.dev/repos/uso/kiriInfra.spin-up-exe-dev.checkout>,
+        <https://kiri23.dev/repos/uso/kiriInfra.spin-up-exe-dev.setup-deno> .
+
+<https://kiri23.dev/repos/workflow/ontologyLearning.deploy> a ns1:Workflow ;
+    ns1:archivo ".github/workflows/deploy.yml" ;
+    ns1:tieneUso <https://kiri23.dev/repos/uso/ontologyLearning.deploy.build-push-action>,
+        <https://kiri23.dev/repos/uso/ontologyLearning.deploy.checkout>,
+        <https://kiri23.dev/repos/uso/ontologyLearning.deploy.github-action>,
+        <https://kiri23.dev/repos/uso/ontologyLearning.deploy.login-action>,
+        <https://kiri23.dev/repos/uso/ontologyLearning.deploy.setup-buildx-action> .
+
+<https://kiri23.dev/repos/workflow/ontologyLearning.kiri-pm> a ns1:Workflow ;
+    ns1:archivo ".github/workflows/kiri-pm.yml" ;
+    ns1:tieneUso <https://kiri23.dev/repos/uso/ontologyLearning.kiri-pm.pm-actividad> .
+
+<https://kiri23.dev/repos/workflow/portfolio.container> a ns1:Workflow ;
+    ns1:archivo ".github/workflows/container.yml" ;
+    ns1:tieneUso <https://kiri23.dev/repos/uso/portfolio.container.build-push-action>,
+        <https://kiri23.dev/repos/uso/portfolio.container.checkout>,
+        <https://kiri23.dev/repos/uso/portfolio.container.github-action>,
+        <https://kiri23.dev/repos/uso/portfolio.container.login-action>,
+        <https://kiri23.dev/repos/uso/portfolio.container.setup-buildx-action> .
+
+<https://kiri23.dev/repos/workflow/portfolio.kiri-pm> a ns1:Workflow ;
+    ns1:archivo ".github/workflows/kiri-pm.yml" ;
+    ns1:tieneUso <https://kiri23.dev/repos/uso/portfolio.kiri-pm.checkout>,
+        <https://kiri23.dev/repos/uso/portfolio.kiri-pm.pm-actividad> .
+
+<https://kiri23.dev/repos/workflow/rutero.deploy> a ns1:Workflow ;
+    ns1:archivo ".github/workflows/deploy.yml" ;
+    ns1:tieneUso <https://kiri23.dev/repos/uso/rutero.deploy.build-push-action>,
+        <https://kiri23.dev/repos/uso/rutero.deploy.checkout>,
+        <https://kiri23.dev/repos/uso/rutero.deploy.github-action>,
+        <https://kiri23.dev/repos/uso/rutero.deploy.login-action>,
+        <https://kiri23.dev/repos/uso/rutero.deploy.setup-buildx-action> .
+
+<https://kiri23.dev/repos/workflow/rutero.e2e> a ns1:Workflow ;
+    ns1:archivo ".github/workflows/e2e.yml" ;
+    ns1:tieneUso <https://kiri23.dev/repos/uso/rutero.e2e.checkout> .
+
+<https://kiri23.dev/repos/workflow/rutero.kiri-pm> a ns1:Workflow ;
+    ns1:archivo ".github/workflows/kiri-pm.yml" ;
+    ns1:tieneUso <https://kiri23.dev/repos/uso/rutero.kiri-pm.pm-actividad> .
+
+<https://github.com/Kiri23/kiriInfra> a doap:Project ;
+    doap:name "kiriInfra" ;
+    ns1:ejecutaEnCI <https://github.com/Kiri23/TermuxConfig#.github/actions/pm-actividad>,
+        <https://github.com/Kiri23/kiriInfra#.github/actions/docker-build-push>,
+        <https://github.com/Kiri23/kiriInfra#.github/actions/docker-image-probe>,
+        <https://github.com/actions/checkout#.>,
+        <https://github.com/denoland/setup-deno#.>,
+        <https://github.com/tailscale/github-action#.> ;
+    ns1:esPublico false ;
+    ns1:tieneWorkflow <https://kiri23.dev/repos/workflow/kiriInfra.build-mainai-base>,
+        <https://kiri23.dev/repos/workflow/kiriInfra.build-mainai-gateway>,
+        <https://kiri23.dev/repos/workflow/kiriInfra.check-setup-lib>,
+        <https://kiri23.dev/repos/workflow/kiriInfra.deploy-kiri-edge>,
+        <https://kiri23.dev/repos/workflow/kiriInfra.kiri-pm>,
+        <https://kiri23.dev/repos/workflow/kiriInfra.publish-wizard>,
+        <https://kiri23.dev/repos/workflow/kiriInfra.setup-ci-tailscale>,
+        <https://kiri23.dev/repos/workflow/kiriInfra.spin-up-exe-dev> .
+
+<https://github.com/Kiri23/kiriInfra#.github/actions/docker-image-probe> a ns1:Action ;
+    ns1:alojadaEn <https://github.com/Kiri23/kiriInfra> ;
+    ns1:ruta ".github/actions/docker-image-probe" .
+
+<https://github.com/actions/setup-python#.> a ns1:Action ;
+    ns1:alojadaEn <https://github.com/actions/setup-python> ;
+    ns1:ruta "." .
+
+<https://github.com/Kiri23/kiriInfra#.github/actions/docker-build-push> a ns1:Action ;
+    ns1:alojadaEn <https://github.com/Kiri23/kiriInfra> ;
+    ns1:ruta ".github/actions/docker-build-push" .
+
+<https://github.com/denoland/setup-deno#.> a ns1:Action ;
+    ns1:alojadaEn <https://github.com/denoland/setup-deno> ;
+    ns1:ruta "." .
+
+<https://github.com/docker/build-push-action#.> a ns1:Action ;
+    ns1:alojadaEn <https://github.com/docker/build-push-action> ;
+    ns1:ruta "." .
+
+<https://github.com/docker/login-action#.> a ns1:Action ;
+    ns1:alojadaEn <https://github.com/docker/login-action> ;
+    ns1:ruta "." .
+
+<https://github.com/docker/setup-buildx-action#.> a ns1:Action ;
+    ns1:alojadaEn <https://github.com/docker/setup-buildx-action> ;
+    ns1:ruta "." .
+
+<https://kiri23.dev/tech#Docker> a <https://kiri23.dev/tech#Technology> ;
+    skos:altLabel "Docker Swarm" ;
+    skos:prefLabel "Docker" .
+
+<https://kiri23.dev/tech#MCP> a <https://kiri23.dev/tech#Technology> ;
+    skos:altLabel "Model Context Protocol" ;
+    skos:prefLabel "MCP" .
+
+<https://github.com/tailscale/github-action#.> a ns1:Action ;
+    ns1:alojadaEn <https://github.com/tailscale/github-action> ;
+    ns1:ruta "." .
+
+<https://kiri23.dev/tech#CSharp> a <https://kiri23.dev/tech#Technology> ;
+    skos:altLabel ".NET",
+        "dotnet" ;
+    skos:prefLabel "C#" .
+
+<https://kiri23.dev/tech#AWS> a <https://kiri23.dev/tech#Technology> ;
+    skos:altLabel "Amazon Web Services" ;
+    skos:prefLabel "AWS" .
+
+<https://github.com/Kiri23/TermuxConfig#.github/actions/pm-actividad> a ns1:Action ;
+    ns1:alojadaEn <https://github.com/Kiri23/TermuxConfig> ;
+    ns1:ruta ".github/actions/pm-actividad" .
+
+<https://kiri23.dev/tech#NodeJs> a <https://kiri23.dev/tech#Technology> ;
+    skos:altLabel "Node",
+        "NodeJS" ;
+    skos:prefLabel "Node.js" .
+
+<https://github.com/actions/checkout#.> a ns1:Action ;
+    ns1:alojadaEn <https://github.com/actions/checkout> ;
+    ns1:ruta "." .
+
+<https://kiri23.dev/tech#Python> a <https://kiri23.dev/tech#Technology> ;
+    skos:prefLabel "Python" .
+
+<https://kiri23.dev/tech#TypeScript> a <https://kiri23.dev/tech#Technology> ;
+    skos:altLabel "TS" ;
+    skos:prefLabel "TypeScript" .
+
+<https://kiri23.dev/tech#React> a <https://kiri23.dev/tech#Technology> ;
+    skos:altLabel "React Native",
+        "ReactJS" ;
+    skos:prefLabel "React" .
+

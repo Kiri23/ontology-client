@@ -25,9 +25,13 @@
   "lock": {
     "frozen": true
   },
+  "exclude": ["explorador/node_modules/", "explorador/dist/"],
+  "test": {
+    "exclude": ["explorador/"]
+  },
   "fmt": {
     "lineWidth": 120,
-    "exclude": ["generado/"]
+    "exclude": ["generado/", "explorador/package-lock.json"]
   },
   "lint": {
     "exclude": ["generado/"]
@@ -40,12 +44,14 @@
       "motor.ts",
       "neo4j.ts",
       "vista-neo4j.ts",
+      "sparql.ts",
       "cli.ts",
       "generado/api.ts",
       "contrato/openapi.json",
       "README.md",
       "neo4j/README.md",
       "LICENSE"
-    ]
+    ],
+    "exclude": ["explorador/"]
   }
 }

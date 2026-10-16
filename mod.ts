@@ -9,6 +9,7 @@
 //   jobs.get(filtros?, o?)        GET /jobs: los puestos como JobPost[] (jobs.ts).
 //   jobs.descartar(job, porque)   POST /jobs/descartar y POST /jobs/marcar-aplicado (jobs.marcarAplicado):
 //                                 las acciones sobre un puesto; devuelven el JobPost como queda.
+//   sparql.consultar(q, o?)       GET /sparql: la consulta y la respuesta tal cual ({ tipo, texto }) (sparql.ts).
 //   configurar({ motor })         de dónde lee jobs.get(): motorHttp (el default) o motorNeo4j(driver), de
 //                                 @kiri23/ontology-client/neo4j (motor.ts). Las acciones van siempre por HTTP.
 //
@@ -22,6 +23,8 @@ import { ErrorServidor, type Forma, pedir } from "./cliente.ts";
 export type { components, operations, paths } from "./generado/api.ts";
 export { crearCliente, ErrorServidor, TIMEOUT_MS, URL_PRODUCCION } from "./cliente.ts";
 export * as jobs from "./jobs.ts";
+export * as sparql from "./sparql.ts";
+export type { OpcionesSparql, RespuestaSparql } from "./sparql.ts";
 export { configurar, type Motor, motorHttp } from "./motor.ts";
 export type { FiltrosJobs, JobPost, OpcionesAcciones, OpcionesJobs, ReferenciaJob, Technology } from "./jobs.ts";
 
