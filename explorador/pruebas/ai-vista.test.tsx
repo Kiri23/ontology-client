@@ -1,13 +1,14 @@
 // "Preguntar con AI" montado en la consulta libre, con un worker falso y el motor de verdad. Prueba lo que promete la
-// UI: sin WebGPU no hay botón, el aviso de 3,1 GB va antes de bajar nada, y lo generado va al editor y al validador,
+// UI: sin WebGPU no hay botón, el aviso de 3,1 GB (3,6 sin f16) va antes de bajar nada, y lo generado va al editor y al validador,
 // nunca al motor. Las respuestas que resuelven la promesa de generar van en un act asincrónico (act(() => Promise)).
 import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import { ClienteAi } from "../src/grafo/ai/cliente.ts";
+import type { Gpu } from "../src/grafo/ai/protocolo.ts";
 import type { Grafo } from "../src/grafo/motor.ts";
 import { ConsultaLibre } from "../src/grafo/vistas/ConsultaLibre.tsx";
 import { grafoDePrueba } from "./grafo-de-prueba.ts";
-import { workerFalso } from "./worker-falso.ts";
+import { GPU_DE_ESCRITORIO, GPU_DEL_PIXEL, workerFalso } from "./worker-falso.ts";
 
 vi.mock("cytoscape-fcose", () => ({ default: {} }));
 vi.mock("cytoscape", () => {
@@ -28,18 +29,19 @@ afterEach(cleanup);
 const BOTON = { name: "Preguntar con AI" };
 const editor = () => (screen.getByLabelText("SPARQL") as HTMLTextAreaElement).value;
 
-function montar(webgpu: boolean) {
+/** `gpu`: lo que contesta el check. Sin GPU, el worker dice que no hay adaptador. */
+function montar(gpu: Gpu | false = GPU_DE_ESCRITORIO) {
   const f = workerFalso();
   const ai = new ClienteAi(() => f.worker, () => true);
   const ir = vi.fn();
   const vista = render(<ConsultaLibre grafo={grafo} sparql="" ir={ir} ai={ai} />);
-  act(() => f.emitir({ tipo: "check", webgpu, motivo: webgpu ? undefined : "sin adaptador" }));
+  act(() => gpu ? f.conWebGpu(gpu) : f.emitir({ tipo: "check", webgpu: false, motivo: "sin adaptador" }));
   return { ...f, ...vista, ai, ir };
 }
 
 /** Montada, con el modelo cargado y la pregunta hecha. Devuelve el worker para contestar. */
 function preguntar(pregunta: string) {
-  const m = montar(true);
+  const m = montar();
   fireEvent.click(screen.getByRole("button", BOTON));
   fireEvent.click(screen.getByRole("button", { name: "Continuar" }));
   act(() => m.emitir({ tipo: "listo" }));
@@ -64,7 +66,7 @@ describe("Preguntar con AI", () => {
   });
 
   it("el aviso de 3,1 GB va antes de la descarga; Cancelar no baja nada", () => {
-    const { recibidos, emitir } = montar(true);
+    const { recibidos, emitir } = montar();
     fireEvent.click(screen.getByRole("button", BOTON));
     expect(screen.getByText(/Baja 3,1 GB una sola vez y queda en el navegador/)).toBeTruthy();
     expect(recibidos.some((m) => m.tipo === "load")).toBe(false);
@@ -83,6 +85,27 @@ describe("Preguntar con AI", () => {
     expect(screen.getByText(/Preparando el modelo en la GPU/)).toBeTruthy();
     act(() => emitir({ tipo: "listo" }));
     expect(screen.getByLabelText("Preguntá en castellano")).toBeTruthy();
+  });
+
+  it("el aviso con f16 no habla del modo compatibilidad", () => {
+    montar();
+    fireEvent.click(screen.getByRole("button", BOTON));
+    expect(screen.queryByText(/modo compatibilidad/)).toBeNull();
+  });
+
+  it("sin f16 y en modo compatibilidad (el Pixel), el aviso dice 3,6 GB y lo del modo, y Continuar carga igual", () => {
+    const { recibidos, emitir } = montar(GPU_DEL_PIXEL);
+    fireEvent.click(screen.getByRole("button", BOTON));
+    expect(screen.getByText(/Baja 3,6 GB una sola vez y queda en el navegador/)).toBeTruthy();
+    expect(screen.getByText(/solo en modo compatibilidad: es la primera vez que la AI se prueba/)).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Continuar" }));
+    expect(recibidos.at(-1)).toEqual({ tipo: "load" });
+    act(() =>
+      emitir({ tipo: "progreso", archivo: "onnx/decoder_model_merged_q4.onnx_data", cargado: 1.3e9, total: 1.5e9 })
+    );
+    const estado = screen.getByRole("status");
+    expect(estado.textContent).toContain("decoder_model_merged_q4.onnx_data · 35 %");
+    expect(estado.textContent).toContain("1,3 de 3,6 GB");
   });
 
   it("una consulta válida va al editor con sus PREFIX y el veredicto, pero no corre", async () => {
@@ -136,7 +159,7 @@ describe("Preguntar con AI", () => {
   });
 
   it("un error al cargar dice qué pasó, cómo seguir, y reintenta", () => {
-    const { recibidos, emitir } = montar(true);
+    const { recibidos, emitir } = montar();
     fireEvent.click(screen.getByRole("button", BOTON));
     fireEvent.click(screen.getByRole("button", { name: "Continuar" }));
     act(() => emitir({ tipo: "error", cuando: "carga", mensaje: "Failed to fetch" }));
@@ -158,16 +181,16 @@ describe("Preguntar con AI", () => {
     const fakes: ReturnType<typeof workerFalso>[] = [];
     const ai = new ClienteAi(() => (fakes.push(workerFalso()), fakes.at(-1)!.worker), () => true);
     const primera = render(<ConsultaLibre grafo={grafo} sparql="" ir={vi.fn()} ai={ai} />);
-    act(() => fakes[0].emitir({ tipo: "check", webgpu: true }));
+    act(() => fakes[0].conWebGpu());
     fireEvent.click(screen.getByRole("button", BOTON));
     fireEvent.click(screen.getByRole("button", { name: "Continuar" }));
     act(() => fakes[0].emitir({ tipo: "listo" }));
     primera.unmount();
     expect(fakes[0].estado.terminado).toBe(true);
-    expect(ai.estado()).toEqual({ fase: "disponible" });
+    expect(ai.estado()).toEqual({ fase: "disponible", gpu: GPU_DE_ESCRITORIO });
     // El worker viejo ya no cuenta: un "listo" atrasado no cambia el estado.
     fakes[0].emitir({ tipo: "listo" });
-    expect(ai.estado()).toEqual({ fase: "disponible" });
+    expect(ai.estado()).toEqual({ fase: "disponible", gpu: GPU_DE_ESCRITORIO });
     render(<ConsultaLibre grafo={grafo} sparql="" ir={vi.fn()} ai={ai} />);
     fireEvent.click(screen.getByRole("button", BOTON));
     fireEvent.click(screen.getByRole("button", { name: "Continuar" }));

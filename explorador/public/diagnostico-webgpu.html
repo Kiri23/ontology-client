@@ -7,7 +7,11 @@
   </head>
   <body>
     <h1>Diagnóstico WebGPU</h1>
-    <p>Qué da WebGPU en este navegador, en la página y en un worker. Mandá una captura de esto.</p>
+    <p>
+      Qué da WebGPU en este navegador, en la página y en un worker: el adaptador en modo core y, si no da, en modo
+      compatibilidad; si tiene f16 (<code>shader-f16</code>); y si un compute shader mínimo escribe bien. Mandá una
+      captura de esto.
+    </p>
     <pre id="salida">…</pre>
     <script type="module" src="./diagnostico-webgpu.js"></script>
   </body>

@@ -2,8 +2,13 @@
 // pasa por la plantilla de chat real de Gemma 4, como en el worker de verdad: si la conversación no se puede
 // renderizar, contesta el mismo error que daría Transformers.js.
 import type { WorkerAi } from "../src/grafo/ai/cliente.ts";
-import type { AlWorker, APagina } from "../src/grafo/ai/protocolo.ts";
+import type { AlWorker, APagina, Gpu } from "../src/grafo/ai/protocolo.ts";
 import { renderizarParaGemma } from "./plantilla-gemma.ts";
+
+/** La GPU de escritorio: el adaptador sale en modo core y tiene shader-f16 (baja q4f16, 3,1 GB). */
+export const GPU_DE_ESCRITORIO: Gpu = { modo: "core", f16: true };
+/** La del Pixel 10 Pro XL medida el 2026-10-16: solo modo compatibilidad y sin shader-f16 (baja q4, 3,6 GB). */
+export const GPU_DEL_PIXEL: Gpu = { modo: "compatibility", f16: false };
 
 export function workerFalso() {
   const oyentes: ((e: MessageEvent<APagina>) => void)[] = [];
@@ -29,7 +34,9 @@ export function workerFalso() {
     },
     terminate: () => void (estado.terminado = true),
   };
+  /** El `check` con adaptador. Por defecto, una GPU de escritorio: modo core y con f16. */
+  const conWebGpu = (gpu: Gpu = GPU_DE_ESCRITORIO) => emitir({ tipo: "check", webgpu: true, ...gpu });
   /** El worker no arrancó: lo que hace el navegador si la CSP o la red bloquean su script. */
   const fallar = (mensaje: string) => oyentesDeError.forEach((o) => o({ message: mensaje } as ErrorEvent));
-  return { worker, recibidos, prompts, emitir, fallar, estado };
+  return { worker, recibidos, prompts, emitir, conWebGpu, fallar, estado };
 }

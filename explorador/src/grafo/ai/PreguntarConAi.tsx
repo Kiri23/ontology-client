@@ -6,7 +6,7 @@ import type { Grafo } from "../motor.ts";
 import { type ClienteAi, type EstadoAi, porcentaje, type Progreso } from "./cliente.ts";
 import { consultaPropuesta } from "./extraer.ts";
 import { armarMensajes, type Consultar, type Esquema, leerEsquema } from "./prompt.ts";
-import { BYTES_DEL_MODELO } from "./protocolo.ts";
+import { bytesDelModelo, type Gpu } from "./protocolo.ts";
 import "../../estilos/ai.css";
 
 /** "El navegador no tiene WebGPU." → "el navegador no tiene WebGPU", para ir entre paréntesis. */
@@ -20,7 +20,7 @@ interface Props {
   alProponer: (sparql: string) => void;
 }
 
-function Descarga({ progreso }: { progreso?: Progreso }) {
+function Descarga({ progreso, gpu }: { progreso?: Progreso; gpu: Gpu }) {
   if (!progreso) {
     return (
       <div className="ai-carga" role="status">
@@ -29,7 +29,8 @@ function Descarga({ progreso }: { progreso?: Progreso }) {
       </div>
     );
   }
-  const pct = porcentaje(progreso);
+  const esperado = bytesDelModelo(gpu.f16);
+  const pct = porcentaje(progreso, esperado);
   return (
     <div className="ai-carga" role="status">
       <p>
@@ -37,21 +38,27 @@ function Descarga({ progreso }: { progreso?: Progreso }) {
       </p>
       <progress aria-label="Descarga del modelo" value={pct} max={100} />
       <p className="ai-nota">
-        {gb(progreso.cargado)} de {gb(Math.max(progreso.total, BYTES_DEL_MODELO))} GB. Queda guardado en el navegador.
+        {gb(progreso.cargado)} de {gb(Math.max(progreso.total, esperado))} GB. Queda guardado en el navegador.
       </p>
     </div>
   );
 }
 
-function Aviso({ continuar, cancelar }: { continuar: () => void; cancelar: () => void }) {
+function Aviso({ gpu, continuar, cancelar }: { gpu: Gpu; continuar: () => void; cancelar: () => void }) {
   return (
     <div className="ai-aviso" role="group" aria-labelledby="ai-aviso-titulo">
       <p className="ai-aviso-titulo" id="ai-aviso-titulo">Antes de bajar el modelo</p>
       <p>
         Gemma 4 E2B corre en este dispositivo, sin servidor ni cuenta.{" "}
-        <strong>Baja {gb(BYTES_DEL_MODELO)} GB una sola vez y queda en el navegador</strong>; las próximas veces lo lee
-        del disco. Con datos móviles, mejor con Wi-Fi.
+        <strong>Baja {gb(bytesDelModelo(gpu.f16))} GB una sola vez y queda en el navegador</strong>; las próximas veces
+        lo lee del disco. Con datos móviles, mejor con Wi-Fi.
       </p>
+      {gpu.modo === "compatibility" && (
+        <p className="ai-nota">
+          En este dispositivo el navegador da WebGPU solo en modo compatibilidad: es la primera vez que la AI se prueba
+          así, y puede no andar.
+        </p>
+      )}
       <div className="ai-botones">
         <button type="button" className="boton-correr" onClick={continuar}>Continuar</button>
         <button type="button" className="boton-secundario" onClick={cancelar}>Cancelar</button>
@@ -142,7 +149,13 @@ export function PreguntarConAi({ cliente, grafo, alProponer }: Props) {
       );
     case "disponible":
       cuerpo = avisando
-        ? <Aviso continuar={() => (setAvisando(false), cliente.cargar())} cancelar={() => setAvisando(false)} />
+        ? (
+          <Aviso
+            gpu={estado.gpu}
+            continuar={() => (setAvisando(false), cliente.cargar())}
+            cancelar={() => setAvisando(false)}
+          />
+        )
         : (
           <>
             {estado.error && (
@@ -161,7 +174,7 @@ export function PreguntarConAi({ cliente, grafo, alProponer }: Props) {
         );
       break;
     case "bajando":
-      cuerpo = <Descarga progreso={estado.progreso} />;
+      cuerpo = <Descarga progreso={estado.progreso} gpu={estado.gpu} />;
       break;
     case "preparando":
       cuerpo = (

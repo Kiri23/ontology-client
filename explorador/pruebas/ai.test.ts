@@ -12,11 +12,12 @@ import {
   sinPrefijos,
   textoDelEsquema,
 } from "../src/grafo/ai/prompt.ts";
+import { bytesDelModelo, eleccionDeCarga } from "../src/grafo/ai/protocolo.ts";
 import { validar } from "../src/grafo/logica/validador.ts";
 import type { Grafo } from "../src/grafo/motor.ts";
 import { grafoDePrueba } from "./grafo-de-prueba.ts";
 import { renderizarParaGemma } from "./plantilla-gemma.ts";
-import { workerFalso } from "./worker-falso.ts";
+import { GPU_DE_ESCRITORIO, GPU_DEL_PIXEL, workerFalso } from "./worker-falso.ts";
 
 let grafo: Grafo;
 let esquema: Esquema;
@@ -129,7 +130,7 @@ describe("cliente", () => {
     const cliente = new ClienteAi(() => f.worker, () => true);
     cliente.revisar();
     expect(f.recibidos).toEqual([{ tipo: "check" }]);
-    f.emitir({ tipo: "check", webgpu: true });
+    f.conWebGpu();
     expect(cliente.estado().fase).toBe("disponible");
     cliente.cargar();
     expect(f.recibidos.at(-1)).toEqual({ tipo: "load" });
@@ -138,17 +139,17 @@ describe("cliente", () => {
     f.emitir({ tipo: "listo" });
     const texto = cliente.generar([{ role: "user", content: "hola" }]);
     f.emitir({ tipo: "token", texto: "SEL" });
-    expect(cliente.estado()).toEqual({ fase: "generando", parcial: "SEL" });
+    expect(cliente.estado()).toEqual({ fase: "generando", gpu: GPU_DE_ESCRITORIO, parcial: "SEL" });
     f.emitir({ tipo: "generado", texto: "SELECT" });
     await expect(texto).resolves.toBe("SELECT");
-    expect(cliente.estado()).toEqual({ fase: "listo" });
+    expect(cliente.estado()).toEqual({ fase: "listo", gpu: GPU_DE_ESCRITORIO });
   });
 
   it("un error al generar deja el modelo cargado; uno al cargar trae su pista", async () => {
     const f = workerFalso();
     const cliente = new ClienteAi(() => f.worker, () => true);
     cliente.revisar();
-    f.emitir({ tipo: "check", webgpu: true });
+    f.conWebGpu();
     cliente.cargar();
     f.emitir({ tipo: "error", cuando: "carga", mensaje: "QuotaExceededError", nombre: "QuotaExceededError" });
     expect(cliente.estado()).toMatchObject({ fase: "fallo-carga", pista: expect.stringContaining("liberá espacio") });
@@ -157,7 +158,7 @@ describe("cliente", () => {
     const texto = cliente.generar([{ role: "user", content: "hola" }]);
     f.emitir({ tipo: "error", cuando: "generacion", mensaje: "out of tokens" });
     await expect(texto).rejects.toThrow("out of tokens");
-    expect(cliente.estado()).toEqual({ fase: "listo", error: "out of tokens" });
+    expect(cliente.estado()).toEqual({ fase: "listo", gpu: GPU_DE_ESCRITORIO, error: "out of tokens" });
     expect(f.estado.terminado).toBe(false);
   });
 
@@ -165,30 +166,57 @@ describe("cliente", () => {
     const fakes: ReturnType<typeof workerFalso>[] = [];
     const cliente = new ClienteAi(() => (fakes.push(workerFalso()), fakes.at(-1)!.worker), () => true);
     cliente.revisar();
-    fakes[0].emitir({ tipo: "check", webgpu: true });
+    fakes[0].conWebGpu();
     cliente.cargar();
     fakes[0].emitir({ tipo: "listo" });
     const texto = cliente.generar([{ role: "user", content: "hola" }]);
     fakes[0].emitir({ tipo: "error", cuando: "generacion", mensaje: "GPU device was lost: unknown" });
     await expect(texto).rejects.toThrow("device was lost");
     expect(fakes[0].estado.terminado).toBe(true);
-    expect(cliente.estado()).toEqual({ fase: "disponible", error: "GPU device was lost: unknown" });
+    expect(cliente.estado()).toEqual({
+      fase: "disponible",
+      gpu: GPU_DE_ESCRITORIO,
+      error: "GPU device was lost: unknown",
+    });
     cliente.cargar();
     expect(fakes).toHaveLength(2);
     expect(fakes[1].recibidos).toEqual([{ tipo: "load" }]);
   });
 
-  it("el porcentaje se mide contra los 3,1 GB aunque el total todavía no los sume", () => {
-    expect(porcentaje({ archivo: "", cargado: 1_565_000_000, total: 1_600_000_000 })).toBe(50);
-    expect(porcentaje({ archivo: "", cargado: 4e9, total: 4e9 })).toBe(100);
+  it("el porcentaje se mide contra lo que pesa la variante que baja, aunque el total todavía no lo sume", () => {
+    expect(porcentaje({ archivo: "", cargado: 1_565_000_000, total: 1_600_000_000 }, bytesDelModelo(true))).toBe(50);
+    expect(porcentaje({ archivo: "", cargado: 1_565_000_000, total: 1_600_000_000 }, bytesDelModelo(false))).toBe(42);
+    expect(porcentaje({ archivo: "", cargado: 4e9, total: 4e9 }, bytesDelModelo(false))).toBe(100);
     expect(pistaDeCarga("Failed to fetch")).toContain("retoma");
+  });
+
+  it("con shader-f16 baja q4f16 (3,1 GB); sin f16, q4 (3,6 GB): un shader de f16 no compila en esa GPU", () => {
+    expect(eleccionDeCarga({ f16: true })).toEqual({ dtype: "q4f16", bytes: 3_130_000_000 });
+    expect(eleccionDeCarga({ f16: false })).toEqual({ dtype: "q4", bytes: 3_646_000_000 });
+    expect(bytesDelModelo(false)).toBeGreaterThan(bytesDelModelo(true));
+  });
+
+  it("el check guarda el modo y el f16, y siguen ahí al cargar y al perder la GPU", () => {
+    const f = workerFalso();
+    const cliente = new ClienteAi(() => f.worker, () => true);
+    cliente.revisar();
+    f.conWebGpu(GPU_DEL_PIXEL);
+    expect(cliente.estado()).toEqual({ fase: "disponible", gpu: GPU_DEL_PIXEL });
+    cliente.cargar();
+    expect(cliente.estado()).toEqual({ fase: "bajando", gpu: GPU_DEL_PIXEL });
+    f.emitir({ tipo: "error", cuando: "carga", mensaje: "GPU device lost (unknown): pantalla apagada" });
+    expect(cliente.estado()).toEqual({
+      fase: "disponible",
+      gpu: GPU_DEL_PIXEL,
+      error: "GPU device lost (unknown): pantalla apagada",
+    });
   });
 
   it("un segundo cargar mientras baja no manda otro load", () => {
     const f = workerFalso();
     const cliente = new ClienteAi(() => f.worker, () => true);
     cliente.revisar();
-    f.emitir({ tipo: "check", webgpu: true });
+    f.conWebGpu();
     cliente.cargar();
     cliente.cargar();
     f.emitir({ tipo: "preparando" });
@@ -200,10 +228,10 @@ describe("cliente", () => {
     const f = workerFalso();
     const cliente = new ClienteAi(() => f.worker, () => true);
     cliente.revisar();
-    f.emitir({ tipo: "check", webgpu: true });
+    f.conWebGpu();
     await expect(cliente.generar([{ role: "user", content: "hola" }])).rejects.toThrow("no está listo");
     expect(f.recibidos.some((m) => m.tipo === "generate")).toBe(false);
-    expect(cliente.estado()).toEqual({ fase: "disponible" });
+    expect(cliente.estado()).toEqual({ fase: "disponible", gpu: GPU_DE_ESCRITORIO });
   });
 
   it("el worker que no arranca en la revisión deja sin-worker con el motivo; después, es un fallo de carga", () => {
@@ -215,7 +243,7 @@ describe("cliente", () => {
     const g = workerFalso();
     const otro = new ClienteAi(() => g.worker, () => true);
     otro.revisar();
-    g.emitir({ tipo: "check", webgpu: true });
+    g.conWebGpu();
     otro.cargar();
     g.fallar("");
     expect(otro.estado()).toMatchObject({ fase: "fallo-carga", mensaje: "El worker de la AI no arrancó." });

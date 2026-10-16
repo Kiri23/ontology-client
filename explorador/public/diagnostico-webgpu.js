@@ -18,8 +18,7 @@ try {
     "error",
     (
       e,
-    ) => ((resultados.worker = { error: e.message || "el worker no arrancó" }),
-      pintar()),
+    ) => ((resultados.worker = { error: e.message || "el worker no arrancó" }), pintar()),
   );
 } catch (e) {
   resultados.worker = { error: String(e) };
