@@ -11,11 +11,12 @@ name: Deploy explorador
 #
 # El paquete JSR no lo toca: publish.yml es otro workflow y deno.json excluye explorador/ del publish.
 
+# pull_request sin filtro de rama: un PR apilado (base ≠ main) también construye y pasa el humo, así el revisor tiene
+# build. Lo que publica o despliega mira github.ref == refs/heads/main, que un PR nunca es.
 on:
   push:
     branches: [main]
   pull_request:
-    branches: [main]
   workflow_dispatch:
 
 permissions:
