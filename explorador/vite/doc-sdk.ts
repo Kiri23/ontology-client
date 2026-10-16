@@ -88,7 +88,7 @@ export function docSdk(): Plugin {
     resolveId: (id) => (id === ID ? `\0${ID}` : undefined),
     load(id) {
       if (id !== `\0${ID}`) return;
-      for (const archivo of ["mod.ts", "jobs.ts", "cliente.ts"]) {
+      for (const archivo of ["mod.ts", "jobs.ts", "sparql.ts", "cliente.ts"]) {
         this.addWatchFile(RAIZ_SDK + archivo);
       }
       return `export default ${JSON.stringify(leerDocSdk())};`;

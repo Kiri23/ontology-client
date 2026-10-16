@@ -9,6 +9,7 @@
 //   jobs.get(filtros?, o?)        GET /jobs: los puestos como JobPost[] (jobs.ts).
 //   jobs.descartar(job, porque)   POST /jobs/descartar y POST /jobs/marcar-aplicado (jobs.marcarAplicado):
 //                                 las acciones sobre un puesto; devuelven el JobPost como queda.
+//   sparql.consultar(q, o?)       GET /sparql: la consulta y la respuesta tal cual ({ tipo, texto }) (sparql.ts).
 //
 // Los tipos salen del contrato (contrato/openapi.json, que genera el servidor): nada de acá describe
 // el endpoint a mano. El motor y las reglas son privados; por HTTP sale solo el reporte.
@@ -20,6 +21,8 @@ import { ErrorServidor, type Forma, pedir } from "./cliente.ts";
 export type { components, operations, paths } from "./generado/api.ts";
 export { crearCliente, ErrorServidor, TIMEOUT_MS, URL_PRODUCCION } from "./cliente.ts";
 export * as jobs from "./jobs.ts";
+export * as sparql from "./sparql.ts";
+export type { OpcionesSparql, RespuestaSparql } from "./sparql.ts";
 export type { FiltrosJobs, JobPost, OpcionesAcciones, OpcionesJobs, ReferenciaJob, Technology } from "./jobs.ts";
 
 /** Lo que responde POST /proyectos con 200, tal como lo declara el contrato. */

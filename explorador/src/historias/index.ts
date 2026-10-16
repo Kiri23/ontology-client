@@ -3,9 +3,10 @@
 import { CLIENTE } from "./cliente.ts";
 import { JOBS } from "./jobs.ts";
 import { PROYECTOS } from "./proyectos.ts";
+import { SPARQL } from "./sparql.ts";
 import type { Clase, Historia } from "./tipos.ts";
 
-export const CLASES: Clase[] = [JOBS, PROYECTOS, CLIENTE];
+export const CLASES: Clase[] = [JOBS, PROYECTOS, SPARQL, CLIENTE];
 
 export const HISTORIAS: Historia[] = CLASES.flatMap((c) => c.historias);
 
