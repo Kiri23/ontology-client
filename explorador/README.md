@@ -223,10 +223,12 @@ Caddyfile pone una CSP que solo deja correr el JS propio y hablar con el mismo o
 ## Preview de un PR
 
 Cada PR tiene su preview en una VM desechable de exe.dev: `https://pr-ontology-client-<n>.exe.xyz/` (privada, pide login
-de exe.dev). Lo arma `.github/workflows/preview.yml` con el reusable de Kiri23/kiriInfra: construye esta imagen, la
-manda por ssh a la VM y deja un comentario en el PR con la URL y el commit; cerrar el PR borra la VM. La imagen corre
-con `API_UPSTREAM=https://ontology.kiri231.com`: el Caddyfile manda los GET de la API y de `/sparql` al servidor real y
-la raíz redirige a `/explorador/`. De los POST pasa uno solo, `POST /ai/sparql` (Preguntar con AI no escribe nada; el
+de exe.dev). Lo arma `.github/workflows/preview.yml` con la composite action `preview-exe-dev` de Kiri23/kiriInfra:
+construye esta imagen, la manda por ssh a la VM y deja un comentario en el PR con la URL y el commit; cerrar el PR borra
+la VM. Como este repo es público y kiriInfra privado, el workflow baja la action con el PAT de solo lectura
+`KIRIINFRA_READ` y la usa como local; además necesita el secret `EXE_SSH_KEY`. La imagen corre con
+`API_UPSTREAM=https://ontology.kiri231.com`: el Caddyfile manda los GET de la API y de `/sparql` al servidor real y la
+raíz redirige a `/explorador/`. De los POST pasa uno solo, `POST /ai/sparql` (Preguntar con AI no escribe nada; el
 límite y la key quedan en el servidor): una acción corrida desde el preview no escribe en producción. En producción la
 variable no existe y esos bloques no matchean; ahí kiri-edge manda `/ai/sparql` a ontology-web, no a este contenedor.
 
