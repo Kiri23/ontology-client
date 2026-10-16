@@ -2,11 +2,12 @@
 // en una de estas clases (o una clase nueva acá); si no, falla tests/explorador.test.ts en la raíz.
 import { CLIENTE } from "./cliente.ts";
 import { JOBS } from "./jobs.ts";
+import { MOTOR } from "./motor.ts";
 import { PROYECTOS } from "./proyectos.ts";
 import { SPARQL } from "./sparql.ts";
 import type { Clase, Historia } from "./tipos.ts";
 
-export const CLASES: Clase[] = [JOBS, PROYECTOS, SPARQL, CLIENTE];
+export const CLASES: Clase[] = [JOBS, PROYECTOS, SPARQL, MOTOR, CLIENTE];
 
 export const HISTORIAS: Historia[] = CLASES.flatMap((c) => c.historias);
 

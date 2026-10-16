@@ -2,8 +2,10 @@
 // buildear. La app los importa de `virtual:doc-sdk`: la descripción de una historia es la del SDK, no una copia que
 // se desactualiza.
 //
-// Sigue los exports de ../mod.ts: las funciones de mod.ts, `export * as jobs from "./jobs.ts"` (jobs.get…) y
-// `export { crearCliente } from "./cliente.ts"`. Las clases (ErrorServidor) y las constantes no son historias.
+// Sigue los exports de ../mod.ts: las funciones de mod.ts, `export * as jobs from "./jobs.ts"` (jobs.get…),
+// `export { crearCliente } from "./cliente.ts"` y los métodos de un objeto exportado con su interfaz
+// (`export const motorHttp: Motor = { jobs: { get… } }` → motorHttp.jobs.get, con la firma y el JSDoc de Motor). Las
+// clases (ErrorServidor) y las demás constantes no son historias.
 import ts from "typescript";
 import type { Plugin } from "vite";
 
@@ -32,16 +34,17 @@ export function leerDocSdk(raiz: string = RAIZ_SDK): DocSdk {
     return ts.createSourceFile(archivo, texto, ts.ScriptTarget.Latest, true);
   };
   const doc: DocSdk = {};
-  const agregar = (nombre: string, f: ts.FunctionDeclaration, archivo: string) => {
-    doc[nombre] = { descripcion: jsdoc(f), firma: firma(nombre, f), archivo };
+  const agregar = (nombre: string, f: ts.SignatureDeclaration, archivo: string, antes = "") => {
+    doc[nombre] = { descripcion: [antes, jsdoc(f)].filter(Boolean).join("\n\n"), firma: firma(nombre, f), archivo };
   };
 
   for (const s of leer("mod.ts").statements) {
     if (ts.isFunctionDeclaration(s) && s.name && exportada(s)) agregar(s.name.text, s, "mod.ts");
     if (!ts.isExportDeclaration(s) || s.isTypeOnly || !s.moduleSpecifier || !s.exportClause) continue;
     const archivo = (s.moduleSpecifier as ts.StringLiteral).text.replace(/^\.\//, "");
+    const fuente = leer(archivo);
     const funciones = new Map(
-      leer(archivo).statements
+      fuente.statements
         .filter((f): f is ts.FunctionDeclaration => ts.isFunctionDeclaration(f) && !!f.name && exportada(f))
         .map((f) => [f.name!.text, f]),
     );
@@ -49,19 +52,57 @@ export function leerDocSdk(raiz: string = RAIZ_SDK): DocSdk {
       for (const [nombre, f] of funciones) agregar(`${s.exportClause.name.text}.${nombre}`, f, archivo);
     } else {
       for (const e of s.exportClause.elements) {
+        if (e.isTypeOnly) continue;
         const f = funciones.get((e.propertyName ?? e.name).text);
-        if (f && !e.isTypeOnly) agregar(e.name.text, f, archivo);
+        if (f) agregar(e.name.text, f, archivo);
+        else {
+          for (const [ruta, metodo, antes] of metodosDeObjeto(fuente, (e.propertyName ?? e.name).text)) {
+            agregar(`${e.name.text}.${ruta}`, metodo, archivo, antes);
+          }
+        }
       }
     }
   }
   return doc;
 }
 
-function exportada(f: ts.FunctionDeclaration): boolean {
+function exportada(f: ts.FunctionDeclaration | ts.VariableStatement): boolean {
   return !!f.modifiers?.some((m) => m.kind === ts.SyntaxKind.ExportKeyword);
 }
 
-function jsdoc(f: ts.FunctionDeclaration): string {
+/**
+ * Los métodos de `export const nombre: Interfaz = {…}`, leídos de la interfaz (en el mismo archivo), que tiene los
+ * tipos y el JSDoc: `["jobs.get", get(filtros: FiltrosJobs…), "<JSDoc del const>"]`. Recorre las propiedades que son
+ * objetos (`jobs: { get(…) }`). Sin anotación de tipo o sin la interfaz, nada.
+ */
+function metodosDeObjeto(fuente: ts.SourceFile, nombre: string): [string, ts.MethodSignature, string][] {
+  for (const s of fuente.statements) {
+    if (!ts.isVariableStatement(s) || !exportada(s)) continue;
+    const d = s.declarationList.declarations.find((d) => ts.isIdentifier(d.name) && d.name.text === nombre);
+    if (!d?.type || !ts.isTypeReferenceNode(d.type)) continue;
+    const tipo = d.type.typeName.getText();
+    const interfaz = fuente.statements.find((i): i is ts.InterfaceDeclaration =>
+      ts.isInterfaceDeclaration(i) && i.name.text === tipo
+    );
+    if (!interfaz) return [];
+    const salida: [string, ts.MethodSignature, string][] = [];
+    const recorrer = (miembros: ts.NodeArray<ts.TypeElement>, prefijo: string) => {
+      for (const m of miembros) {
+        if (!m.name) continue;
+        const clave = prefijo + m.name.getText();
+        if (ts.isMethodSignature(m)) salida.push([clave, m, jsdoc(s)]);
+        else if (ts.isPropertySignature(m) && m.type && ts.isTypeLiteralNode(m.type)) {
+          recorrer(m.type.members, `${clave}.`);
+        }
+      }
+    };
+    recorrer(interfaz.members, "");
+    return salida;
+  }
+  return [];
+}
+
+function jsdoc(f: ts.Node): string {
   return ts.getJSDocCommentsAndTags(f)
     .filter(ts.isJSDoc)
     .map((d) => ts.getTextOfJSDocComment(d.comment) ?? "")
@@ -70,7 +111,7 @@ function jsdoc(f: ts.FunctionDeclaration): string {
     .trim();
 }
 
-function firma(nombre: string, f: ts.FunctionDeclaration): string {
+function firma(nombre: string, f: ts.SignatureDeclaration): string {
   const params = f.parameters.map((p) => {
     const opcional = p.questionToken || p.initializer ? "?" : "";
     return `${p.name.getText()}${opcional}: ${p.type?.getText() ?? "unknown"}`;
@@ -88,7 +129,7 @@ export function docSdk(): Plugin {
     resolveId: (id) => (id === ID ? `\0${ID}` : undefined),
     load(id) {
       if (id !== `\0${ID}`) return;
-      for (const archivo of ["mod.ts", "jobs.ts", "sparql.ts", "cliente.ts"]) {
+      for (const archivo of ["mod.ts", "jobs.ts", "sparql.ts", "cliente.ts", "motor.ts"]) {
         this.addWatchFile(RAIZ_SDK + archivo);
       }
       return `export default ${JSON.stringify(leerDocSdk())};`;
