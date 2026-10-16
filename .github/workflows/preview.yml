@@ -50,8 +50,6 @@ jobs:
         uses: actions/checkout@v5
         with:
           repository: Kiri23/kiriInfra
-          # TODO: quitar ref cuando kiriInfra#55 se mergee (quedó a mano de Christian: el auto mode no mergea)
-          ref: preview-composite
           token: ${{ secrets.KIRIINFRA_READ }}
           path: .kiriinfra
           persist-credentials: false
