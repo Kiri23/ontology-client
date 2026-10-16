@@ -1,0 +1,73 @@
+name: Preview
+
+# Un preview por PR en una VM desechable de exe.dev (https://pr-ontology-client-<n>.exe.xyz/, privada: pide login de
+# exe.dev). La lógica vive en la composite action de Kiri23/kiriInfra (.github/actions/preview-exe-dev/); acá solo se
+# dice qué imagen y cómo correrla. Abrir o pushear el PR la crea o la actualiza; cerrarlo borra la VM. La URL y el commit
+# que corre quedan en un solo comentario del PR, que cada push edita.
+#
+# Este repo es público y kiriInfra privado: GitHub no deja que un repo público use un reusable workflow ni una action de
+# un repo privado ("Access is allowed only from private repositories"), y el run fallaba sin crear jobs. El puente es
+# el de kiri-pm en portfolio: checkout de kiriInfra con un PAT de solo lectura y `uses:` de la action como local.
+# Secretos (un PR de fork o de dependabot no los recibe: el job ni arranca, o sale limpio en "secretos"):
+#   KIRIINFRA_READ  PAT fine-grained: solo Kiri23/kiriInfra, Contents: read-only. En Doppler agent-tools/prd con ese
+#                   mismo nombre, al lado de TERMUXCONFIG_READ (el PAT de portfolio para kiri-pm).
+#   EXE_SSH_KEY     la llave EXE_CI_SSH_KEY de Doppler global/dev, registrada en exe.dev con --tag=preview.
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, closed]
+
+jobs:
+  preview:
+    if: >-
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.actor != 'dependabot[bot]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      pull-requests: write
+    # Un run nuevo del mismo PR cancela el que está en curso, salvo que el nuevo sea el cierre: ese espera a que termine.
+    concurrency:
+      group: preview-exe-dev-${{ github.repository }}-${{ github.event.pull_request.number }}
+      cancel-in-progress: ${{ github.event.action != 'closed' }}
+    steps:
+      # `secrets` no se puede usar en un `if:`; se mira por env.
+      - name: secretos
+        id: secretos
+        env:
+          KIRIINFRA_READ: ${{ secrets.KIRIINFRA_READ }}
+          EXE_SSH_KEY: ${{ secrets.EXE_SSH_KEY }}
+        run: |
+          if [ -n "$KIRIINFRA_READ" ] && [ -n "$EXE_SSH_KEY" ]; then
+            echo "ok=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "preview: falta KIRIINFRA_READ o EXE_SSH_KEY; nada que hacer."
+          fi
+
+      # Solo la action: el resto del repo privado no baja al runner.
+      - if: steps.secretos.outputs.ok == 'true'
+        uses: actions/checkout@v5
+        with:
+          repository: Kiri23/kiriInfra
+          # TODO: quitar ref cuando kiriInfra#55 se mergee (quedó a mano de Christian: el auto mode no mergea)
+          ref: preview-composite
+          token: ${{ secrets.KIRIINFRA_READ }}
+          path: .kiriinfra
+          persist-credentials: false
+          sparse-checkout-cone-mode: false
+          sparse-checkout: .github/actions/preview-exe-dev/
+
+      - if: steps.secretos.outputs.ok == 'true'
+        uses: ./.kiriinfra/.github/actions/preview-exe-dev
+        with:
+          # La imagen del explorador: Caddy en 8080 sirviendo dist/. El contexto es la raíz, porque importa el SDK.
+          port: 8080
+          dockerfile: explorador/Dockerfile
+          context: .
+          smoke-path: /explorador/
+          # En el preview no hay API al lado: con API_UPSTREAM el Caddyfile manda los GET de la API a producción y la
+          # raíz al explorador (solo GET, nada escribe).
+          run-args: -e API_UPSTREAM=https://ontology.kiri231.com --memory=256m
+          exe-ssh-key: ${{ secrets.EXE_SSH_KEY }}
+          github-token: ${{ github.token }}

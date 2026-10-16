@@ -19,7 +19,7 @@
   /* minmax(0, …): sin esto la pista toma el ancho de la línea más larga de un <pre> y la página se desborda. */
   grid-template-columns: minmax(0, 1fr);
   grid-template-areas: "cabecera" "ficha" "respuesta" "doc";
-  gap: 2.25rem 3rem;
+  gap: 1.75rem 3rem;
   align-items: start;
 }
 
@@ -98,8 +98,22 @@
   font: 500 1.15rem/1.45 var(--f-prosa);
 }
 
-.panel-doc .seccion-titulo {
+/* La documentación es un <details>: abierta en pantalla ancha, plegada al final en el teléfono. */
+.panel-doc > summary {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.2rem 0.75rem;
+  min-height: var(--toque);
   margin-bottom: 0.9rem;
+  padding-top: 0.5rem;
+  cursor: pointer;
+  border-top: 1px solid var(--regla);
+}
+
+.panel-doc-de {
+  font: 400 0.8rem var(--f-ui);
+  color: var(--tinta-suave);
 }
 
 .doc-generico summary {
@@ -169,16 +183,12 @@
 
 .firma figcaption {
   margin-bottom: 0.35rem;
-  font: 600 0.68rem var(--f-ui);
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
+  font: 600 0.8rem var(--f-ui);
   color: var(--tinta-suave);
 }
 
 .firma figcaption span {
-  font: 400 0.7rem var(--f-mono);
-  letter-spacing: 0;
-  text-transform: none;
+  font: 400 0.75rem var(--f-mono);
 }
 
 .firma pre {

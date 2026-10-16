@@ -52,7 +52,14 @@ function Tarjetas({ filas, claves }: { filas: Fila[]; claves: string[] }) {
   );
 }
 
-export function Tabla({ filas, preferidas }: { filas: Fila[]; preferidas?: string[] }) {
+interface Props {
+  filas: Fila[];
+  preferidas?: string[];
+  /** Sin un JSON al lado (la vista Grafo): el pie no lo nombra. */
+  sinJson?: boolean;
+}
+
+export function Tabla({ filas, preferidas, sinJson = false }: Props) {
   const claves = columnas(filas, preferidas);
   const visibles = filas.slice(0, TOPE);
   const [ref, desborda] = useDesborda<HTMLDivElement>(filas);
@@ -95,7 +102,7 @@ export function Tabla({ filas, preferidas }: { filas: Fila[]; preferidas?: strin
         {enTarjeta < claves.length && (
           <span className="solo-tarjetas">Cada tarjeta muestra {enTarjeta} de {claves.length} campos.</span>
         )}
-        El JSON trae todo.
+        {!sinJson && "El JSON trae todo."}
       </p>
     </div>
   );

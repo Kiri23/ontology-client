@@ -77,16 +77,18 @@ describe("doc-sdk", () => {
     }
   });
 
-  it("lee las funciones de jobs.ts por el export * as jobs, sin clases ni constantes", () => {
+  it("lee las funciones de jobs.ts y sparql.ts por su export * as, sin clases ni constantes", () => {
     expect(Object.keys(doc).sort()).toEqual([
       "crearCliente",
       "jobs.descartar",
       "jobs.get",
       "jobs.marcarAplicado",
+      "sparql.consultar",
       "validarProyecto",
     ]);
     expect(doc["jobs.get"].archivo).toBe("jobs.ts");
     expect(doc["jobs.get"].descripcion).toContain("Los puestos, lo más nuevo primero");
     expect(doc["jobs.get"].descripcion).toContain("`ErrorServidor`");
+    expect(doc["sparql.consultar"].archivo).toBe("sparql.ts");
   });
 });

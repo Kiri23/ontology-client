@@ -15,6 +15,8 @@
   --rojo-fondo: light-dark(oklch(0.94 0.035 40), oklch(0.29 0.06 33));
   --verde: light-dark(oklch(0.47 0.1 152), oklch(0.78 0.12 152));
   --azul: light-dark(oklch(0.47 0.12 258), oklch(0.78 0.09 258));
+  /* Lo tocable mide al menos esto: un dedo. */
+  --toque: 2.75rem;
   --f-ui: "Schibsted Grotesk Variable", system-ui, sans-serif;
   --f-prosa: "Literata Variable", Georgia, serif;
   --f-mono: "Martian Mono Variable", ui-monospace, monospace;
@@ -75,12 +77,12 @@ a {
   margin: 0;
   display: flex;
   align-items: baseline;
-  gap: 0.6rem;
+  gap: 0.75rem;
   flex-wrap: wrap;
 }
 
 .marca-paquete {
-  font: 500 0.72rem var(--f-mono);
+  font-size: 0.8rem;
   color: var(--tinta-suave);
 }
 
@@ -92,6 +94,7 @@ a {
 .cabecera-meta {
   margin: 0;
   display: flex;
+  align-items: baseline;
   gap: 1rem;
   font-size: 0.85rem;
   color: var(--tinta-suave);
@@ -99,6 +102,60 @@ a {
 
 .cabecera-meta a {
   text-underline-offset: 3px;
+}
+
+.solo-lector {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/* Todo <details> se abre con el mismo chevrón (el marcador nativo desaparece con display: flex en el summary). */
+summary {
+  list-style: none;
+}
+
+summary::-webkit-details-marker {
+  display: none;
+}
+
+summary::before {
+  content: "";
+  flex: none;
+  display: inline-block;
+  width: 0.45rem;
+  height: 0.45rem;
+  margin: 0 0.6rem 0.15rem 0.1rem;
+  border-right: 2px solid currentColor;
+  border-bottom: 2px solid currentColor;
+  transform: rotate(-45deg);
+  transition: transform 160ms var(--salida);
+}
+
+details[open] > summary::before {
+  transform: rotate(45deg);
+}
+
+/* Un botón de segundo orden (Copiar, Deshacer, Abrir en consulta libre): borde de tinta suave, alto de un dedo. */
+.boton-secundario {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--toque);
+  padding: 0 1rem;
+  border: 1px solid var(--regla);
+  border-radius: 3px;
+  background: var(--papel-ficha);
+  color: var(--tinta);
+  font: 550 0.88rem var(--f-ui);
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.boton-secundario:active {
+  background: var(--papel-hundido);
 }
 
 @keyframes entrar {
@@ -114,8 +171,30 @@ a {
     grid-template-rows: auto auto 1fr;
   }
 
+  /* Una sola línea: la marca y el servidor; el nombre del paquete ya está en el link a JSR. */
+  .cabecera {
+    flex-wrap: nowrap;
+    padding-block: 0.6rem;
+  }
+
   .marca-app {
-    font-size: 1.35rem;
+    font-size: 1.3rem;
+  }
+
+  .marca-paquete {
+    display: none;
+  }
+
+  .cabecera-meta {
+    gap: 0.75rem;
+    font-size: 0.8rem;
+    min-width: 0;
+  }
+
+  .cabecera-meta code {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 }
 

@@ -1,7 +1,9 @@
 // Los hooks y el panel, con el DOM de happy-dom y un fetch falso.
 import { act, cleanup, fireEvent, render, renderHook, screen, waitFor } from "@testing-library/react";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { App } from "../src/App.tsx";
+import { Barra } from "../src/componentes/Barra.tsx";
+import { SiFalla } from "../src/componentes/SiFalla.tsx";
 import { buscarHistoria } from "../src/historias/index.ts";
 import { useLlamada } from "../src/hooks/useLlamada.ts";
 import { fetchFalso, JOBS, json } from "./falso.ts";
@@ -147,5 +149,45 @@ describe("App", () => {
     const cabeceras = screen.getAllByRole("columnheader").map((th) => th.textContent);
     expect(cabeceras.slice(0, 5)).toEqual(["#", "titulo", "empresa", "fuente", "link"]);
     expect(screen.getByRole("list", { name: "Respuesta como tarjetas" }).children).toHaveLength(JOBS.length);
+  });
+
+  it("la barra trae la sección Grafo con sus vistas, como links del hash", () => {
+    history.replaceState(null, "", "/explorador/#/jobs.get");
+    render(<App url={URL_BASE} fetch={fetchFalso(() => json([])).fetch} />);
+    const barra = screen.getByRole("navigation");
+    const links = [...barra.querySelectorAll(".clase-grafo a")].map((a) => [a.textContent, a.getAttribute("href")]);
+    expect(links[0]).toEqual(["Mapa", "#/grafo/mapa"]);
+    expect(links).toContainEqual(["Huecos", "#/grafo/huecos"]);
+    expect(links.at(-1)).toEqual(["Consulta libre", "#/grafo/consulta"]);
+    expect(barra.querySelector(".clase-grafo .entrada-apagada")?.textContent).toContain("Indagar");
+  });
+
+  it("Indagar vuelve al último nodo abierto y queda marcada en la vista nodo", () => {
+    const iri = "https://github.com/actions/checkout#.";
+    render(
+      <Barra clases={[]} actual="grafo/nodo" donde={{ seccion: "Grafo", nombre: "Indagar" }} indagar={{ iri }} />,
+    );
+    const indagar = screen.getByRole("link", { name: "Indagar" });
+    expect(indagar.getAttribute("href")).toBe(`#/grafo/nodo?iri=${encodeURIComponent(iri)}`);
+    expect(indagar.getAttribute("aria-current")).toBe("page");
+  });
+});
+
+describe("SiFalla", () => {
+  it("si la vista Grafo tira (su chunk no llegó), dice qué pasó y ofrece recargar en vez de dejar la página en blanco", () => {
+    const Rota = () => {
+      throw new Error("Failed to fetch dynamically imported module: VistaGrafo-viejo.js");
+    };
+    const silencio = vi.spyOn(console, "error").mockImplementation(() => {});
+    render(
+      <SiFalla>
+        <Rota />
+      </SiFalla>,
+    );
+    silencio.mockRestore();
+    const alerta = screen.getByRole("alert");
+    expect(alerta.textContent).toContain("No se pudo abrir la vista Grafo");
+    expect(alerta.textContent).toContain("VistaGrafo-viejo.js");
+    expect(screen.getByRole("button", { name: "Recargar" })).toBeTruthy();
   });
 });

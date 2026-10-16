@@ -11,10 +11,8 @@
 
 .seccion-titulo {
   margin: 0;
-  font: 650 0.72rem var(--f-ui);
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  color: var(--tinta-suave);
+  font: 650 0.95rem var(--f-ui);
+  color: var(--tinta);
 }
 
 .ficha .seccion-titulo {
@@ -39,6 +37,22 @@
 .token {
   padding-bottom: 1.15rem;
   border-bottom: 1px dashed var(--regla);
+}
+
+.token-ayuda summary {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--toque);
+  cursor: pointer;
+  font-size: 0.82rem;
+  color: var(--tinta-suave);
+}
+
+.token-ayuda p {
+  margin: 0;
+  font-size: 0.82rem;
+  line-height: 1.5;
+  color: var(--tinta-suave);
 }
 
 .control label,
@@ -135,6 +149,7 @@ button {
 
 .boton-correr,
 .boton-peligro {
+  min-height: var(--toque);
   padding: 0.62rem 1.6rem;
   border: 0;
   border-radius: 3px;
@@ -161,6 +176,7 @@ button {
 }
 
 .boton-texto {
+  min-height: var(--toque);
   padding: 0.3rem 0.2rem;
   border: 0;
   background: none;
@@ -230,4 +246,18 @@ button {
 /* El token como texto enmascarado (CampoToken.tsx): los gestores de contraseñas no lo toman por un password. */
 .token-mascara {
   -webkit-text-security: disc;
+}
+
+/* En el teléfono la ficha pierde la sombra y gana ancho: el aire va entre secciones, no en el marco. Correr ocupa la
+   fila entera, a la altura del pulgar. */
+@media (max-width: 52rem) {
+  .ficha {
+    margin-inline: -0.25rem;
+    padding: 1rem 1rem 1.25rem;
+    box-shadow: none;
+  }
+
+  .ficha-pie .boton-correr {
+    flex: 1 1 100%;
+  }
 }

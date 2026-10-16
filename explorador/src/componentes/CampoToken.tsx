@@ -20,9 +20,11 @@ interface Props {
   tipo: Token;
   valor: string;
   guardar: (valor: string) => void;
+  /** La ayuda ("Dónde queda el token") arranca abierta: en pantalla ancha sí, en el teléfono plegada (diseno.md). */
+  ayudaAbierta?: boolean;
 }
 
-export function CampoToken({ tipo, valor, guardar }: Props) {
+export function CampoToken({ tipo, valor, guardar, ayudaAbierta = false }: Props) {
   const id = `token-${tipo}`;
   return (
     <div className="token">
@@ -49,10 +51,13 @@ export function CampoToken({ tipo, valor, guardar }: Props) {
         />
         {valor && <button type="button" className="boton-texto" onClick={() => guardar("")}>olvidar</button>}
       </div>
-      <p className="control-ayuda">
-        Vive en el sessionStorage de esta pestaña y sale solo en el header Authorization del pedido. Al cerrar la
-        pestaña se va. La página no le ofrece al navegador guardarlo.
-      </p>
+      <details className="token-ayuda" open={ayudaAbierta}>
+        <summary>Dónde queda el token</summary>
+        <p>
+          En el sessionStorage de esta pestaña, y sale solo en el header Authorization del pedido. Al cerrar la pestaña
+          se va. La página no le ofrece al navegador guardarlo.
+        </p>
+      </details>
     </div>
   );
 }

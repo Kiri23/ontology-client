@@ -38,12 +38,21 @@ function motivoParaNoCorrer(historia: Historia, token: string, valores: Valores)
   return faltan.length ? `Falta ${faltan.join(" y ")}.` : undefined;
 }
 
+// En pantalla ancha arrancan abiertas (la documentación, al lado de los controles, y la ayuda del token); en el
+// teléfono van plegadas, a un toque.
+const docAbierta = () => globalThis.matchMedia?.("(min-width: 72rem)").matches ?? true;
+
 function Documentacion({ historia, doc, generico }: { historia: Historia; doc?: DocFuncion; generico: boolean }) {
   if (!doc) return null;
   const prosa = <Prosa texto={doc.descripcion} soloLee={!historia.escribe} />;
   return (
-    <section className="panel-doc" aria-label="Documentación">
-      <h2 className="seccion-titulo">Documentación</h2>
+    <details className="panel-doc" open={docAbierta()}>
+      <summary className="seccion-titulo">
+        Documentación{" "}
+        <span className="panel-doc-de">
+          JSDoc y firma de <code>{historia.funcion}</code>
+        </span>
+      </summary>
       {doc.descripcion && (generico
         ? (
           <details className="doc-generico">
@@ -54,21 +63,14 @@ function Documentacion({ historia, doc, generico }: { historia: Historia; doc?: 
             {prosa}
           </details>
         )
-        : (
-          <>
-            <p className="doc-origen">
-              JSDoc de <code>{historia.funcion}</code>
-            </p>
-            {prosa}
-          </>
-        ))}
+        : prosa)}
       <figure className="firma">
         <figcaption>
-          firma · <span>{doc.archivo}</span>
+          Firma, en <span>{doc.archivo}</span>
         </figcaption>
         <pre>{doc.firma}</pre>
       </figure>
-    </section>
+    </details>
   );
 }
 
@@ -107,7 +109,9 @@ export function PanelHistoria(
       <div className="ficha">
         <h2 className="seccion-titulo">Controles</h2>
         <code className="llamada">{historia.llamada}</code>
-        {historia.token && <CampoToken tipo={historia.token} valor={token} guardar={guardarToken} />}
+        {historia.token && (
+          <CampoToken tipo={historia.token} valor={token} guardar={guardarToken} ayudaAbierta={docAbierta()} />
+        )}
         <form onSubmit={enviar} noValidate>
           <Controles idHistoria={historia.id} controles={historia.controles} valores={valores} cambiar={cambiar} />
           <div className="ficha-pie">

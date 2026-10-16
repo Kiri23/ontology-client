@@ -37,6 +37,7 @@
       "mod.ts",
       "cliente.ts",
       "jobs.ts",
+      "sparql.ts",
       "cli.ts",
       "generado/api.ts",
       "contrato/openapi.json",
