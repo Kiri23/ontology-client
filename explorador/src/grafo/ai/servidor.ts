@@ -25,11 +25,12 @@ function segundos(retryAfter: string | null): number {
 
 /**
  * Qué decir cuando el servidor no dio texto. `error` es el que manda el servidor en el cuerpo ({"error": "…"}); va
- * solo donde ya es corto y en castellano (el 400 y el 502, que dice qué le pasó a Google).
+ * solo donde ya es corto y en castellano (el 400 y el 502, que dice qué le pasó a Google). Un 502 sin `error` no es de
+ * ai.py: es Cloudflare o kiri-edge con el origen caído o en deploy (HTML o texto plano), y Google no tiene que ver.
  */
 export function explicar(estado: number, error: string | undefined, retryAfter: string | null): string {
   if (estado === 429) return `Se llegó al límite de preguntas por minuto: probá de nuevo en ${segundos(retryAfter)} s.`;
-  if (estado === 502) return `${conPunto(error || "Google no contestó")} Probá de nuevo en un rato.`;
+  if (estado === 502) return `${error ? conPunto(error) : "El servidor no contestó (502)."} Probá de nuevo en un rato.`;
   if (estado === 503) return "La AI no está configurada en el servidor todavía: por ahora no se puede preguntar.";
   if (estado === 413) return "La pregunta es demasiado larga: acortala y probá de nuevo.";
   if (estado === 404 || estado === 405) {

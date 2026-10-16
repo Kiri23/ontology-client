@@ -56,6 +56,11 @@ describe("pedirAlServidor", () => {
     expect(await con(json(429, { error: "…" }))).toContain("probá de nuevo en 60 s");
     expect(await con(json(502, { error: "Google no contestó en 30 s" })))
       .toBe("Google no contestó en 30 s. Probá de nuevo en un rato.");
+    // Un 502 de Cloudflare o kiri-edge (el origen caído o en deploy) trae texto o HTML, no {"error"}: no es Google.
+    expect(await con(new Response("error code: 502", { status: 502, headers: { "Content-Type": "text/plain" } })))
+      .toBe("El servidor no contestó (502). Probá de nuevo en un rato.");
+    expect(await con(new Response("<html><body>502 Bad Gateway</body></html>", { status: 502 })))
+      .toBe("El servidor no contestó (502). Probá de nuevo en un rato.");
     expect(await con(json(502, { error: "Google respondió 429 (RESOURCE_EXHAUSTED)" })))
       .toBe("Google respondió 429 (RESOURCE_EXHAUSTED). Probá de nuevo en un rato.");
     expect(await con(json(503, { error: "el servidor no tiene key de Google AI Studio" })))
@@ -93,7 +98,7 @@ describe("pedirAlServidor", () => {
 
   it("explicar no muestra el error del servidor donde no es para quien pregunta", () => {
     expect(explicar(503, "el servidor no tiene key de Google AI Studio", null)).not.toContain("key");
-    expect(explicar(502, undefined, null)).toBe("Google no contestó. Probá de nuevo en un rato.");
+    expect(explicar(502, undefined, null)).toBe("El servidor no contestó (502). Probá de nuevo en un rato.");
   });
 });
 
