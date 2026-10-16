@@ -153,7 +153,7 @@ export function PreguntarConAi({ cliente, grafo, alProponer }: Props) {
       return (
         <p className="ai-sin-webgpu">
           Preguntar con AI necesita WebGPU, y acá no está ({enMinuscula(estado.motivo)}). El modelo corre en tu
-          dispositivo y sin GPU no entra en memoria. En Chrome de escritorio o de Android aparece el botón.
+          dispositivo y sin GPU no entra en memoria. En Chrome de escritorio con WebGPU aparece el botón.
         </p>
       );
     case "sin-worker":
