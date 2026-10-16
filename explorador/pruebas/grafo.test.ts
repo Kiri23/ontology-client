@@ -7,6 +7,7 @@ import { beforeAll, describe, expect, it } from "vitest";
 import { escribirSaltos, leerSaltos, type Salto, sparqlDelCamino, subgrafo } from "../src/grafo/logica/camino.ts";
 import { PREARMADAS } from "../src/grafo/logica/consultas.ts";
 import { armarModelo, conteoPorClase, islas, type Modelo } from "../src/grafo/logica/modelo.ts";
+import { conSemilla } from "../src/grafo/componentes/disposicion.ts";
 import { compacto, nombreCorto, PREFIJOS } from "../src/grafo/logica/prefijos.ts";
 import { relacionesDe } from "../src/grafo/logica/relaciones.ts";
 import { filasDeTabla, leerResultado, nodosDelResultado, variablesDelSelect } from "../src/grafo/logica/resultados.ts";
@@ -230,5 +231,18 @@ describe("vistas", () => {
     expect(leerVista({ id: "grafo/nodo", valores: { iri: CHECKOUT } })).toMatchObject({ tipo: "nodo", iri: CHECKOUT });
     expect(leerVista({ id: "grafo/nada", valores: {} })).toEqual({ tipo: "mapa", clase: "" });
     expect(leerVista({ id: "grafo/nodo", valores: {} })).toEqual({ tipo: "mapa", clase: "" });
+  });
+});
+
+describe("disposicion", () => {
+  it("el sorteo del layout va con semilla: la misma secuencia cada vez, y Math.random vuelve a ser el de antes", () => {
+    const azar = Math.random;
+    const sortear = () => {
+      const salida: number[] = [];
+      conSemilla(() => salida.push(Math.random(), Math.random(), Math.random()));
+      return salida;
+    };
+    expect(sortear()).toEqual(sortear());
+    expect(Math.random).toBe(azar);
   });
 });

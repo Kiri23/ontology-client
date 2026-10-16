@@ -65,6 +65,8 @@ const CAPTURAS = [
   {
     nombre: "grafo-consulta-rechazo",
     hash: `#/grafo/consulta?${new URLSearchParams({ sparql: CON_ERROR })}`,
+    // Un link no corre la consulta solo (podría ser cara): se toca Correr, como haría una persona.
+    correr: true,
     esperar: ".rechazo",
   },
 ];

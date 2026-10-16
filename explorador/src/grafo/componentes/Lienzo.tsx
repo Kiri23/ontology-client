@@ -8,6 +8,7 @@ import { estiloDe, ESTILOS_CLASE } from "../logica/clases.ts";
 import type { Arista, Modelo } from "../logica/modelo.ts";
 import { compacto } from "../logica/prefijos.ts";
 import { resolverColor } from "../colores.ts";
+import { ajustarAlto, conSemilla, encuadrar, guardarPosiciones, posicionesGuardadas } from "./disposicion.ts";
 import "../../estilos/grafo.css";
 
 cytoscape.use(fcose);
@@ -16,21 +17,11 @@ cytoscape.use(fcose);
 // con style-src 'self' ese <style> es una violación de la CSP. Un <meta> con el id lo evita; la única regla que traía
 // (position: relative del contenedor) está en grafo.css.
 const ID_HOJA = "__________cytoscape_stylesheet";
-function ocuparHojaDeCytoscape() {
+export function ocuparHojaDeCytoscape() {
   if (!document.getElementById(ID_HOJA)) {
     document.head.append(Object.assign(document.createElement("meta"), { id: ID_HOJA }));
   }
 }
-
-/** Encuadra unos elementos sin acercarse de más: con tres nodos, un fit llega al zoom máximo y todo se ve enorme. */
-function encuadrar(cy: Core, elementos?: cytoscape.CollectionArgument) {
-  cy.fit(elementos, 28);
-  if (cy.zoom() > ZOOM_ENCUADRE) {
-    cy.zoom(ZOOM_ENCUADRE);
-    cy.center(elementos);
-  }
-}
-const ZOOM_ENCUADRE = 1.6;
 
 const sinMovimiento = () => globalThis.matchMedia?.("(prefers-reduced-motion: reduce)").matches ?? false;
 
@@ -74,7 +65,8 @@ function hojaDeEstilo(contenedor: HTMLElement, etiquetas: "todas" | "clave"): St
         "text-background-color": papel,
         "text-background-opacity": 0.75,
         "text-background-padding": "1px",
-        "min-zoomed-font-size": 6,
+        // Debajo de 8 px en pantalla no se lee: la etiqueta aparece al acercar.
+        "min-zoomed-font-size": 8,
         "text-max-width": "90px",
         "text-wrap": "ellipsis",
       },
@@ -100,10 +92,32 @@ function hojaDeEstilo(contenedor: HTMLElement, etiquetas: "todas" | "clave"): St
       },
     },
     { selector: ".tenue", style: { opacity: 0.14, label: "" } },
-    { selector: "node.resaltado", style: { label: "data(etiqueta)", "border-width": 2, "border-color": tinta } },
+    // Lo resaltado y el foco: etiqueta siempre visible, con fondo opaco y por encima del resto, así una se lee entera
+    // aunque otra quede cerca.
+    {
+      selector: "node.resaltado",
+      style: {
+        label: "data(etiqueta)",
+        "border-width": 2,
+        "border-color": tinta,
+        "text-background-opacity": 1,
+        "min-zoomed-font-size": 0,
+        "font-size": 13,
+        "z-index": 10,
+      },
+    },
     {
       selector: "node.foco",
-      style: { label: "data(etiqueta)", "border-width": 3, "border-color": tinta, "font-weight": "bold", "z-index": 9 },
+      style: {
+        label: "data(etiqueta)",
+        "border-width": 3,
+        "border-color": tinta,
+        "font-weight": "bold",
+        "text-background-opacity": 1,
+        "min-zoomed-font-size": 0,
+        "font-size": 13,
+        "z-index": 11,
+      },
     },
   ];
 }
@@ -179,27 +193,36 @@ export function Lienzo(
     );
     const agregados = cy.add(nuevas);
     const soloAgregar = incremental && puestos.length > 0;
-    if (soloAgregar && agregados.nodes().empty()) {
+    const entero = !incremental && nodos.length === modelo.nodos.size;
+    const terminar = () => {
+      if (!incremental) ajustarAlto(cy, contenedor);
+      encuadrar(cy, marcadosRef.current?.nonempty() ? marcadosRef.current : undefined);
       contenedor.dataset.listo = "true";
-      return;
+    };
+    if (soloAgregar && agregados.nodes().empty()) return terminar();
+    const guardadas = entero ? posicionesGuardadas(modelo) : undefined;
+    if (guardadas) {
+      cy.nodes().positions((n) => guardadas.get(n.id()) ?? { x: 0, y: 0 });
+      return terminar();
     }
     if (soloAgregar) puestos.lock();
-    const animar = soloAgregar && !sinMovimiento();
     const layout = cy.layout({
       name: "fcose",
       randomize: !soloAgregar,
-      animate: animar,
+      animate: soloAgregar && !sinMovimiento(),
       animationDuration: 320,
       fit: false,
-      nodeDimensionsIncludeLabels: false,
+      // Con etiquetas, el layout les hace lugar: las de los nodos resaltados no se pisan tanto.
+      nodeDimensionsIncludeLabels: true,
       packComponents: true,
     } as cytoscape.LayoutOptions);
     layout.one("layoutstop", () => {
       puestos.unlock();
-      encuadrar(cy, marcadosRef.current?.nonempty() ? marcadosRef.current : undefined);
-      contenedor.dataset.listo = "true";
+      if (entero) guardarPosiciones(modelo, cy);
+      terminar();
     });
-    layout.run();
+    // Sin animación fcose corre sincrónico: el sorteo con semilla queda adentro. El stepper anima y no sortea.
+    conSemilla(() => layout.run());
   }, [modelo, nodos, aristas, incremental, etiquetas]);
 
   // Resaltar: clases, y el encuadre va a lo resaltado (o al todo, si se soltó). Corre después del efecto de los
