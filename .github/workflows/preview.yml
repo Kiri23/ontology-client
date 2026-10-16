@@ -9,8 +9,8 @@ name: Preview
 # un repo privado ("Access is allowed only from private repositories"), y el run fallaba sin crear jobs. El puente es
 # el de kiri-pm en portfolio: checkout de kiriInfra con un PAT de solo lectura y `uses:` de la action como local.
 # Secretos (un PR de fork o de dependabot no los recibe: el job ni arranca, o sale limpio en "secretos"):
-#   KIRIINFRA_READ  PAT fine-grained: solo Kiri23/kiriInfra, Contents: read-only. En Doppler agent-tools/prd como
-#                   TERMUXCONFIG_READ.
+#   KIRIINFRA_READ  PAT fine-grained: solo Kiri23/kiriInfra, Contents: read-only. En Doppler agent-tools/prd con ese
+#                   mismo nombre, al lado de TERMUXCONFIG_READ (el PAT de portfolio para kiri-pm).
 #   EXE_SSH_KEY     la llave EXE_CI_SSH_KEY de Doppler global/dev, registrada en exe.dev con --tag=preview.
 
 on:
@@ -50,7 +50,7 @@ jobs:
         uses: actions/checkout@v5
         with:
           repository: Kiri23/kiriInfra
-          # TODO: quitar ref cuando kiriInfra#55 se mergee
+          # TODO: quitar ref cuando kiriInfra#55 se mergee (quedó a mano de Christian: el auto mode no mergea)
           ref: preview-composite
           token: ${{ secrets.KIRIINFRA_READ }}
           path: .kiriinfra
