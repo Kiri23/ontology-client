@@ -115,13 +115,14 @@ llegó, con E2B y la receta de DocsifyTemplate: `docs/consultas-por-ai.md` y `do
   compartida, y ~300 MB no tienen por qué quedar tomados mientras se leen otras historias. Volver lo carga de nuevo
   desde la Cache API, sin bajarlo (tarda la creación de las sesiones, no la descarga). Si la GPU se pierde ("device
   lost"), pasa lo mismo y el error queda a la vista.
-- **Solo WebGPU.** El botón aparece solo si `navigator.gpu.requestAdapter()` da un adaptador en el worker, en modo core
-  o, si no, en modo compatibilidad: es lo único que da Chrome en el Pixel 10 Pro XL, sin f16
-  ([docs/webgpu-en-el-pixel-10.md](docs/webgpu-en-el-pixel-10.md); el driver PowerVR 25.1 está en la blocklist de WebGPU
-  de Chromium). Sin WebGPU, una línea lo explica. No hay fallback a WASM: el op de los embeddings
-  (`GatherBlockQuantized`) no tiene kernel de CPU en este onnxruntime-web. La tabla de embeddings (84 MB) entra en el
-  buffer más grande del Pixel (256 MB en compatibilidad, 128 MB en core); si una GPU acepta menos, la descarga avisa que
-  puede fallar al cargar.
+- **Solo WebGPU en modo core.** El botón aparece solo si `navigator.gpu.requestAdapter()` da un adaptador core en el
+  worker. Si solo da modo compatibilidad (lo único que da Chrome en el Pixel 10 Pro XL: el driver PowerVR 25.1 está en
+  la blocklist de WebGPU de Chromium), una línea dice que está apagado: ahí 270M trabó el teléfono, y en core (con la
+  flag que saca la blocklist) perdió el device al generar. Se vuelve a probar cuando cambie el driver o la blocklist
+  ([docs/webgpu-en-el-pixel-10.md](docs/webgpu-en-el-pixel-10.md) §4). Sin WebGPU, otra línea lo explica. No hay
+  fallback a WASM: el op de los embeddings (`GatherBlockQuantized`) no tiene kernel de CPU en este onnxruntime-web. La
+  tabla de embeddings (84 MB) entra en el buffer más grande del Pixel (256 MB en compatibilidad, 128 MB en core); si una
+  GPU acepta menos, la descarga avisa que puede fallar al cargar.
 - **Nunca corre sola.** El prompt (`src/grafo/ai/prompt.ts`) lleva el esquema sacado del Store: los prefijos, las clases
   con cuántas instancias tienen y cada propiedad con su `rdfs:domain`, `rdfs:range` y `rdfs:comment`, o con las clases
   que la usan. También lleva tres prearmadas como ejemplo, sin las líneas PREFIX. `extraer.ts` saca el bloque

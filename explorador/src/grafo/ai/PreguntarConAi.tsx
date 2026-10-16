@@ -1,6 +1,6 @@
 // "Preguntar con AI" en la consulta libre: Gemma 3 270M en este dispositivo propone el SPARQL y lo deja en el editor.
 // Nunca corre sola: alProponer la pone en el editor y la pasa por el validador; correr es tocar Correr.
-// Aparece solo con WebGPU. Antes de bajar nada dice cuánto pesa y espera un Continuar.
+// Aparece solo con WebGPU en modo core (en compatibilidad, una línea dice por qué no). Antes de bajar nada dice cuánto pesa y espera un Continuar.
 import { type FormEvent, useEffect, useRef, useState, useSyncExternalStore } from "react";
 import type { Grafo } from "../motor.ts";
 import { type ClienteAi, type EstadoAi, porcentaje, type Progreso } from "./cliente.ts";
@@ -75,12 +75,6 @@ function Aviso({ gpu, continuar, cancelar }: { gpu: Gpu; continuar: () => void; 
         <strong>Baja {tamano(bytesDelModelo(gpu.f16))} una sola vez y queda en el navegador</strong>; las próximas veces
         lo lee del disco. Con datos móviles, mejor con Wi-Fi.
       </p>
-      {gpu.modo === "compatibility" && (
-        <p className="ai-nota">
-          En este dispositivo el navegador da WebGPU solo en modo compatibilidad. El modelo es el chico para que entre,
-          pero así puede andar lento o escribir cualquier cosa.
-        </p>
-      )}
       <div className="ai-botones">
         <button type="button" className="boton-correr" onClick={continuar}>Continuar</button>
         <button type="button" className="boton-secundario" onClick={cancelar}>Cancelar</button>
@@ -170,6 +164,15 @@ export function PreguntarConAi({ cliente, grafo, alProponer }: Props) {
         </p>
       );
     case "disponible":
+      // En modo compatibilidad no se ofrece: en el Pixel 10 el modelo trabó el teléfono (docs/webgpu-en-el-pixel-10.md).
+      if (estado.gpu.modo === "compatibility") {
+        return (
+          <p className="ai-sin-webgpu">
+            Preguntar con AI está apagado en este dispositivo: el navegador da WebGPU solo en modo compatibilidad, y ahí
+            el modelo trabó el teléfono (Pixel 10, 2026-10-16). En Chrome de escritorio aparece el botón.
+          </p>
+        );
+      }
       cuerpo = avisando
         ? (
           <Aviso

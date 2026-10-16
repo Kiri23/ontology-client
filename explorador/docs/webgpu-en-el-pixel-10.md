@@ -147,11 +147,8 @@ Dos causas posibles, sin forma de separarlas sin otra prueba:
 Aunque la salida fuera correcta, la velocidad (unos 5 tokens por minuto en `q4`, f32, sin subgroups) no sirve para una
 consulta de 60 a 100 tokens.
 
-**Decisión:** la AI en el Pixel 10 queda esperando a Chrome (modo core para el PowerVR, y `shader-f16`). El PR #11 sigue
-valiendo para Chrome de escritorio con WebGPU completo; en el Pixel el botón aparece, avisa el modo compatibilidad y el
-tamaño, y el resultado no es confiable. El plan B solo vale la pena si se descarta la causa 2: una prueba posible es
-correr solo la sesión de `embed_tokens` y comparar el embedding de un token conocido con el que da el mismo modelo por
-CPU en una máquina.
+En ese momento la AI en el Pixel quedó esperando a Chrome (modo core para el PowerVR, y `shader-f16`), con el plan B
+condicionado a descartar la causa 2. La decisión final está al final de esta sección.
 
 **Después (mismo día): Gemma 3 270M, y la causa raíz es la blocklist.** El explorador pasó a
 `onnx-community/gemma-3-270m-it-ONNX`, el Gemma más chico (Gemma 4 no tiene nada por debajo de E2B): 343 MB en `q4` (293
@@ -179,8 +176,27 @@ confirmó con `chrome://flags/#enable-unsafe-webgpu`, que desactiva la blocklist
 `subgroup-size-control` y `timestamp-query`, `maxBufferSize` 4294967292, `maxStorageBufferBindingSize` 134217728 (128
 MB, menos que los 256 MB de compatibilidad) y `compute: "ok"`. O sea: la blocklist era el único muro para core. La flag
 sirve para diagnosticar, no para usuarios. Con 128 MB por binding, la tabla de 1 174 MB de E2B tampoco entraría en core;
-los 84 MB de Gemma 3 270M entran en los dos modos. Queda abierta la causa 2 (los shaders en ese driver): la prueba es
-cargar 270M en el Pixel con el preview del PR.
+los 84 MB de Gemma 3 270M entran en los dos modos. Quedaba abierta la causa 2 (el driver): la prueba era cargar 270M en
+el Pixel con el preview del PR.
+
+**Gemma 3 270M en el Pixel (Chrome 155, 2026-10-16), dos rondas:**
+
+- **Ronda 1, con la flag (core, f16, `q4f16`, 293 MB):** bajó y "Preparando" pasó (el token de calentamiento). Al
+  generar la pregunta entera, `OrtRun` falló:
+  `failed to call OrtRun(). ERROR_CODE: 1, ERROR_MESSAGE:
+  …/webgpu/buffer_manager.cc:605 … BufferManager::Download … Failed to create a WebGPU compute pipeline: A valid
+  external Instance reference no longer exists`.
+  Es el texto de Dawn con el device perdido: el camino Vulkan del driver 25.1, el que la blocklist tapa, se cae. (Desde
+  1657e1c la UI lo trata como GPU perdida.)
+- **Ronda 2, sin la flag (compatibilidad, `q4`, 343 MB):** al intentarlo, el teléfono se puso tan lento que Christian
+  tuvo que apagarlo. No hubo salida.
+
+**Decisión:** con el modelo chico se descartó la causa del binding (la 1); lo que queda es el driver PowerVR 25.1, que
+se cae en core y congela el teléfono en compatibilidad. La AI no se ofrece en modo compatibilidad: con
+`modo:
+"compatibility"` el botón no aparece y una línea dice por qué (`PreguntarConAi.tsx`). El PR #11 vale para Chrome
+de escritorio con WebGPU completo. En el Pixel se vuelve a probar cuando Google suba el driver o Chrome saque al 25.1 de
+la blocklist.
 
 ## 5. Referencias
 

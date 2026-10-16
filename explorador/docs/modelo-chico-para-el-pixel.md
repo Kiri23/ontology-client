@@ -8,6 +8,10 @@ quedaron fuera del repo, en el scratchpad de la sesión.
 `onnx-community/gemma-3-270m-it-ONNX` (`src/grafo/ai/protocolo.ts`); la prueba en el Pixel la hace él con el preview del
 PR #11. El resultado de la prueba A (la flag) está en `webgpu-en-el-pixel-10.md` §4.
 
+**Resultado (mismo día):** 270M en el Pixel perdió el device en core (con la flag) y congeló el teléfono en
+compatibilidad. La causa es el driver PowerVR 25.1, no el tamaño: la AI no se ofrece en modo compatibilidad y se vuelve
+a probar cuando cambie el driver o la blocklist (`webgpu-en-el-pixel-10.md` §4).
+
 ## Respuesta en 5 líneas
 
 1. **Sí, E2B es el Gemma 4 más chico.** El lineup de Google es E2B, E4B, 12B, 26B-A4B y 31B; 270M y 1B existen solo en

@@ -92,20 +92,29 @@ describe("Preguntar con AI", () => {
     expect(screen.queryByText(/modo compatibilidad/)).toBeNull();
   });
 
-  it("sin f16 y en modo compatibilidad (el Pixel), el aviso dice 343 MB y lo del modo, y Continuar carga igual", () => {
-    const { recibidos, emitir } = montar(GPU_DEL_PIXEL);
+  it("en modo compatibilidad (el Pixel) no hay botón: una línea dice que está apagado y por qué", () => {
+    const { recibidos } = montar(GPU_DEL_PIXEL);
+    expect(screen.queryByRole("button", BOTON)).toBeNull();
+    const linea = screen.getByText(/Preguntar con AI está apagado en este dispositivo/);
+    expect(linea.className).toBe("ai-sin-webgpu");
+    expect(linea.textContent).toContain("solo en modo compatibilidad, y ahí el modelo trabó el teléfono (Pixel 10");
+    expect(recibidos).toEqual([{ tipo: "check" }]);
+  });
+
+  it("en core sin f16, el aviso dice 343 MB, Continuar carga q4 y la tabla de embeddings entra (sin aviso)", () => {
+    const sinF16: Gpu = { modo: "core", f16: false, maxStorageBufferBindingSize: 134_217_728 };
+    const { recibidos, emitir } = montar(sinF16);
     fireEvent.click(screen.getByRole("button", BOTON));
     expect(screen.getByText(/Baja 343 MB una sola vez y queda en el navegador/)).toBeTruthy();
-    expect(screen.getByText(/solo en modo compatibilidad\. El modelo es el chico para que entre, pero así puede/))
-      .toBeTruthy();
+    expect(screen.queryByText(/apagado en este dispositivo/)).toBeNull();
     fireEvent.click(screen.getByRole("button", { name: "Continuar" }));
     expect(recibidos.at(-1)).toEqual({ tipo: "load" });
-    act(() => emitir({ tipo: "variante", ...opcionesDeCarga(GPU_DEL_PIXEL) }));
+    act(() => emitir({ tipo: "variante", ...opcionesDeCarga(sinF16) }));
     act(() => emitir({ tipo: "progreso", archivo: "onnx/model_q4.onnx_data", cargado: 1.2e8, total: 3.2e8 }));
     const estado = screen.getByRole("status");
     expect(estado.textContent).toContain("model_q4.onnx_data · 34 %");
     expect(estado.textContent).toContain("120 MB de 343 MB");
-    // La tabla de embeddings de Gemma 3 270M (84 MB) entra en los 256 MB del Pixel: no hay aviso.
+    // La tabla de embeddings de Gemma 3 270M (80 MiB) entra en los 128 MiB que WebGPU garantiza: no hay aviso.
     expect(estado.textContent).not.toContain("tabla de embeddings");
   });
 
