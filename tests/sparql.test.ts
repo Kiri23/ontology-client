@@ -4,7 +4,9 @@ import { assertEquals, assertRejects } from "@std/assert";
 import { ErrorServidor, sparql, URL_PRODUCCION } from "../mod.ts";
 import { servidorMudo } from "./servidor-mudo.ts";
 
-const SELECT = "SELECT ?c WHERE { ?s a ?c } LIMIT 2";
+// Con +, &, # y espacios: si la consulta no se codifica en la URL, el + llega como espacio, el & corta el parámetro y
+// el # se vuelve fragmento. searchParams.get decodifica, así que tiene que devolver la consulta tal cual.
+const SELECT = "SELECT ?c WHERE { ?s a ?c FILTER(1 + 1 > 0 && true) } LIMIT 2 # comentario";
 const RESULTADOS = '{"head":{"vars":["c"]},"results":{"bindings":[]}}';
 
 // Un fetch que guarda el último pedido y responde con `respuesta`.
