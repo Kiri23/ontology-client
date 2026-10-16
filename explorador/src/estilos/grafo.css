@@ -96,6 +96,12 @@
   min-width: 0;
 }
 
+@media (max-width: 71.99rem) {
+  .grafo-cuerpo[data-primero="panel"] .grafo-lienzo {
+    order: 2;
+  }
+}
+
 @media (min-width: 72rem) {
   .grafo-cuerpo {
     grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr);
@@ -115,7 +121,7 @@
 /* position: relative es la regla que traía el <style> de Cytoscape (ver Lienzo.tsx: la CSP no lo deja inyectarlo). */
 .lienzo {
   position: relative;
-  height: min(54svh, 32rem);
+  height: min(48svh, 32rem);
   min-height: 18rem;
   border: 1px solid var(--regla);
   border-radius: 3px;
@@ -383,7 +389,7 @@
 }
 
 .consulta textarea {
-  min-height: 14rem;
+  min-height: 10rem;
   font-size: 0.78rem;
 }
 

@@ -2,9 +2,16 @@
 // lienzo); en pantalla ancha, lado a lado con el lienzo fijo mientras el panel scrollea.
 import type { ReactNode } from "react";
 
-export function Cuerpo({ lienzo, panel }: { lienzo: ReactNode; panel: ReactNode }) {
+interface Props {
+  lienzo: ReactNode;
+  panel: ReactNode;
+  /** En el teléfono, qué va arriba. La consulta libre pone el editor primero: es lo que se toca. */
+  primero?: "lienzo" | "panel";
+}
+
+export function Cuerpo({ lienzo, panel, primero = "lienzo" }: Props) {
   return (
-    <div className="grafo-cuerpo">
+    <div className="grafo-cuerpo" data-primero={primero}>
       <div className="grafo-lienzo">{lienzo}</div>
       <div className="grafo-panel">{panel}</div>
     </div>

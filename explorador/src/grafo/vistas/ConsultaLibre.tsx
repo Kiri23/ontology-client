@@ -52,6 +52,7 @@ export function ConsultaLibre({ grafo, sparql, ir }: { grafo: Grafo; sparql: str
 
   return (
     <Cuerpo
+      primero="panel"
       lienzo={
         <Lienzo
           modelo={modelo}
@@ -71,7 +72,7 @@ export function ConsultaLibre({ grafo, sparql, ir }: { grafo: Grafo; sparql: str
             <label htmlFor="consulta-sparql" className="consulta-rotulo">SPARQL</label>
             <textarea
               id="consulta-sparql"
-              rows={12}
+              rows={9}
               spellCheck={false}
               autoComplete="off"
               autoCapitalize="off"

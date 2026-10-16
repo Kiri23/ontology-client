@@ -148,4 +148,14 @@ describe("App", () => {
     expect(cabeceras.slice(0, 5)).toEqual(["#", "titulo", "empresa", "fuente", "link"]);
     expect(screen.getByRole("list", { name: "Respuesta como tarjetas" }).children).toHaveLength(JOBS.length);
   });
+
+  it("la barra trae la sección Grafo con sus vistas, como links del hash", () => {
+    history.replaceState(null, "", "/explorador/#/jobs.get");
+    render(<App url={URL_BASE} fetch={fetchFalso(() => json([])).fetch} />);
+    const barra = screen.getByRole("navigation");
+    const links = [...barra.querySelectorAll(".clase-grafo a")].map((a) => [a.textContent, a.getAttribute("href")]);
+    expect(links[0]).toEqual(["Mapa", "#/grafo/mapa"]);
+    expect(links).toContainEqual(["Huecos", "#/grafo/huecos"]);
+    expect(links.at(-1)).toEqual(["Consulta libre", "#/grafo/consulta"]);
+  });
 });
