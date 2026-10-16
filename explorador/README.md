@@ -100,22 +100,24 @@ bloquea: `Lienzo.tsx` ocupa antes su id con un `<meta>` y su única regla (`posi
 ## Indagar con AI
 
 En la consulta libre (`#/grafo/consulta`), **Preguntar con AI** escribe el SPARQL a partir de una pregunta en
-castellano. El modelo es Gemma 4 E2B (`onnx-community/gemma-4-E2B-it-ONNX`, `q4f16`, texto solo con `Gemma4ForCausalLM`)
-y corre en el dispositivo, por WebGPU, con Transformers.js 4.3.1 dentro de un worker (`src/grafo/ai/worker.ts`). Cuesta
-$0, no hay key y no hay servidor. Es la receta de DocsifyTemplate; la decisión y sus mediciones están en
-`docs/consultas-por-ai.md` y `docs/gemma-en-el-navegador.md`.
+castellano. El modelo es Gemma 4 E2B (`onnx-community/gemma-4-E2B-it-ONNX`, `q4f16` o `q4` sin f16, texto solo con
+`Gemma4ForCausalLM`) y corre en el dispositivo, por WebGPU, con Transformers.js 4.3.1 dentro de un worker
+(`src/grafo/ai/worker.ts`). Cuesta $0, no hay key y no hay servidor. Es la receta de DocsifyTemplate; la decisión y sus
+mediciones están en `docs/consultas-por-ai.md` y `docs/gemma-en-el-navegador.md`.
 
-- **Qué baja:** 3,1 GB la primera vez (decoder 1 520 MB, embed_tokens 1 591 MB y tokenizer 19 MB), desde Hugging Face.
-  Quedan en la Cache API del navegador (`transformers-cache`, con `navigator.storage.persist()`), y las próximas veces
-  se leen del disco. Antes de bajar nada, un aviso dice el tamaño y espera Continuar. Después muestra el progreso por
-  archivo y compila los shaders con un token de prueba.
+- **Qué baja:** 3,1 GB la primera vez con f16 (decoder 1 520 MB, embed_tokens 1 591 MB y tokenizer 19 MB), 3,6 sin f16
+  (`q4`: decoder 1 864 MB, embed_tokens 1 763 MB), desde Hugging Face. Quedan en la Cache API del navegador
+  (`transformers-cache`, con `navigator.storage.persist()`), y las próximas veces se leen del disco. Antes de bajar
+  nada, un aviso dice el tamaño y espera Continuar. Después muestra el progreso por archivo y compila los shaders con un
+  token de prueba.
 - **Al salir de la consulta libre** el worker se termina y el modelo sale de la memoria: en el teléfono la memoria es
   compartida, y ~3 GB no pueden quedar tomados mientras se leen otras historias. Volver lo carga de nuevo desde la Cache
   API, sin bajarlo (tarda la creación de las sesiones, no la descarga). Si la GPU se pierde ("device lost"), pasa lo
   mismo y el error queda a la vista.
-- **Solo WebGPU.** El botón aparece solo si `navigator.gpu.requestAdapter()` da un adaptador en el worker. Sin WebGPU,
-  una línea lo explica. No hay fallback a WASM: con `q4` son 3,6 GB que onnxruntime copia al heap de wasm32, y en
-  chromium-box (8 GB) colgó la VM entera.
+- **Solo WebGPU.** El botón aparece solo si `navigator.gpu.requestAdapter()` da un adaptador en el worker, en modo core
+  o, si no, en modo compatibilidad: es lo único que da Chrome en el Pixel 10 Pro XL, sin f16
+  ([docs/webgpu-en-el-pixel-10.md](docs/webgpu-en-el-pixel-10.md)). Sin WebGPU, una línea lo explica. No hay fallback a
+  WASM: con `q4` son 3,6 GB que onnxruntime copia al heap de wasm32, y en chromium-box (8 GB) colgó la VM entera.
 - **Nunca corre sola.** El prompt (`src/grafo/ai/prompt.ts`) lleva el esquema sacado del Store: los prefijos, las clases
   con cuántas instancias tienen y cada propiedad con su `rdfs:domain`, `rdfs:range` y `rdfs:comment`, o con las clases
   que la usan. También lleva tres prearmadas como ejemplo, sin las líneas PREFIX. `extraer.ts` saca el bloque
