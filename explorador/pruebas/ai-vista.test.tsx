@@ -31,9 +31,10 @@ const editor = () => (screen.getByLabelText("SPARQL") as HTMLTextAreaElement).va
 function montar(webgpu: boolean) {
   const f = workerFalso();
   const ai = new ClienteAi(() => f.worker, () => true);
-  const vista = render(<ConsultaLibre grafo={grafo} sparql="" ir={vi.fn()} ai={ai} />);
+  const ir = vi.fn();
+  const vista = render(<ConsultaLibre grafo={grafo} sparql="" ir={ir} ai={ai} />);
   act(() => f.emitir({ tipo: "check", webgpu, motivo: webgpu ? undefined : "sin adaptador" }));
-  return { ...f, ...vista };
+  return { ...f, ...vista, ai, ir };
 }
 
 /** Montada, con el modelo cargado y la pregunta hecha. Devuelve el worker para contestar. */
@@ -134,5 +135,35 @@ describe("Preguntar con AI", () => {
     expect(screen.getByRole("alert").textContent).toContain("Se cortó la descarga");
     fireEvent.click(screen.getByRole("button", { name: "Probar de nuevo" }));
     expect(recibidos.filter((m) => m.tipo === "load")).toHaveLength(2);
+  });
+
+  it("salir mientras genera abandona la generación: al terminar no escribe ni vuelve a #/grafo/consulta", async () => {
+    const m = preguntar("¿Cuántas acciones hay?");
+    const llamadas = m.ir.mock.calls.length;
+    m.unmount();
+    expect(m.estado.terminado).toBe(true);
+    await act(() => Promise.resolve(m.emitir({ tipo: "generado", texto: "```sparql\nASK { ?a a k:Action }\n```" })));
+    expect(m.ir.mock.calls.length).toBe(llamadas);
+  });
+
+  it("al desmontar termina el worker y libera el modelo; volver abre uno nuevo, sin repetir el check", () => {
+    const fakes: ReturnType<typeof workerFalso>[] = [];
+    const ai = new ClienteAi(() => (fakes.push(workerFalso()), fakes.at(-1)!.worker), () => true);
+    const primera = render(<ConsultaLibre grafo={grafo} sparql="" ir={vi.fn()} ai={ai} />);
+    act(() => fakes[0].emitir({ tipo: "check", webgpu: true }));
+    fireEvent.click(screen.getByRole("button", BOTON));
+    fireEvent.click(screen.getByRole("button", { name: "Continuar" }));
+    act(() => fakes[0].emitir({ tipo: "listo" }));
+    primera.unmount();
+    expect(fakes[0].estado.terminado).toBe(true);
+    expect(ai.estado()).toEqual({ fase: "disponible" });
+    // El worker viejo ya no cuenta: un "listo" atrasado no cambia el estado.
+    fakes[0].emitir({ tipo: "listo" });
+    expect(ai.estado()).toEqual({ fase: "disponible" });
+    render(<ConsultaLibre grafo={grafo} sparql="" ir={vi.fn()} ai={ai} />);
+    fireEvent.click(screen.getByRole("button", BOTON));
+    fireEvent.click(screen.getByRole("button", { name: "Continuar" }));
+    expect(fakes).toHaveLength(2);
+    expect(fakes[1].recibidos).toEqual([{ tipo: "load" }]);
   });
 });

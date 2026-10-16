@@ -1,5 +1,6 @@
 // La AI vista desde la página: el worker y un estado que React lee con useSyncExternalStore. Uno solo por pestaña
-// (clienteCompartido): el modelo cargado en la GPU sobrevive a ir y volver de la consulta libre.
+// (clienteCompartido). Al salir de la consulta libre, cerrar() termina el worker: los ~3 GB del modelo no quedan
+// tomados en la GPU mientras se leen otras historias. Volver lo carga de nuevo desde la Cache API, sin bajarlo.
 import { type AlWorker, type APagina, BYTES_DEL_MODELO, type Mensaje } from "./protocolo.ts";
 
 export interface Progreso {
@@ -71,9 +72,12 @@ export class ClienteAi {
   #abrir(): WorkerAi {
     if (this.#worker) return this.#worker;
     const w = this.crear();
-    w.addEventListener("message", (e) => this.#recibir(e.data));
+    // Lo que diga un worker ya cerrado no cambia nada: cerrar() lo reemplaza.
+    const vigente = () => w === this.#worker;
+    w.addEventListener("message", (e) => vigente() && this.#recibir(e.data));
     // El worker no arrancó (la CSP, un chunk que no llegó): en la revisión es "sin AI", después es un fallo de carga.
     w.addEventListener("error", (e) => {
+      if (!vigente()) return;
       const mensaje = e.message || "El worker de la AI no arrancó.";
       if (this.#estado.fase === "revisando") this.#poner({ fase: "sin-webgpu", motivo: mensaje });
       else this.#recibir({ tipo: "error", cuando: "carga", mensaje });
@@ -131,6 +135,22 @@ export class ClienteAi {
       this.#poner({ fase: "generando", parcial: "" });
       this.#abrir().postMessage({ tipo: "generate", mensajes });
     });
+  }
+
+  /**
+   * Termina el worker y libera el modelo. Una generación en curso se abandona (su promesa rechaza), así nada de lo que
+   * termine después toca una vista que ya no está. Lo que se sabe de WebGPU queda: el botón sigue ahí.
+   */
+  cerrar() {
+    const w = this.#worker;
+    if (!w) return;
+    w.terminate();
+    this.#worker = undefined;
+    const pedido = this.#pedido;
+    this.#pedido = undefined;
+    pedido?.rechazar(new Error("Se cerró la AI."));
+    const { fase } = this.#estado;
+    if (fase !== "revisando" && fase !== "sin-webgpu") this.#poner({ fase: "disponible" });
   }
 }
 

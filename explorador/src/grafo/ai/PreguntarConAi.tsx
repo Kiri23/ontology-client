@@ -103,7 +103,12 @@ export function PreguntarConAi({ cliente, grafo, alProponer }: Props) {
   const [avisando, setAvisando] = useState(false);
   // El esquema sale del Store recién al generar: abrir la consulta libre no corre nada en el motor.
   const esquema = useRef<Esquema>(undefined);
-  useEffect(() => cliente.revisar(), [cliente]);
+  // Al salir de la vista, el worker se termina y una generación en curso se abandona: no vuelve a escribir en una
+  // consulta libre que ya no está (ni la reabre por la URL).
+  useEffect(() => {
+    cliente.revisar();
+    return () => cliente.cerrar();
+  }, [cliente]);
 
   const generar = async (pregunta: string) => {
     esquema.current ??= leerEsquema((q) => grafo.store.query(q) as ReturnType<Consultar>);
