@@ -12,3 +12,7 @@ A set of conditions that the targeted nodes of an RDF graph must meet, such as w
 **See also**
 
 - <https://www.w3.org/TR/shacl/>
+
+**Mentioned in**
+
+- [README.md](../../README.md)

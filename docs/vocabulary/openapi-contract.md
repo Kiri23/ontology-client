@@ -7,3 +7,7 @@ A machine-readable description of an HTTP API in the OpenAPI Specification forma
 **See also**
 
 - <https://spec.openapis.org/oas/latest.html>
+
+**Mentioned in**
+
+- [README.md](../../README.md)

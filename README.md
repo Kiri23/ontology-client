@@ -1,17 +1,15 @@
-# @kiri23/ontology-client
+# ontology-client
 
-El cliente HTTP de ontologyLearning. Valida fichas `proyecto.ttl` (manda una ficha Turtle a `POST /proyectos` y devuelve
-si conforma a las reglas, con el reporte de SHACL), lee los puestos de trabajo (`GET /jobs`, tipados como `JobPost[]`) y
-corre acciones sobre ellos (descartar, marcar aplicado). Es tres cosas:
+**Live:** [API explorer](https://ontology.kiri231.com/explorador/) ·
+[JSR package](https://jsr.io/@kiri23/ontology-client)
 
-- una **librería** TypeScript en JSR (`jsr:@kiri23/ontology-client`),
-- un **CLI** que valida archivos y sale 0/1/2,
-- una **GitHub Action** que corre el CLI sobre las fichas de un repo y anota en el PR las que no conforman.
+A TypeScript client generated from a [knowledge graph](docs/vocabulary/knowledge-graph.md). The server,
+ontologyLearning, stores its data as [RDF](docs/vocabulary/rdf.md) and describes each class with a
+[SHACL shape](docs/vocabulary/shacl-shape.md). From that one source come the HTTP API and its
+[OpenAPI contract](docs/vocabulary/openapi-contract.md). From the contract, this repo builds a JSR library, a CLI and a
+GitHub Action, with types nobody writes by hand.
 
-El motor y las reglas son privados y viven en el servidor (`https://ontology.kiri231.com`). Este repo tiene solo el
-cliente: viaja la ficha, vuelve el reporte.
-
-> **0.x:** la API todavía no es estable. Una versión menor puede romperla: fijá la versión exacta.
+> **0.x:** the API is not stable yet. A minor version can break it: pin the exact version.
 
 ## Generado desde el contrato
 

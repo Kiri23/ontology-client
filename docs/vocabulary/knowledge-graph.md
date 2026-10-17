@@ -13,3 +13,7 @@ A collection of facts stored as a graph: things are nodes and the named relation
 **See also**
 
 - <https://arxiv.org/abs/2003.02320>
+
+**Mentioned in**
+
+- [README.md](../../README.md)
