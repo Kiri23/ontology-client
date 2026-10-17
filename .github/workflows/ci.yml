@@ -1,9 +1,9 @@
 name: CI
 
 # Tres jobs: `calidad` revisa el código (formato, lint, tipos, tests, generado/ al día con el contrato,
-# publish en seco); `action` prueba la action (`uses: ./`) contra el servidor falso de tests/ con rutas y
-# globs; `descubrimiento` prueba lo que hace sin el input archivos: sin repo git, con un repo sin fichas y
-# con nombres parecidos a proyecto.ttl y rutas no ASCII.
+# docs/vocabulary/ al día con su TTL, publish en seco); `action` prueba la action (`uses: ./`) contra el servidor
+# falso de tests/ con rutas y globs; `descubrimiento` prueba lo que hace sin el input archivos: sin repo git, con
+# un repo sin fichas y con nombres parecidos a proyecto.ttl y rutas no ASCII.
 on:
   push:
     branches: [main]
@@ -44,6 +44,10 @@ jobs:
       # Lo commiteado en generado/ tiene que ser lo que sale del contrato commiteado.
       - name: generado/ al día con contrato/
         run: deno task generar --check
+
+      # Lo commiteado en docs/vocabulary/ tiene que ser lo que sale de docs/vocabulary.ttl, y el TTL validar.
+      - name: docs/vocabulary/ al día con docs/vocabulary.ttl
+        run: deno task vocabulario --check
 
       - name: Publish en seco
         run: deno publish --dry-run
