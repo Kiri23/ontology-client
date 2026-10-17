@@ -2,7 +2,7 @@
 
 # SPARQL
 
-The W3C query language for RDF. A query describes a pattern of triples with variables, and the engine returns every part of the graph that matches it.
+The W3C query language for RDF. A query describes a pattern of triples with variables, and the engine returns the values of those variables for every match in the graph.
 
 **Related**
 

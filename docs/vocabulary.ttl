@@ -1,6 +1,6 @@
 # The project vocabulary. Source of docs/vocabulary/*.md: edit this file and run `deno task vocabulario`.
 #
-# Each term is a skos:Concept with exactly one skos:prefLabel and one skos:definition in @en.
+# Each term is a skos:Concept in the v: namespace with exactly one skos:prefLabel and one skos:definition in @en.
 # skos:broader only when the term is a kind of the other one; any other link is skos:related.
 # Write each skos:related once: the generated pages show it on both terms. Narrower is computed from skos:broader.
 
@@ -39,7 +39,7 @@ v:shacl-shape a skos:Concept ;
 
 v:sparql a skos:Concept ;
   skos:prefLabel "SPARQL"@en ;
-  skos:definition "The W3C query language for RDF. A query describes a pattern of triples with variables, and the engine returns every part of the graph that matches it."@en ;
+  skos:definition "The W3C query language for RDF. A query describes a pattern of triples with variables, and the engine returns the values of those variables for every match in the graph."@en ;
   skos:related v:rdf, v:knowledge-graph ;
   rdfs:seeAlso <https://www.w3.org/TR/sparql11-query/> .
 
