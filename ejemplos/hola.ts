@@ -13,6 +13,9 @@ import { type OpcionesSparql, sparql } from "../mod.ts";
 const CLASES = 8;
 const PROPIEDADES = 12;
 
+/** El namespace del W3C: las clases del esquema de RDF (rdf:, rdfs:, owl:, sh:) viven ahí. */
+export const ESQUEMA = "http://www.w3.org/";
+
 type Fila = Record<string, { type: string; value: string } | undefined>;
 
 /** Corre un SELECT y devuelve sus filas (`results.bindings` del JSON de resultados). */
@@ -48,13 +51,15 @@ export async function hola(opciones: OpcionesSparql = {}): Promise<string[]> {
   lineas.push(`The graph has ${Number(total?.n?.value ?? 0)} facts (triples).`, "");
 
   // 2. Las clases que existen y cuántas instancias tiene cada una. El orden lo fija la consulta: más instancias
-  //    primero, y a igual cantidad, por IRI.
+  //    primero, y a igual cantidad, por IRI. Las del esquema de RDF (rdf:Property, rdfs:Class, owl:…, todas bajo
+  //    http://www.w3.org/) no son del dominio y quedan afuera.
   const clases = await filas(
-    "SELECT ?clase (COUNT(DISTINCT ?s) AS ?n) WHERE { ?s a ?clase } GROUP BY ?clase ORDER BY DESC(?n) ?clase",
+    `SELECT ?clase (COUNT(DISTINCT ?s) AS ?n) WHERE { ?s a ?clase FILTER(!STRSTARTS(STR(?clase), "${ESQUEMA}")) }
+     GROUP BY ?clase ORDER BY DESC(?n) ?clase`,
     opciones,
   );
   const primeras = clases.slice(0, CLASES).filter((f) => f.clase && f.n);
-  lineas.push(`Classes, by number of instances (top ${primeras.length} of ${clases.length}):`);
+  lineas.push(`Domain classes, by number of instances (top ${primeras.length} of ${clases.length}):`);
   const ancho = Math.max(0, ...primeras.map((f) => corto(f.clase!.value).length));
   for (const f of primeras) {
     const nombre = corto(f.clase!.value);

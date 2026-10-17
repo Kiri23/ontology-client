@@ -14,7 +14,8 @@ const resultados = (vars: string[], bindings: Record<string, { type: string; val
 const iri = (value: string) => ({ type: "uri", value });
 const literal = (value: string) => ({ type: "literal", value });
 
-// Nueve clases inventadas: el ejemplo muestra 8. La primera por cantidad es urn:ej#Cosa.
+// Nueve clases inventadas del dominio, en el orden que pide la consulta: el ejemplo muestra 8. La primera por cantidad
+// es urn:ej#Cosa. Más dos del esquema de RDF con más instancias que todas: solo salen si la consulta no las filtra.
 const CLASES = [
   ["urn:ej#Cosa", "9"],
   ["https://otro.dev/v/Bicho", "7"],
@@ -26,35 +27,49 @@ const CLASES = [
   ["urn:ej#F", "1"],
   ["urn:ej#G", "1"],
 ];
+const DEL_ESQUEMA = [
+  ["http://www.w3.org/1999/02/22-rdf-syntax-ns#Property", "20"],
+  ["http://www.w3.org/2000/01/rdf-schema#Class", "11"],
+];
 const INSTANCIA = "urn:ej:cosa-1";
+const PROPIEDADES = [
+  { p: iri("http://www.w3.org/1999/02/22-rdf-syntax-ns#type"), o: iri("urn:ej#Cosa") },
+  { p: iri("urn:ej#nombre"), o: literal("una cosa\ncon salto") },
+  { p: iri("urn:ej#nota"), o: literal("x".repeat(80)) },
+];
 
+// Un fetch que hace de servidor SPARQL sin motor: contesta según la consulta. Como un servidor de verdad, sin ORDER BY
+// no promete orden (devuelve las filas al revés) y sin el FILTER del esquema devuelve también rdf:Property y
+// rdfs:Class. La instancia solo existe si se pide la clase que salió de la consulta anterior.
 function fetchFalso(consultas: string[] = []) {
   return (pedido: Request) => {
     const q = new URL(pedido.url).searchParams.get("query") ?? "";
     consultas.push(q);
+    const responder = (vars: string[], filas: Record<string, { type: string; value: string }>[], orden: string) =>
+      Promise.resolve(resultados(vars, q.includes(orden) ? filas : [...filas].reverse()));
     if (q.includes("COUNT(*)")) return Promise.resolve(resultados(["n"], [{ n: literal("42") }]));
     if (q.includes("GROUP BY ?clase")) {
-      return Promise.resolve(resultados(["clase", "n"], CLASES.map(([c, n]) => ({ clase: iri(c), n: literal(n) }))));
+      const filtra = q.includes('FILTER(!STRSTARTS(STR(?clase), "http://www.w3.org/"))');
+      const todas = filtra ? CLASES : [...DEL_ESQUEMA, ...CLASES];
+      const filas = todas.map(([c, n]) => ({ clase: iri(c), n: literal(n) }));
+      return responder(["clase", "n"], filas, "ORDER BY DESC(?n) ?clase");
     }
-    if (q.includes("?s a <urn:ej#Cosa>")) return Promise.resolve(resultados(["s"], [{ s: iri(INSTANCIA) }]));
-    if (q.includes(`<${INSTANCIA}> ?p ?o`)) {
-      return Promise.resolve(resultados(["p", "o"], [
-        { p: iri("http://www.w3.org/1999/02/22-rdf-syntax-ns#type"), o: iri("urn:ej#Cosa") },
-        { p: iri("urn:ej#nombre"), o: literal("una cosa\ncon salto") },
-        { p: iri("urn:ej#nota"), o: literal("x".repeat(80)) },
-      ]));
+    if (q.includes("?s a <urn:ej#Cosa>")) {
+      // LIMIT 1 sin ORDER BY: cualquiera, acá la última.
+      return Promise.resolve(resultados(["s"], [{ s: iri(q.includes("ORDER BY ?s") ? INSTANCIA : "urn:ej:cosa-9") }]));
     }
+    if (q.includes(`<${INSTANCIA}> ?p ?o`)) return responder(["p", "o"], PROPIEDADES, "ORDER BY ?p ?o");
     return Promise.resolve(resultados([], []));
   };
 }
 
-Deno.test("hola: cuenta los hechos, lista 8 de las clases y muestra una instancia de la primera", async () => {
+Deno.test("hola: cuenta los hechos, lista 8 clases del dominio en orden y muestra la primera instancia de la primera", async () => {
   const consultas: string[] = [];
   const lineas = await hola({ url: "http://falso", fetch: fetchFalso(consultas) });
   assertEquals(lineas, [
     "The graph has 42 facts (triples).",
     "",
-    "Classes, by number of instances (top 8 of 9):",
+    "Domain classes, by number of instances (top 8 of 9):",
     "      9  Cosa   urn:ej#Cosa",
     "      7  Bicho  https://otro.dev/v/Bicho",
     "      5  A      urn:ej#A",

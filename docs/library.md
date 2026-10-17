@@ -98,7 +98,7 @@ Fetching new job posts has no method yet: the 200 of `POST /jobs` declares no sc
 ## Raw SPARQL: `sparql`
 
 ```ts
-import { sparql } from "@kiri23/ontology-client";
+import { sparql } from "jsr:@kiri23/ontology-client";
 
 const { tipo, texto } = await sparql.consultar("SELECT ?c (COUNT(*) AS ?n) WHERE { ?s a ?c } GROUP BY ?c");
 const filas = JSON.parse(texto).results.bindings; // tipo: application/sparql-results+json
@@ -110,7 +110,7 @@ server honors `text/csv` for SELECT, but for CONSTRUCT it always sends Turtle. I
 server's `{"error"}` (400 if the query does not parse) or `status: null` if there was no response.
 
 `deno task hola` (`ejemplos/hola.ts`) is a hello world built on `sparql.consultar`: it counts the facts in the graph,
-lists its classes and shows one instance. It needs no token and no tunnel.
+lists its domain classes and shows one instance. It needs no token and no tunnel.
 
 ## The typed client, unwrapped
 
