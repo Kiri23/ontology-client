@@ -1,6 +1,7 @@
 // Tests de `deno task vocabulario` contra el disco, en un directorio temporal: `escribir` deja docs/vocabulary/
-// igual a lo esperado (borra sobrantes), `leerProsa` no lee docs/vocabulary/ ni node_modules, y el proceso de verdad
-// sale 0 al día y 1 con un diff, genera lo mismo dos veces y cae si la prosa cambió sin regenerar.
+// igual a lo esperado (borra sobrantes), `leerProsa` lee solo lo que git trackea y nunca docs/vocabulary/,
+// node_modules, dist ni generado/, y el proceso de verdad sale 0 al día y 1 con un diff, genera lo mismo dos veces y
+// cae si la prosa cambió sin regenerar. Cada temporal es un repo git (`git init`), porque la prosa sale de ls-files.
 //
 // El proceso corre una copia de scripts/vocabulario* dentro del temporal: el script resuelve docs/ relativo a sí
 // mismo, así se prueba con sus rutas de siempre sin tocar el docs/ del repo.
@@ -8,6 +9,10 @@
 import { assert, assertEquals, assertStringIncludes } from "@std/assert";
 import { escribir, leerDirectorio } from "../scripts/vocabulario/archivos.ts";
 import { enlacesAlVocabulario, leerProsa } from "../scripts/vocabulario/menciones.ts";
+
+// El pre-commit corre con GIT_INDEX_FILE (y a veces GIT_DIR) de este repo exportados: heredados, harían que el git
+// de cada temporal liste el índice del repo de verdad. Se borran antes de lanzar cualquier git.
+for (const v of ["GIT_DIR", "GIT_INDEX_FILE", "GIT_WORK_TREE"]) Deno.env.delete(v);
 
 const TTL = `@prefix v: <https://kiri23.dev/vocabulario#> .
 @prefix skos: <http://www.w3.org/2004/02/skos/core#> .
@@ -29,28 +34,39 @@ Deno.test("escribir: escribe lo esperado y borra lo que sobra", async () => {
   }
 });
 
-// Escribe cada ruta → contenido bajo `raiz`, creando las carpetas.
-async function sembrar(raiz: string, archivos: Record<string, string>): Promise<void> {
+async function git(raiz: string, ...args: string[]): Promise<void> {
+  const { code, stderr } = await new Deno.Command("git", { args, cwd: raiz }).output();
+  if (code !== 0) throw new Error(`git ${args.join(" ")}: ${new TextDecoder().decode(stderr)}`);
+}
+
+// Escribe cada ruta → contenido bajo `raiz` (un repo git), creando las carpetas, y los `git add` salvo que
+// `trackear` sea false.
+async function sembrar(raiz: string, archivos: Record<string, string>, trackear = true): Promise<void> {
   for (const [ruta, contenido] of Object.entries(archivos)) {
     await Deno.mkdir(`${raiz}/${ruta}`.replace(/\/[^/]*$/, ""), { recursive: true });
     await Deno.writeTextFile(`${raiz}/${ruta}`, contenido);
   }
+  if (trackear) await git(raiz, "add", "--", ...Object.keys(archivos));
 }
 
-Deno.test("leerProsa: un link dentro de docs/vocabulary/ o de node_modules no es mención", async () => {
+Deno.test("leerProsa: solo lo trackeado, y nunca docs/vocabulary/, node_modules, dist ni generado/", async () => {
   const raiz = await Deno.makeTempDir();
   try {
+    await git(raiz, "init", "-q");
     await sembrar(raiz, {
       "README.md": "[RDF](docs/vocabulary/rdf.md)",
       "docs/vocabulary/turtle.md": "**Related**\n\n- [RDF](rdf.md)\n",
       "docs/vocabulary/README.md": "- [RDF](rdf.md)\n",
       "explorador/node_modules/x/README.md": "[RDF](../../../docs/vocabulary/rdf.md)",
+      "explorador/dist/README.md": "[RDF](../../docs/vocabulary/rdf.md)",
+      "generado/docs/x.md": "[RDF](../../docs/vocabulary/rdf.md)",
       "docs/sub/x.md": "[Turtle](../vocabulary/turtle.md)",
       "AGENTS.md": "[RDF](docs/vocabulary/rdf.md)",
     });
+    await sembrar(raiz, { "neo4j/README.md": "[RDF](../docs/vocabulary/rdf.md)" }, false);
     const prosa = await leerProsa(new URL(`file://${raiz}/`));
-    assertEquals([...prosa.keys()].sort(), ["README.md", "docs/sub/x.md"]);
-    assertEquals(enlacesAlVocabulario(prosa).map((e) => `${e.archivo} → ${e.slug}`).sort(), [
+    assertEquals([...prosa.keys()], ["README.md", "docs/sub/x.md"]);
+    assertEquals(enlacesAlVocabulario(prosa).map((e) => `${e.archivo} → ${e.slug}`), [
       "README.md → rdf",
       "docs/sub/x.md → turtle",
     ]);
@@ -70,6 +86,7 @@ async function repoTemporal() {
         "--config",
         `${repo}deno.json`,
         "--allow-read",
+        "--allow-run=git",
         `--allow-write=${raiz}`,
         "--allow-env=READABLE_STREAM",
         `${raiz}/scripts/vocabulario.ts`,
@@ -87,6 +104,7 @@ async function repoTemporal() {
     await Deno.copyFile(`${repo}scripts/vocabulario/${e.name}`, `${raiz}/scripts/vocabulario/${e.name}`);
   }
   await Deno.writeTextFile(`${raiz}/docs/vocabulary.ttl`, TTL);
+  await git(raiz, "init", "-q");
   return { raiz, correr };
 }
 
@@ -131,7 +149,7 @@ Deno.test("deno task vocabulario: desde docs/vocabulary/ vacío, generar dos vec
   }
 });
 
-Deno.test("deno task vocabulario: --check cae si la prosa cambió sin regenerar, y un link roto es error", async () => {
+Deno.test("deno task vocabulario: --check cae si la prosa cambió sin regenerar, no ve lo sin trackear y un link roto es error", async () => {
   const { raiz, correr } = await repoTemporal();
   try {
     await sembrar(raiz, { "README.md": "# Repo\n" });
@@ -144,6 +162,9 @@ Deno.test("deno task vocabulario: --check cae si la prosa cambió sin regenerar,
     assertStringIncludes(sinRegenerar.stderr, "rdf.md: no coincide");
     assertEquals((await correr()).code, 0);
     assertEquals((await correr("--check")).code, 0);
+
+    await sembrar(raiz, { "docs/borrador.md": "[Turtle](../docs/vocabulary/turtle.md)\n" }, false);
+    assertEquals((await correr("--check")).code, 0, "un .md sin trackear no cambia la salida");
 
     await sembrar(raiz, { "docs/guia.md": "Ver [SHACL](vocabulary/shacl.md).\n" });
     const roto = await correr("--check");

@@ -288,3 +288,59 @@ Deno.test("validarEnlaces: un link a una página que el TTL no genera es error c
     [],
   );
 });
+
+Deno.test("menciones: un link con título cuenta", () => {
+  const enlaces = enlacesAlVocabulario(new Map([["README.md", '[x](docs/vocabulary/rdf.md "RDF")']]));
+  assertEquals(enlaces.map((e) => e.slug), ["rdf"]);
+});
+
+Deno.test("menciones: un link dentro de `código en línea` no cuenta, ni siquiera a un término inexistente", () => {
+  const readme =
+    "Escribí `[x](docs/vocabulary/rdf.md)` o ``[y](docs/vocabulary/nada.md)``; [z](docs/vocabulary/turtle.md).";
+  assertEquals(enlacesAlVocabulario(new Map([["README.md", readme]])).map((e) => e.slug), ["turtle"]);
+});
+
+Deno.test("menciones: un bloque ~~~ no cuenta; cierra solo el mismo carácter, igual de largo o más", () => {
+  const bloques = [
+    "~~~",
+    "[a](docs/vocabulary/rdf.md)",
+    "~~~",
+    "````md",
+    "```",
+    "[b](docs/vocabulary/rdf.md)",
+    "```",
+    "````",
+    "~~~",
+    "```",
+    "[c](docs/vocabulary/rdf.md)",
+    "```",
+    "~~~~",
+    "[d](docs/vocabulary/turtle.md)",
+  ].join("\n");
+  assertEquals(enlacesAlVocabulario(new Map([["README.md", bloques]])).map((e) => `${e.linea}:${e.slug}`), [
+    "14:turtle",
+  ]);
+});
+
+Deno.test("validarEnlaces: un % suelto en un link al vocabulario es link roto, con archivo y línea", () => {
+  const prosa = new Map([["README.md", "Intro.\n[x](docs/vocabulary/r%df.md) y [y](docs/50%.md)"]]);
+  assertEquals(validarEnlaces(enlacesAlVocabulario(prosa), leer(DOS)), [
+    'README.md:2: el link (docs/vocabulary/r%df.md) apunta a docs/vocabulary/r%df.md, y "r%df" no es un término de ' +
+    "docs/vocabulary.ttl",
+  ]);
+});
+
+Deno.test("renderizar: un archivo con espacios, paréntesis o corchetes da un link que no se corta", () => {
+  const paginas = renderizarCon(
+    DOS,
+    new Map([
+      ["docs/my notes (v2).md", "[RDF](../docs/vocabulary/rdf.md)"],
+      ["docs/x [draft].md", "[RDF](vocabulary/rdf.md)"],
+    ]),
+  );
+  assertEquals(
+    mencionesDe(paginas.get("rdf.md")!),
+    "- [docs/my notes (v2).md](../../docs/my%20notes%20%28v2%29.md)\n" +
+      "- [docs/x \\[draft\\].md](../../docs/x%20%5Bdraft%5D.md)\n",
+  );
+});

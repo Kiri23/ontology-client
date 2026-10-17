@@ -22,7 +22,7 @@
     "neo4j:cargar": "deno run --allow-net --allow-env --allow-sys=osRelease scripts/neo4j-cargar.ts",
     "neo4j:hola": "deno run --allow-net --allow-env=NEO4J_URL,NEO4J_PASSWORD --allow-sys=osRelease ejemplos/hola-neo4j.ts",
     "generar": "deno run --allow-read --allow-write=generado --allow-env --allow-sys scripts/generar.ts",
-    "vocabulario": "deno run --allow-read=. --allow-write=docs/vocabulary --allow-env=READABLE_STREAM scripts/vocabulario.ts",
+    "vocabulario": "deno run --allow-read=. --allow-run=git --allow-write=docs/vocabulary --allow-env=READABLE_STREAM scripts/vocabulario.ts",
     "hooks": "mkdir -p $HOME/.local/share/git-hooks/ontology-client && printf '#!/bin/sh\\n[ -f .githooks/pre-commit ] || exit 0\\nexec sh .githooks/pre-commit \"$@\"\\n' > $HOME/.local/share/git-hooks/ontology-client/pre-commit && chmod +x $HOME/.local/share/git-hooks/ontology-client/pre-commit && git config core.hooksPath $HOME/.local/share/git-hooks/ontology-client && echo 'pre-commit activo: fmt, lint, tipos y tests antes de cada commit'",
     "test": "deno test --allow-net --allow-read --allow-write --allow-env --allow-run --allow-sys=osRelease"
   },

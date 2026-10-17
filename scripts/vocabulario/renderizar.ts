@@ -36,8 +36,14 @@ function seccion(titulo: string, items: string[]): string[] {
 function menciones(c: Concepto, grafo: Store): string[] {
   const { namedNode } = DataFactory;
   const docs = grafo.getSubjects(namedNode(DCT_REFERENCES), namedNode(c.iri), null).map((s) => s.value);
-  return docs.sort().map((ruta) => `[${ruta}](../../${ruta})`);
+  return docs.sort().map((ruta) => `[${texto(ruta)}](${destino(ruta)})`);
 }
+
+// Un nombre de archivo como texto de link: escapa los corchetes.
+const texto = (ruta: string) => ruta.replace(/[[\]\\]/g, (c) => `\\${c}`);
+// Un nombre de archivo como destino desde docs/vocabulary/: espacios y paréntesis codificados para que el link no se
+// corte (`docs/my notes (v2).md` → `../../docs/my%20notes%20%28v2%29.md`).
+const destino = (ruta: string) => `../../${encodeURI(ruta).replace(/\(/g, "%28").replace(/\)/g, "%29")}`;
 
 function pagina(c: Concepto, todos: Concepto[], porIri: Map<string, Concepto>, grafo: Store): string {
   const conceptos = (iris: Iterable<string>) => ordenar([...new Set(iris)].map((i) => porIri.get(i)!));
