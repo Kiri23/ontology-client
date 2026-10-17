@@ -1,0 +1,49 @@
+# The project vocabulary. Source of docs/vocabulary/*.md: edit this file and run `deno task vocabulario`.
+#
+# Each term is a skos:Concept with exactly one skos:prefLabel and one skos:definition in @en.
+# skos:broader only when the term is a kind of the other one; any other link is skos:related.
+# Write each skos:related once: the generated pages show it on both terms. Narrower is computed from skos:broader.
+
+@prefix v: <https://kiri23.dev/vocabulario#> .
+@prefix skos: <http://www.w3.org/2004/02/skos/core#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+
+v:knowledge-graph a skos:Concept ;
+  skos:prefLabel "Knowledge graph"@en ;
+  skos:definition "A collection of facts stored as a graph: things are nodes and the named relationships between them are edges. Because every fact connects to others, you can follow and query those connections instead of looking up isolated records."@en ;
+  skos:related v:rdf, v:ontology ;
+  rdfs:seeAlso <https://arxiv.org/abs/2003.02320> .
+
+v:ontology a skos:Concept ;
+  skos:prefLabel "Ontology"@en ;
+  skos:definition "A formal description of the kinds of things in a domain and the ways they can relate, such as which classes exist and which properties connect them. It gives data a shared meaning that both people and software can rely on."@en ;
+  skos:related v:shacl-shape ;
+  rdfs:seeAlso <https://www.w3.org/TR/owl2-overview/> .
+
+v:rdf a skos:Concept ;
+  skos:prefLabel "RDF"@en ;
+  skos:definition "The Resource Description Framework, a W3C data model that states every fact as a triple of subject, predicate, and object. Things and relationships are named with IRIs, so data from different sources can be merged into one graph."@en ;
+  rdfs:seeAlso <https://www.w3.org/TR/rdf11-concepts/> .
+
+v:turtle a skos:Concept ;
+  skos:prefLabel "Turtle"@en ;
+  skos:definition "A compact, human-readable text syntax for writing RDF. It lets you declare short prefixes for long IRIs and group the triples that share a subject."@en ;
+  skos:related v:rdf ;
+  rdfs:seeAlso <https://www.w3.org/TR/turtle/> .
+
+v:shacl-shape a skos:Concept ;
+  skos:prefLabel "SHACL shape"@en ;
+  skos:definition "A set of conditions that the targeted nodes of an RDF graph must meet, such as which properties are required, which values they may take, and how many times they may appear. Shapes are written in RDF with SHACL, the W3C Shapes Constraint Language, and a validator reports every node that breaks them."@en ;
+  skos:related v:rdf ;
+  rdfs:seeAlso <https://www.w3.org/TR/shacl/> .
+
+v:sparql a skos:Concept ;
+  skos:prefLabel "SPARQL"@en ;
+  skos:definition "The W3C query language for RDF. A query describes a pattern of triples with variables, and the engine returns every part of the graph that matches it."@en ;
+  skos:related v:rdf, v:knowledge-graph ;
+  rdfs:seeAlso <https://www.w3.org/TR/sparql11-query/> .
+
+v:openapi-contract a skos:Concept ;
+  skos:prefLabel "OpenAPI contract"@en ;
+  skos:definition "A machine-readable description of an HTTP API in the OpenAPI Specification format, listing its endpoints, parameters, request bodies, and responses. Clients and servers can be checked against it, and tools can generate code and documentation from it."@en ;
+  rdfs:seeAlso <https://spec.openapis.org/oas/latest.html> .
