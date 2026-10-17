@@ -16,3 +16,5 @@ The W3C query language for RDF. A query describes a pattern of triples with vari
 **Mentioned in**
 
 - [README.md](../../README.md)
+- [docs/library.md](../../docs/library.md)
+- [explorador/README.md](../../explorador/README.md)

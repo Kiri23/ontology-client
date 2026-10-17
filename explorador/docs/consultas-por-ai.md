@@ -6,7 +6,7 @@ Superado otra vez el mismo día: 270M no corre en el Pixel 10. Ahora el botón v
 mismo origen (ontologyLearning#31), que le pasa los mensajes de `armarMensajes` a Gemma 4 26B-A4B en Google AI Studio,
 gratis; es el punto 7 de abajo con otro proveedor y sin cobrar. El servidor no arma el prompt ni valida: devuelve el
 texto y el navegador lo extrae y lo valida como antes. 270M queda como opción "en este dispositivo" con WebGPU core.
-Detalle en el README del explorador, sección "Indagar con AI".
+Detalle en el README del explorador, sección "Explore with AI".
 
 Investigación R2, 2026-10-16. Sin código: solo la decisión y sus fuentes. Cada número trae el comando o la URL que lo
 produjo.
@@ -57,7 +57,7 @@ Reescrita el 2026-10-16 después de verificar la vía gratis: `gemma-en-el-naveg
 9. **Este PR (rama `explorador-ai`, apilado sobre `explorador-grafo`):** la historia "Indagar con AI" del explorador
    (Worker, botón, aviso de descarga, prompt con el esquema y tres prearmadas) y la CSP del Caddyfile. El validador ya
    venía en el PR del grafo, con la consulta libre; lo que propone la AI pasa por él. Detalle en el README del
-   explorador, sección "Indagar con AI".
+   explorador, sección "Explore with AI".
 10. **Qué cambia respecto a la versión anterior de este doc:** el orden. Antes iba primero el proxy pago y el navegador
     quedaba "para después"; Christian no paga y ya tiene el camino gratis hecho en DocsifyTemplate. Lo que sigue igual:
     el validador, el few-shot y el no a vps2.

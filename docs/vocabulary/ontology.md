@@ -12,3 +12,7 @@ A formal description of the kinds of things in a domain and the ways they can re
 **See also**
 
 - <https://www.w3.org/TR/owl2-overview/>
+
+**Mentioned in**
+
+- [docs/library.md](../../docs/library.md)

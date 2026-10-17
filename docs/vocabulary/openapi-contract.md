@@ -11,3 +11,5 @@ A machine-readable description of an HTTP API in the OpenAPI Specification forma
 **Mentioned in**
 
 - [README.md](../../README.md)
+- [docs/library.md](../../docs/library.md)
+- [neo4j/README.md](../../neo4j/README.md)
