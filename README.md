@@ -3,13 +3,37 @@
 **Live:** [API explorer](https://ontology.kiri231.com/explorador/) ·
 [JSR package](https://jsr.io/@kiri23/ontology-client)
 
-A TypeScript client generated from a [knowledge graph](docs/vocabulary/knowledge-graph.md). The server,
-ontologyLearning, stores its data as [RDF](docs/vocabulary/rdf.md) and describes each class with a
-[SHACL shape](docs/vocabulary/shacl-shape.md). From that one source come the HTTP API and its
-[OpenAPI contract](docs/vocabulary/openapi-contract.md). From the contract, this repo builds a JSR library, a CLI and a
-GitHub Action, with types nobody writes by hand.
+A TypeScript client generated from a [knowledge graph](docs/vocabulary/knowledge-graph.md). The graph lives on a server,
+ontologyLearning, where a set of [rules](docs/vocabulary/shacl-shape.md) defines each class. The server publishes those
+rules as an [OpenAPI contract](docs/vocabulary/openapi-contract.md), and this repo turns that contract into a JSR
+library, a CLI and a GitHub Action. Nobody writes the types by hand.
 
 > **0.x:** the API is not stable yet. A minor version can break it: pin the exact version.
+
+## The problem
+
+A [knowledge graph](docs/vocabulary/knowledge-graph.md) is a good way to store connected data, but it's hard to use from
+everyday code. You query it with a language of its own ([SPARQL](docs/vocabulary/sparql.md)), the results come back
+without types, and your editor has no idea what's inside. So every app, CI check or chart built on the graph starts the
+same way: someone works out its shape again, by hand.
+
+ontology-client turns the graph into code. Its classes become TypeScript types and functions you can call, so the graph
+can be queried from code, checked in CI, and drawn in a browser. When the graph gains a class, the client gains its
+type.
+
+## Results
+
+- **Install it and your editor knows the graph.** One import from JSR, and every class in the
+  [knowledge graph](docs/vocabulary/knowledge-graph.md) shows up with autocomplete and type checks.
+- **Try every function without installing anything.** The [API explorer](https://ontology.kiri231.com/explorador/) runs
+  each function against the live server, with a form for its inputs. A test fails if someone adds a function and forgets
+  its demo.
+- **See the graph.** The explorer downloads the whole graph and draws it as nodes and edges you can click.
+- **Catch bad data before it merges.** A GitHub Action checks data files against the graph's
+  [rules](docs/vocabulary/shacl-shape.md) on every pull request and flags the files that break them. It already guards
+  another repo.
+- **Swap the database, keep the code.** The same calls read from the server or from a Neo4j copy, and a test checks that
+  both return the same answer.
 
 ## Generado desde el contrato
 

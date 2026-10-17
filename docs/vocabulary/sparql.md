@@ -12,3 +12,7 @@ The W3C query language for RDF. A query describes a pattern of triples with vari
 **See also**
 
 - <https://www.w3.org/TR/sparql11-query/>
+
+**Mentioned in**
+
+- [README.md](../../README.md)
