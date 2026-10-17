@@ -22,9 +22,17 @@ async function main(): Promise<number> {
     console.log("Uso: deno task vocabulario [--check]");
     return 0;
   }
+  let ttl;
+  try {
+    ttl = await Deno.readTextFile(TTL);
+  } catch (e) {
+    if (!(e instanceof Deno.errors.NotFound)) throw e;
+    console.error("No existe docs/vocabulary.ttl: es la fuente de docs/vocabulary/.");
+    return 1;
+  }
   let conceptos;
   try {
-    conceptos = leer(await Deno.readTextFile(TTL));
+    conceptos = leer(ttl);
   } catch (e) {
     console.error(`docs/vocabulary.ttl no es Turtle válido: ${e instanceof Error ? e.message : e}`);
     return 1;

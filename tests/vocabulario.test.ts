@@ -1,6 +1,7 @@
-// Tests de `deno task vocabulario`: el validador rechaza cada regla rota nombrando el término, el render escribe
-// los lados que el TTL no dice (Narrower, Related al revés) y la comparación de --check ve archivos editados y
-// sobrantes. Que docs/vocabulary/ esté al día lo chequea CI con `deno task vocabulario --check`.
+// Tests de `deno task vocabulario` sin disco: el validador rechaza cada regla rota nombrando el término, el render
+// escribe los lados que el TTL no dice (Narrower, Related al revés) y la comparación de --check ve archivos editados
+// y sobrantes. `escribir` y el proceso de verdad están en vocabulario-disco.test.ts; que docs/vocabulary/ esté al día
+// lo chequea CI con `deno task vocabulario --check`.
 
 import { assert, assertEquals, assertStringIncludes } from "@std/assert";
 import { leer } from "../scripts/vocabulario/leer.ts";
@@ -28,8 +29,31 @@ Deno.test("validar: el vocabulario commiteado no rompe ninguna regla", async () 
   assertEquals(validar(leer(ttl)), []);
 });
 
-Deno.test("validar: un vocabulario mínimo con broader y related pasa", () => {
-  assertEquals(errores(concepto("padre") + concepto("hijo", "skos:broader v:padre ; skos:related v:padre ;")), []);
+Deno.test("validar: un vocabulario mínimo con broader, related y seeAlso pasa", () => {
+  const ttl = concepto("padre") + concepto("hijo", "skos:broader v:padre ;") +
+    concepto("otro", "skos:related v:padre ; rdfs:seeAlso <https://www.w3.org/TR/skos-reference/> ;");
+  assertEquals(errores(ttl), []);
+});
+
+Deno.test("validar: rechaza un vocabulario sin ningún skos:Concept", () => {
+  assertEquals(errores(""), ["el vocabulario no tiene ningún skos:Concept"]);
+});
+
+Deno.test("validar: rechaza un término sin `a skos:Concept`", () => {
+  const ttl = concepto("rdf") + `v:turtle skos:prefLabel "Turtle"@en ; skos:definition "A syntax."@en .`;
+  assertEquals(errores(ttl), ["turtle: tiene skos:prefLabel o skos:definition pero no es `a skos:Concept`"]);
+});
+
+Deno.test("validar: un skos:ConceptScheme no es un término ni lleva página", () => {
+  const ttl = PREFIJOS + "v:esquema a skos:ConceptScheme .\n" + concepto("rdf");
+  assertEquals(validar(leer(ttl)), []);
+  assertEquals([...renderizar(leer(ttl)).keys()], ["README.md", "rdf.md"]);
+});
+
+Deno.test("validar: rechaza un concepto que es nodo en blanco", () => {
+  assertEquals(errores(concepto("rdf") + `[] a skos:Concept ; skos:prefLabel "Anon"@en ; skos:definition "D."@en .`), [
+    'nodo en blanco "Anon": un término necesita un IRI https://kiri23.dev/vocabulario#<local name>',
+  ]);
 });
 
 Deno.test("validar: rechaza un concepto sin definition", () => {
@@ -41,8 +65,21 @@ Deno.test("validar: rechaza un concepto sin definition", () => {
 Deno.test("validar: rechaza un label sin @en", () => {
   const e = errores(`v:rdf a skos:Concept ; skos:prefLabel "RDF" ; skos:definition "A data model."@en .`);
   assertEquals(e, [
-    'rdf: skos:prefLabel "RDF" no tiene @en',
+    'rdf: skos:prefLabel "RDF" no tiene etiqueta de idioma; se espera @en',
     "rdf: tiene 0 skos:prefLabel en @en; tiene que tener exactamente uno",
+  ]);
+});
+
+Deno.test("validar: un label en @en-US dice su idioma", () => {
+  assertEquals(errores(concepto("rdf", 'skos:prefLabel "Color"@en-US ;')), [
+    'rdf: skos:prefLabel "Color" tiene idioma @en-us; se espera @en',
+  ]);
+});
+
+Deno.test("validar: rechaza label y definition vacíos", () => {
+  assertEquals(errores(`v:rdf a skos:Concept ; skos:prefLabel ""@en ; skos:definition "  "@en .`), [
+    "rdf: skos:prefLabel está vacío",
+    "rdf: skos:definition está vacío",
   ]);
 });
 
@@ -59,26 +96,41 @@ Deno.test("validar: rechaza broader y related a un término inexistente", () => 
   ]);
 });
 
+Deno.test("validar: rechaza related a sí mismo", () => {
+  assertEquals(errores(concepto("rdf", "skos:related v:rdf ;")), ["rdf: skos:related apunta a sí mismo"]);
+});
+
+Deno.test("validar: rechaza related entre dos términos que broader ya une, directo o transitivo", () => {
+  const ttl = concepto("abuelo", "skos:related v:hijo ;") + concepto("padre", "skos:broader v:abuelo ;") +
+    concepto("hijo", "skos:broader v:padre ; skos:related v:padre ;") + concepto("tio", "skos:related v:padre ;");
+  assertEquals(errores(ttl), [
+    "abuelo: skos:related y skos:broader (directo o transitivo) unen abuelo con hijo; SKOS los quiere disjuntos",
+    "hijo: skos:related y skos:broader (directo o transitivo) unen hijo con padre; SKOS los quiere disjuntos",
+  ]);
+});
+
 Deno.test("validar: rechaza un ciclo en broader, también de un solo término", () => {
   const ttl = concepto("a", "skos:broader v:b ;") + concepto("b", "skos:broader v:c ;") +
     concepto("c", "skos:broader v:a ;") + concepto("d", "skos:broader v:d ;");
   assertEquals(errores(ttl), ["ciclo en skos:broader: a → b → c → a", "ciclo en skos:broader: d → d"]);
 });
 
-Deno.test("validar: rechaza un local name que no sirve de archivo y uno repetido", () => {
+Deno.test("validar: rechaza un local name que no sirve de archivo y un IRI fuera del namespace", () => {
   const ttl = concepto("Mal_Nombre") + concepto("readme") +
-    `<https://otro.dev/x#rdf> a skos:Concept ; skos:prefLabel "R"@en ; skos:definition "D."@en .\n` +
-    concepto("rdf");
-  const e = errores(ttl);
-  assertEquals(e.length, 3);
-  assertStringIncludes(e[0], '"Mal_Nombre" tiene que ser minúsculas');
-  assertStringIncludes(e[1], '"readme" tiene que ser minúsculas');
-  assertEquals(e[2], "rdf: https://kiri23.dev/vocabulario#rdf y https://otro.dev/x#rdf tienen el mismo local name");
+    `<https://otro.dev/x#rdf> a skos:Concept ; skos:prefLabel "R"@en ; skos:definition "D."@en .\n`;
+  assertEquals(errores(ttl), [
+    'https://kiri23.dev/vocabulario#Mal_Nombre: el local name "Mal_Nombre" tiene que ser minúsculas, dígitos y ' +
+    'guiones, y no "readme"',
+    'https://kiri23.dev/vocabulario#readme: el local name "readme" tiene que ser minúsculas, dígitos y guiones, y ' +
+    'no "readme"',
+    "https://otro.dev/x#rdf: un término tiene que estar en el namespace https://kiri23.dev/vocabulario#",
+  ]);
 });
 
-Deno.test("validar: rechaza un seeAlso que no es URL http(s)", () => {
-  assertEquals(errores(concepto("rdf", 'rdfs:seeAlso "la spec" ;')), [
-    'rdf: rdfs:seeAlso "la spec" no es una URL http(s)',
+Deno.test("validar: rechaza un seeAlso literal y uno que no es URL http(s)", () => {
+  assertEquals(errores(concepto("rdf", 'rdfs:seeAlso "la spec", <mailto:a@b.c> ;')), [
+    'rdf: rdfs:seeAlso "la spec" es un Literal; tiene que ser un IRI <https://…>',
+    "rdf: rdfs:seeAlso <mailto:a@b.c> no es una URL http(s)",
   ]);
 });
 
@@ -108,6 +160,15 @@ Deno.test("renderizar: una página entera, con cabecera, definición y See also"
     renderizar(leer(ttl)).get("rdf.md"),
     "<!-- Generated from docs/vocabulary.ttl by `deno task vocabulario`. Do not edit by hand: edit the TTL and run " +
       "the task. -->\n\n# RDF\n\nDefinition of rdf.\n\n**See also**\n\n- <https://www.w3.org/TR/rdf11-concepts/>\n",
+  );
+});
+
+Deno.test("renderizar: See also sin repetidos y ordenado", () => {
+  const ttl = PREFIJOS + concepto("rdf", "rdfs:seeAlso <https://b.example/>, <https://a.example/> ;") +
+    "v:rdf rdfs:seeAlso <https://b.example/> .\n";
+  assertStringIncludes(
+    renderizar(leer(ttl)).get("rdf.md")!,
+    "**See also**\n\n- <https://a.example/>\n- <https://b.example/>\n",
   );
 });
 

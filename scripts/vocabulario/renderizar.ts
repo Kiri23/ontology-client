@@ -1,5 +1,6 @@
-// renderizar.ts — de los conceptos (ya validados) a los markdown de docs/vocabulary/: una página por término,
-// <slug>.md, y README.md como índice. Devuelve nombre de archivo → contenido, sin tocar el disco.
+// renderizar.ts — de los conceptos (ya validados: todos skos:Concept, ninguno related a sí mismo) a los markdown de
+// docs/vocabulary/: una página por término, <slug>.md, y README.md como índice. Devuelve nombre de archivo →
+// contenido, sin tocar el disco.
 //
 // Narrower lo calcula el script como inverso de skos:broader, y Related sale en las dos páginas aunque el triple
 // esté en una sola: en el TTL nadie escribe ninguno de los dos lados que faltan. Todo va ordenado por label para
@@ -28,9 +29,7 @@ function pagina(c: Concepto, todos: Concepto[], porIri: Map<string, Concepto>): 
   const conceptos = (iris: Iterable<string>) => ordenar([...new Set(iris)].map((i) => porIri.get(i)!));
   const broader = conceptos(c.broader);
   const narrower = conceptos(todos.filter((o) => o.broader.includes(c.iri)).map((o) => o.iri));
-  const related = conceptos(
-    [...c.related, ...todos.filter((o) => o.related.includes(c.iri)).map((o) => o.iri)].filter((i) => i !== c.iri),
-  );
+  const related = conceptos([...c.related, ...todos.filter((o) => o.related.includes(c.iri)).map((o) => o.iri)]);
   const lineas = [
     CABECERA,
     "",
@@ -41,7 +40,7 @@ function pagina(c: Concepto, todos: Concepto[], porIri: Map<string, Concepto>): 
     ...seccion("Broader", broader.map(enlace)),
     ...seccion("Narrower", narrower.map(enlace)),
     ...seccion("Related", related.map(enlace)),
-    ...seccion("See also", [...new Set(c.seeAlso)].sort().map((url) => `<${url}>`)),
+    ...seccion("See also", [...new Set(c.seeAlso.map((o) => o.valor))].sort().map((url) => `<${url}>`)),
   ];
   return lineas.join("\n").trimEnd() + "\n";
 }
