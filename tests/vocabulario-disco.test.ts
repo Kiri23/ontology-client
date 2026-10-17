@@ -139,6 +139,8 @@ Deno.test("deno task vocabulario: desde docs/vocabulary/ vacío, generar dos vec
     assertEquals((await leerDirectorio(dir)).size, 0);
     assertEquals((await correr()).code, 0);
     const primera = await leerDirectorio(dir);
+    // Trackeadas como en el repo de verdad: si docs/vocabulary/ se leyera, ls-files las daría en la segunda corrida.
+    await git(raiz, "add", "docs/vocabulary");
     assertEquals((await correr()).code, 0);
     assertEquals(await leerDirectorio(dir), primera);
     assertStringIncludes(primera.get("rdf.md")!, "**Related**\n\n- [Turtle](turtle.md)\n");
