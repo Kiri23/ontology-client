@@ -1,4 +1,4 @@
-# SDK explorer
+# API explorer
 
 A Storybook for `@kiri23/ontology-client`: <https://ontology.kiri231.com/explorador/>.
 

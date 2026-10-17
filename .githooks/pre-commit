@@ -19,7 +19,7 @@ paso() {
 
 paso fmt env -u LD_PRELOAD deno fmt --check --config deno.json
 paso lint env -u LD_PRELOAD deno lint --config deno.json
-paso tipos env -u LD_PRELOAD deno check --config deno.json mod.ts cli.ts neo4j.ts scripts/*.ts tests/*.ts
+paso tipos env -u LD_PRELOAD deno check --config deno.json mod.ts cli.ts neo4j.ts scripts/*.ts tests/*.ts ejemplos/*.ts
 paso tests env -u LD_PRELOAD deno task --config deno.json test
 paso generado env -u LD_PRELOAD deno task --config deno.json generar --check
 paso vocabulario env -u LD_PRELOAD deno task --config deno.json vocabulario --check
