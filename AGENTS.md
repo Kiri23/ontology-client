@@ -1,4 +1,5 @@
-Trampas que no se ven mirando el código. El resto está en README.md y explorador/README.md.
+Trampas que no se ven mirando el código. El resto está en `docs/` (índice en `docs/README.md`: librería, motores, CLI,
+action, desarrollo), `explorador/README.md` y `neo4j/README.md`.
 
 - **deno siempre con `--config deno.json`** (en Termux, `env -u LD_PRELOAD deno …`): `explorador/package.json` corta la
   búsqueda de config, y `deno fmt` sobre `explorador/` formatea a 80 columnas en vez de 120.

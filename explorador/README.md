@@ -1,204 +1,215 @@
-# Explorador del SDK
+# API explorer
 
-Un Storybook de `@kiri23/ontology-client`: <https://ontology.kiri231.com/explorador/>.
+A Storybook for `@kiri23/ontology-client`: <https://ontology.kiri231.com/explorador/>.
 
-Storybook lista componentes y deja probar cada uno con controles. Acá se listan las clases del SDK y cada función es una
-**historia**: su JSDoc, su firma, un formulario con sus parámetros, el botón Correr y la respuesta (status HTTP o
-`ErrorServidor`, tiempo, JSON y, si es una lista de objetos, una tabla). La URL guarda la historia y sus valores
-(`#/jobs.get?tecnologia=python`), así un link reproduce la llamada.
+Storybook lists components and lets you try each one with controls. Here the list is the SDK's classes, and each
+function is a **story**: its JSDoc, its signature, a form with its parameters, the **Correr** (Run) button and the
+response (HTTP status or `ErrorServidor`, time, JSON and, if it is a list of objects, a table). The URL keeps the story
+and its values (`#/jobs.get?tecnologia=python`), so a link reproduces the call.
 
-Todo pasa por el SDK de este repo (`../mod.ts`), nunca por un `fetch` a mano. Se sirve en el mismo origen que la API,
-así que el SDK le pide a `window.location.origin` y no hace falta CORS.
+The page itself is in Spanish. Button and view names are quoted here as the page shows them, with the English meaning
+the first time.
 
-## Qué hay
+Everything goes through this repo's SDK (`../mod.ts`), never through a hand-written `fetch`. It is served from the same
+origin as the API, so the SDK talks to `window.location.origin` and no CORS is needed.
+
+## What is here
 
 ```
 explorador/
-  src/historias/   el catálogo, TypeScript puro (sin React): lo importan la app y el test de cobertura (Deno)
+  src/historias/   the catalog, plain TypeScript (no React): imported by the app and by the coverage test (Deno)
     tipos.ts         Historia, Control, Clase
     jobs.ts          jobs.get, jobs.descartar, jobs.marcarAplicado
     proyectos.ts     validarProyecto
     sparql.ts        sparql.consultar
-    motor.ts         configurar (con motorHttp, el único que corre en el navegador) y motorHttp.jobs.get
-    cliente.ts       crearCliente: una historia por cada GET de contrato/openapi.json
-    index.ts         CLASES, el orden de la barra
-  src/hooks/       useLlamada (useActionState), useRuta (el hash), useToken (sessionStorage)
+    motor.ts         configurar (with motorHttp, the only one that runs in the browser) and motorHttp.jobs.get
+    cliente.ts       crearCliente: one story for each GET in contrato/openapi.json
+    index.ts         CLASES, the order of the sidebar
+  src/hooks/       useLlamada (useActionState), useRuta (the hash), useToken (sessionStorage)
   src/componentes/ Barra, PanelHistoria, Controles, CampoToken, Respuesta, Tabla, Json, Prosa
-  src/logica/      la ruta del hash y las celdas de la tabla, sin React
-  src/grafo/       la vista Grafo (ver abajo): VistaGrafo, motor.ts, vistas/, componentes/, hooks/ y logica/ (sin React)
-  src/estilos/     un CSS por sección (base, barra, panel, ficha, recibo, tabla, grafo); cada componente importa el suyo
-  vite/doc-sdk.ts  plugin de Vite: el JSDoc y la firma de cada función, leídos del código del SDK
-  pruebas/         vitest: historias, hooks y panel con un fetch falso; grafo.test.ts con datos/grafo.ttl (sin red)
-  docs/            diseno.md (el plan visual) y la investigación de la AI (consultas-por-ai.md y los del Pixel)
-  scripts/         humo-imagen (CI) y capturas.mjs (capturas para un PR)
-  Dockerfile       node → Caddy; el contexto es la raíz del repo
-  Caddyfile        el servidor estático del contenedor
-  compose.prod.yaml  el servicio detrás de kiri-edge en vps2
+  src/logica/      the hash route and the table cells, no React
+  src/grafo/       the Graph view (see below): VistaGrafo, motor.ts, vistas/, componentes/, hooks/ and logica/ (no React)
+  src/estilos/     one CSS file per section (base, barra, panel, ficha, recibo, tabla, grafo); each component imports its own
+  vite/doc-sdk.ts  Vite plugin: each function's JSDoc and signature, read from the SDK's code
+  pruebas/         vitest: stories, hooks and panel with a fake fetch; grafo.test.ts with datos/grafo.ttl (no network)
+  docs/            diseno.md (the visual plan) and the AI research (consultas-por-ai.md and the Pixel ones)
+  scripts/         humo-imagen (CI) and capturas.mjs (screenshots for a PR)
+  Dockerfile       node → Caddy; the build context is the repo root
+  Caddyfile        the container's static server
+  compose.prod.yaml  the service behind kiri-edge on vps2
 ```
 
-## Agregar una historia
+## Adding a story
 
-Cuando `mod.ts` gana una función, el test `tests/explorador.test.ts` de la raíz falla en CI hasta que tenga su historia.
-Recorre lo que exporta el módulo (namespaces incluidos: `jobs.get`, `validarProyecto`…) y lo compara **por identidad**
-con la `fn` de cada historia. También falla si una historia apunta a algo que mod.ts no exporta, si su `funcion` no es
-el nombre de su `fn`, si dos tienen el mismo id, si una que escribe no pide token, y si una historia hace un pedido que
-no es GET sin `escribe: true` (o al revés): las corre todas con un fetch falso y mira los métodos. La única excepción
-con nombre es `validarProyecto`, que manda la ficha por POST pero no guarda nada.
+When `mod.ts` gains a function, the root test `tests/explorador.test.ts` fails in CI until it has its story. It walks
+what the module exports (namespaces included: `jobs.get`, `validarProyecto`…) and compares it **by identity** with each
+story's `fn`. It also fails if a story points to something mod.ts does not export, if its `funcion` is not the name of
+its `fn`, if two have the same id, if one that writes does not ask for a token, and if a story makes a request that is
+not GET without `escribe: true` (or the other way around): it runs them all with a fake fetch and looks at the methods.
+The only named exception is `validarProyecto`, which sends the project file by POST but stores nothing.
 
-1. En `src/historias/`, en el archivo de su clase (o uno nuevo, sumado a `CLASES` en `index.ts`), agregá
-   `historia({ ... })`: `id` (va en la URL), `fn` (la función de mod.ts, la referencia), `funcion` (su nombre),
-   `nombre`, `llamada`, `controles` y `llamar(fn, valores, { url, fetch, token })`. `llamar` recibe la misma `fn` con su
-   tipo exacto: llamá a esa, no a otra importada.
-2. Si escribe en el servidor: `escribe: true` y `token: "acciones"` (o el que corresponda). Sin token el botón queda
-   deshabilitado; con token, la página muestra los valores y pide confirmación antes de correr.
-3. La descripción y la firma salen solas del JSDoc de la función (`vite/doc-sdk.ts`). `nota` agrega una línea propia y
-   `columnas` dice qué columnas van primero si la respuesta es una tabla.
-4. `deno task test` en la raíz y `npm test` acá.
+1. In `src/historias/`, in its class's file (or a new one, added to `CLASES` in `index.ts`), add `historia({ ... })`:
+   `id` (goes in the URL), `fn` (the mod.ts function, the reference), `funcion` (its name), `nombre`, `llamada`,
+   `controles` and `llamar(fn, valores, { url, fetch, token })`. `llamar` receives that same `fn` with its exact type:
+   call that one, not another one you imported.
+2. If it writes to the server: `escribe: true` and `token: "acciones"` (or whichever applies). Without a token the
+   button stays disabled; with a token, the page shows the values and asks for confirmation before running.
+3. The description and the signature come from the function's JSDoc on their own (`vite/doc-sdk.ts`). `nota` adds a line
+   of your own and `columnas` says which columns go first if the response is a table.
+4. `deno task test` at the root and `npm test` here.
 
-Un GET nuevo en el contrato no necesita nada: `cliente.ts` arma su historia desde `contrato/openapi.json`.
+A new GET in the contract needs nothing: `cliente.ts` builds its story from `contrato/openapi.json`.
 
-## Grafo
+## Graph
 
-`#/grafo/mapa` y las demás entradas de la sección Grafo de la barra. El grafo RDF entero (unas 1 300 tripletas) se baja
-una vez con `sparql.consultar("CONSTRUCT { ?s ?p ?o } WHERE { ?s ?p ?o }")` y se carga en
-[oxigraph](https://github.com/oxigraph/oxigraph) 0.5.11, un motor SPARQL en WASM que corre en la pestaña. Se dibuja con
-Cytoscape 3.34.3 y el layout fcose. Todo eso va en un `import()` perezoso (`App.tsx`): una historia no baja el WASM (1,4
-MB comprimido) ni el chunk de la vista (~260 kB comprimido). Si ese chunk no llega (una pestaña vieja después de un
-deploy), `SiFalla.tsx` lo dice y ofrece recargar. El grafo entero se dispone una vez, con semilla fija
-(`disposicion.ts`): las islas quedan en el mismo lugar en todas las vistas y al recargar.
+`#/grafo/mapa` and the other entries in the sidebar's Grafo (Graph) section. The whole [RDF](../docs/vocabulary/rdf.md)
+graph (about 1 300 triples) is downloaded once with `sparql.consultar("CONSTRUCT { ?s ?p ?o } WHERE { ?s ?p ?o }")` and
+loaded into [oxigraph](https://github.com/oxigraph/oxigraph) 0.5.11, a [SPARQL](../docs/vocabulary/sparql.md) engine in
+WASM that runs in the tab. It is drawn with Cytoscape 3.34.3 and the fcose layout. All of that sits behind a lazy
+`import()` (`App.tsx`): a story never downloads the WASM (1.4 MB compressed) or the view's chunk (~260 kB compressed).
+If that chunk does not arrive (an old tab after a deploy), `SiFalla.tsx` says so and offers to reload. The whole graph
+is laid out once, with a fixed seed (`disposicion.ts`): the islands stay in the same place in every view and on reload.
 
-- **Mapa** (`#/grafo/mapa?clase=k:Action`): las instancias como nodos (235; los literales son atributos, `rdf:type` es
-  el color y la forma, el esquema no se dibuja). La leyenda cuenta por clase y resalta una. Se ven dos islas que no se
-  tocan, los puestos y los repos, más los nodos sueltos.
-- **Indagar** (`#/grafo/nodo?iri=…&saltos=…&foco=…`; la barra vuelve al último abierto): la ficha de un nodo con sus
-  relaciones agrupadas por predicado, en las dos direcciones. Tocar una relación agrega esos vecinos al lienzo sin mover
-  los que ya estaban. El SPARQL del camino (un CONSTRUCT) se arma solo, con Copiar y Abrir en consulta libre. Los saltos
-  van en la URL.
-- **Consultas prearmadas** (`#/grafo/huecos`…): corren al abrir, muestran la tabla y resaltan sus nodos.
-- **Consulta libre** (`#/grafo/consulta?sparql=…`): SELECT y ASK dan tabla o sí/no; CONSTRUCT se dibuja. Un link con
-  `?sparql=` solo llena el editor: corre al tocar Correr (una consulta cara congelaría la pestaña al abrir el link, y de
-  nuevo al recargar).
+- **Mapa** (Map, `#/grafo/mapa?clase=k:Action`): the instances as nodes (235; literals are attributes, `rdf:type` is the
+  color and the shape, the schema is not drawn). The legend counts per class and highlights one. You can see two islands
+  that never touch, the job posts and the repos, plus the loose nodes.
+- **Indagar** (Explore, `#/grafo/nodo?iri=…&saltos=…&foco=…`; the sidebar goes back to the last one opened): a node's
+  card with its relationships grouped by predicate, in both directions. Tapping a relationship adds those neighbors to
+  the canvas without moving the ones already there. The path's SPARQL (a CONSTRUCT) is built on its own, with Copiar
+  (Copy) and Abrir en consulta libre (Open in free query). The hops go in the URL.
+- **Consultas prearmadas** (Prebuilt queries, `#/grafo/huecos`…): they run on open, show the table and highlight their
+  nodes.
+- **Consulta libre** (Free query, `#/grafo/consulta?sparql=…`): SELECT and ASK give a table or yes/no; CONSTRUCT is
+  drawn. A link with `?sparql=` only fills the editor: it runs when you tap Correr (an expensive query would freeze the
+  tab when the link opens, and again on reload).
 
-**Agregar una consulta prearmada:** un objeto más en `PREARMADAS` (`src/grafo/logica/consultas.ts`) con `id` (va en la
-URL), `nombre`, `pregunta` (una línea) y `sparql` (sin los PREFIX: `declaraciones()` agrega los que use). La barra la
-lista sola. `pruebas/grafo.test.ts` ya la corre contra `pruebas/datos/grafo.ttl` y exige que pase el validador y dé
-filas; si sabés cuántas, sumá un test con el número.
+**Adding a prebuilt query:** one more object in `PREARMADAS` (`src/grafo/logica/consultas.ts`) with `id` (goes in the
+URL), `nombre`, `pregunta` (one line) and `sparql` (without the PREFIX lines: `declaraciones()` adds the ones it uses).
+The sidebar lists it on its own. `pruebas/grafo.test.ts` already runs it against `pruebas/datos/grafo.ttl` and requires
+it to pass the validator and return rows; if you know how many, add a test with the number.
 
-**El validador** (`src/grafo/logica/validador.ts`) corre antes de cada consulta libre. Parsea con Traqula 1.4.0 (el
-sucesor de sparqljs, que está deprecado) y mira el álgebra. Rechaza lo que no parsea (un prefijo sin declarar dice qué
-línea falta), lo que cambia datos (INSERT, DELETE, LOAD…), lo que no es SELECT, ASK o CONSTRUCT, `SERVICE` y `FROM`, y
-lo caro (`costo.ts`: patrones sin variables en común, que son un producto cartesiano, y un `?s ?p ?o` suelto), y las
-clases (objetos de `rdf:type`) y propiedades que el grafo no tiene, con la más parecida: "La clase k:Accion no existe en
-el grafo; parecida: k:Action.". Las conocidas salen del Store (usadas y declaradas en el esquema). La plantilla de un
-CONSTRUCT puede inventar predicados; el WHERE no. Lo que propone la AI (Indagar con AI, abajo) pasa por acá antes de
-correr.
+**The validator** (`src/grafo/logica/validador.ts`) runs before every free query. It parses with Traqula 1.4.0 (the
+successor of sparqljs, which is deprecated) and looks at the algebra. It rejects what does not parse (an undeclared
+prefix says which line is missing), what changes data (INSERT, DELETE, LOAD…), what is not SELECT, ASK or CONSTRUCT,
+`SERVICE` and `FROM`, and what is expensive (`costo.ts`: patterns with no variables in common, which are a cartesian
+product, and a bare `?s ?p ?o`), and the classes (objects of `rdf:type`) and properties that the graph does not have,
+with the closest one: "La clase k:Accion no existe en el grafo; parecida: k:Action." (the class k:Accion does not exist
+in the graph; closest: k:Action). The known ones come from the Store (used, and declared in the schema). A CONSTRUCT
+template can invent predicates; the WHERE cannot. What the AI proposes (Explore with AI, below) goes through here before
+it runs.
 
-**La CSP** suma `script-src 'self' 'wasm-unsafe-eval'`: sin eso el navegador no compila el WASM de oxigraph
-(`WebAssembly.instantiateStreaming` cae por `default-src 'self'`). `'wasm-unsafe-eval'` habilita solo WebAssembly, no
-`eval` de JS, y el WASM es un asset propio con hash. Cytoscape quiere inyectar un `<style>`, que `style-src 'self'`
-bloquea: `Lienzo.tsx` ocupa antes su id con un `<meta>` y su única regla (`position: relative`) vive en `grafo.css`.
+**The CSP** adds `script-src 'self' 'wasm-unsafe-eval'`: without it the browser does not compile oxigraph's WASM
+(`WebAssembly.instantiateStreaming` falls under `default-src 'self'`). `'wasm-unsafe-eval'` only enables WebAssembly,
+not JS `eval`, and the WASM is our own asset with a hash. Cytoscape wants to inject a `<style>`, which
+`style-src 'self'` blocks: `Lienzo.tsx` takes its id first with a `<meta>`, and its only rule (`position: relative`)
+lives in `grafo.css`.
 
-## Indagar con AI
+## Explore with AI
 
-En la consulta libre (`#/grafo/consulta`), **Preguntar con AI** escribe el SPARQL a partir de una pregunta en
-castellano. Hay dos vías; el estado de las dos vive en `src/grafo/ai/cliente.ts`.
+In the free query (`#/grafo/consulta`), **Preguntar con AI** (Ask with AI) writes the SPARQL from a question in Spanish.
+There are two paths; the state of both lives in `src/grafo/ai/cliente.ts`.
 
-**Por el servidor, la de siempre.** El botón abre la pregunta; Generar manda `{"mensajes": […]}` (lo que arma
-`armarMensajes`) por `POST /ai/sparql` al mismo origen (`src/grafo/ai/servidor.ts`), y ontologyLearning se los pasa a
-Gemma 4 26B-A4B en Google AI Studio, gratis (ontologyLearning#31, `vistas/web/ai.py`). Contesta `{"texto": "…"}` en unos
-2 s. Anda en cualquier navegador, el Pixel incluido: no baja nada ni necesita WebGPU, y la CSP no cambia
-(`connect-src 'self'`). Abrir la vista o la pregunta no manda nada: solo Generar. La nota de la pregunta dice adónde va,
-y que Google puede usar lo que le llega (es su servicio gratis). El servidor tiene la key, el límite (5 por minuto por
-IP, 10 por minuto en total) y un tope de 32 KiB por pedido. Cada error se dice en una frase:
+**Through the server, the default.** The button opens the question; **Generar** (Generate) sends `{"mensajes": […]}`
+(what `armarMensajes` builds) by `POST /ai/sparql` to the same origin (`src/grafo/ai/servidor.ts`), and ontologyLearning
+passes them to Gemma 4 26B-A4B on Google AI Studio, for free (ontologyLearning#31, `vistas/web/ai.py`). It answers
+`{"texto": "…"}` in about 2 s. It works in any browser, the Pixel included: it downloads nothing and needs no WebGPU,
+and the CSP does not change (`connect-src 'self'`). Opening the view or the question sends nothing: only Generar does.
+The question's note says where it goes, and that Google may use what it receives (it is their free service). The server
+holds the key, the limit (5 per minute per IP, 10 per minute in total) and a cap of 32 KiB per request. Each error is
+told in one sentence:
 
-| El servidor | La página dice                                                                                                                                                                                                                |
-| ----------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 429         | "Se llegó al límite de preguntas por minuto: probá de nuevo en N s." (N es `Retry-After`)                                                                                                                                     |
-| 502         | lo que le pasó a Google ("Google no contestó en 30 s.") y "Probá de nuevo en un rato." Sin `{"error"}` (un 502 de Cloudflare o kiri-edge con el origen caído o en deploy): "El servidor no contestó (502)."                   |
-| 503         | el error del servidor; con `Retry-After` (falla pasajera: un 5xx de Google, un timeout) suma "Probá de nuevo en N s", sin él (no hay key, cuota) va solo; sin `{"error"}`, "La AI no está configurada en el servidor todavía" |
-| 404, 405    | "Este servidor todavía no tiene Preguntar con AI" (un servidor sin #31)                                                                                                                                                       |
-| 413, 400    | la pregunta es demasiado larga; el servidor no aceptó la pregunta y por qué                                                                                                                                                   |
-| sin red     | "No se pudo hablar con el servidor: revisá la conexión y probá de nuevo."                                                                                                                                                     |
+| The server | The page says (in Spanish)                                                                                                                                                                                                    | Meaning                                                                                                                                                                                                                          |
+| ---------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 429        | "Se llegó al límite de preguntas por minuto: probá de nuevo en N s." (N es `Retry-After`)                                                                                                                                     | the per-minute question limit was reached: try again in N s (N is `Retry-After`)                                                                                                                                                 |
+| 502        | lo que le pasó a Google ("Google no contestó en 30 s.") y "Probá de nuevo en un rato." Sin `{"error"}` (un 502 de Cloudflare o kiri-edge con el origen caído o en deploy): "El servidor no contestó (502)."                   | what happened to Google ("Google did not answer in 30 s") and "try again in a while". Without `{"error"}` (a 502 from Cloudflare or kiri-edge with the origin down or deploying): "the server did not answer (502)"              |
+| 503        | el error del servidor; con `Retry-After` (falla pasajera: un 5xx de Google, un timeout) suma "Probá de nuevo en N s", sin él (no hay key, cuota) va solo; sin `{"error"}`, "La AI no está configurada en el servidor todavía" | the server's error; with `Retry-After` (a passing failure: a 5xx from Google, a timeout) it adds "try again in N s", without it (no key, quota) it goes alone; without `{"error"}`, "the AI is not configured on the server yet" |
+| 404, 405   | "Este servidor todavía no tiene Preguntar con AI" (un servidor sin #31)                                                                                                                                                       | "this server does not have Ask with AI yet" (a server without #31)                                                                                                                                                               |
+| 413, 400   | la pregunta es demasiado larga; el servidor no aceptó la pregunta y por qué                                                                                                                                                   | the question is too long; the server did not accept the question, and why                                                                                                                                                        |
+| no network | "No se pudo hablar con el servidor: revisá la conexión y probá de nuevo."                                                                                                                                                     | "could not reach the server: check the connection and try again"                                                                                                                                                                 |
 
-No va por el SDK: `/ai/sparql` no es una historia del explorador y todavía no está en `contrato/openapi.json`.
-`npm run dev` lo manda a producción, como las demás rutas.
+It does not go through the SDK: `/ai/sparql` is not a story in the explorer and is not in `contrato/openapi.json` yet.
+`npm run dev` sends it to production, like the other routes.
 
-**En este dispositivo, opcional.** Con WebGPU en modo core aparece además **Preguntar en este dispositivo**: Gemma 3
-270M (`onnx-community/gemma-3-270m-it-ONNX`, `q4f16` o `q4` sin f16, texto solo con `Gemma3ForCausalLM` y
-`AutoTokenizer`) por WebGPU, con Transformers.js 4.3.1 dentro de un worker (`src/grafo/ai/worker.ts`). La pregunta no
-sale del dispositivo. Es el Gemma más chico: Gemma 4 E2B (3,6 GB) no entra en la GPU del Pixel 10
-([docs/modelo-chico-para-el-pixel.md](docs/modelo-chico-para-el-pixel.md)). Con el modelo cargado, o si falla la carga,
-**Usar el servidor** lo suelta y vuelve a la otra vía. Cómo se llegó: `docs/consultas-por-ai.md` y
-`docs/gemma-en-el-navegador.md`. Lo que sigue es de esta vía, salvo "Nunca corre sola", que vale para las dos.
+**On this device, optional.** With WebGPU in core mode, **Preguntar en este dispositivo** (Ask on this device) shows up
+too: Gemma 3 270M (`onnx-community/gemma-3-270m-it-ONNX`, `q4f16`, or `q4` without f16, text only with
+`Gemma3ForCausalLM` and `AutoTokenizer`) over WebGPU, with Transformers.js 4.3.1 inside a worker
+(`src/grafo/ai/worker.ts`). The question never leaves the device. It is the smallest Gemma: Gemma 4 E2B (3.6 GB) does
+not fit in the Pixel 10's GPU ([docs/modelo-chico-para-el-pixel.md](docs/modelo-chico-para-el-pixel.md)). With the model
+loaded, or if loading fails, **Usar el servidor** (Use the server) releases it and goes back to the other path. How we
+got here: `docs/consultas-por-ai.md` and `docs/gemma-en-el-navegador.md`. What follows is about this path, except "It
+never runs on its own", which applies to both.
 
-- **Qué baja:** 293 MB la primera vez con f16 (`onnx/model_q4f16.onnx` y su `.onnx_data`, 273 MB, más el tokenizer, 20
-  MB), 343 MB sin f16 (`model_q4`, 323 MB más el tokenizer), desde Hugging Face. Quedan en la Cache API del navegador
-  (`transformers-cache`, con `navigator.storage.persist()`), y las próximas veces se leen del disco. Antes de bajar
-  nada, un aviso dice el tamaño y espera Continuar. Después muestra el progreso por archivo y compila los shaders con un
-  token de prueba.
-- **Al salir de la consulta libre** el worker se termina y el modelo sale de la memoria: en el teléfono la memoria es
-  compartida, y ~300 MB no tienen por qué quedar tomados mientras se leen otras historias. Volver lo carga de nuevo
-  desde la Cache API, sin bajarlo (tarda la creación de las sesiones, no la descarga). Si la GPU se pierde ("device
-  lost"), pasa lo mismo y el error queda a la vista.
-- **Solo WebGPU en modo core.** El botón del dispositivo aparece solo si `navigator.gpu.requestAdapter()` da un
-  adaptador core en el worker. Si solo da modo compatibilidad (lo único que da Chrome en el Pixel 10 Pro XL: el driver
-  PowerVR 25.1 está en la blocklist de WebGPU de Chromium), no se ofrece: ahí 270M trabó el teléfono, y en core (con la
-  flag que saca la blocklist) perdió el device al generar. Se vuelve a probar cuando cambie el driver o la blocklist
-  ([docs/webgpu-en-el-pixel-10.md](docs/webgpu-en-el-pixel-10.md) §4). Sin WebGPU tampoco, y el botón del servidor no
-  espera ese check. No hay fallback a WASM: el op de los embeddings (`GatherBlockQuantized`) no tiene kernel de CPU en
-  este onnxruntime-web. La tabla de embeddings (84 MB) entra en el buffer más grande del Pixel (256 MB en
-  compatibilidad, 128 MB en core); si una GPU acepta menos, la descarga avisa que puede fallar al cargar.
-- **Nunca corre sola.** El prompt (`src/grafo/ai/prompt.ts`) lleva el esquema sacado del Store: los prefijos, las clases
-  con cuántas instancias tienen y cada propiedad con su `rdfs:domain`, `rdfs:range` y `rdfs:comment`, o con las clases
-  que la usan. Las propiedades con pocos literales llevan sus valores, como van en SPARQL
-  (`dcterms:source … Valores: "hn", "remotive".`): sin eso Gemma 4 escribió `"HN"`. Salen de `CONSULTA_VALORES`: hasta
-  10 distintos, ninguno de más de 40 caracteres, y solo de instancias con clase (la procedencia de cada carga no).
-  También lleva tres prearmadas como ejemplo, sin las líneas PREFIX. `extraer.ts` saca el bloque `` ```sparql `` y
-  agrega los PREFIX que falten. La consulta va al editor y pasa por el validador. Si el validador la rechaza, muestra el
-  motivo y la deja en el editor para corregirla. Corre solo si se toca Correr.
-- **Cuánto pesa una visita sin AI:** nada del modelo. La vista Grafo abre un worker de 2 kB para el `check`, y solo si
-  existe `navigator.gpu`. Transformers.js (581 kB) es un chunk aparte que el worker importa con `import()` al tocar
-  Continuar. El wasm de onnxruntime (27 MB, `ort-wasm-simd-threaded.asyncify`) sale como asset propio con hash (`?url`)
-  y se le pasa a `env.backends.onnx.wasm.wasmPaths`, así no se baja de jsdelivr. Esto lo verifica
-  `scripts/chunks-ai.mjs`, que corre en cada `npm run build` y sale 1 si la AI entra en el bundle principal.
-- **La CSP** se abre así, y nada más:
-  `connect-src 'self' https://huggingface.co/onnx-community/gemma-3-270m-it-ONNX/ https://*.hf.co`. Va la ruta del
-  modelo y no el host entero, porque la API de huggingface.co acepta escrituras y sería un canal para sacar tokens. Los
-  pesos redirigen a `us.aws.cdn.hf.co`, y CSP3 no mira la ruta después de un redirect. Además:
-  `script-src 'self' 'wasm-unsafe-eval' blob:` (Transformers.js importa la fábrica del wasm como Blob) y
-  `worker-src 'self' blob:`. **Pendiente:** el revisor del PR #11 cree que los dos `blob:` sobran. Sin COOP/COEP
-  onnxruntime no crea workers, y pasando solo `wasmPaths.wasm` usaría su fábrica embebida. Quedan hasta que el modelo
-  haya corrido una vez en el Pixel; después se prueba sacarlos. `scripts/humo-imagen` exige las tres, y además que los
-  dos wasm salgan como `application/wasm`. El costo es que la página que guarda tokens puede hablar con un origen más.
+- **What it downloads:** 293 MB the first time with f16 (`onnx/model_q4f16.onnx` and its `.onnx_data`, 273 MB, plus the
+  tokenizer, 20 MB), 343 MB without f16 (`model_q4`, 323 MB plus the tokenizer), from Hugging Face. They stay in the
+  browser's Cache API (`transformers-cache`, with `navigator.storage.persist()`), and later visits read them from disk.
+  Before downloading anything, a notice gives the size and waits for **Continuar** (Continue). Then it shows progress
+  per file and compiles the shaders with a test token.
+- **On leaving the free query** the worker is terminated and the model leaves memory: on the phone memory is shared, and
+  ~300 MB have no reason to stay taken while you read other stories. Coming back loads it again from the Cache API,
+  without downloading it (what takes time is creating the sessions, not the download). If the GPU is lost ("device
+  lost"), the same happens and the error stays in view.
+- **Only WebGPU in core mode.** The device button shows up only if `navigator.gpu.requestAdapter()` gives a core adapter
+  in the worker. If it only gives compatibility mode (the only thing Chrome gives on the Pixel 10 Pro XL: the PowerVR
+  25.1 driver is on Chromium's WebGPU blocklist), it is not offered: there 270M froze the phone, and in core (with the
+  flag that removes the blocklist) it lost the device while generating. We will try again when the driver or the
+  blocklist changes ([docs/webgpu-en-el-pixel-10.md](docs/webgpu-en-el-pixel-10.md) §4). Without WebGPU it is not
+  offered either, and the server button does not wait for that check. There is no fallback to WASM: the embeddings op
+  (`GatherBlockQuantized`) has no CPU kernel in this onnxruntime-web. The embeddings table (84 MB) fits in the Pixel's
+  largest buffer (256 MB in compatibility, 128 MB in core); if a GPU accepts less, the download warns that loading may
+  fail.
+- **It never runs on its own.** The prompt (`src/grafo/ai/prompt.ts`) carries the schema taken from the Store: the
+  prefixes, the classes with how many instances they have, and each property with its `rdfs:domain`, `rdfs:range` and
+  `rdfs:comment`, or with the classes that use it. Properties with few literals carry their values, as they go in SPARQL
+  (`dcterms:source … Valores: "hn", "remotive".`): without that Gemma 4 wrote `"HN"`. They come from `CONSULTA_VALORES`:
+  up to 10 distinct, none longer than 40 characters, and only from instances with a class (not each load's provenance).
+  It also carries three prebuilt queries as examples, without the PREFIX lines. `extraer.ts` pulls out the
+  `` ```sparql `` block and adds the missing PREFIX lines. The query goes to the editor and through the validator. If
+  the validator rejects it, it shows the reason and leaves it in the editor to fix. It runs only if you tap Correr.
+- **What a visit without AI weighs:** nothing of the model. The Graph view opens a 2 kB worker for the `check`, and only
+  if `navigator.gpu` exists. Transformers.js (581 kB) is a separate chunk that the worker imports with `import()` when
+  you tap Continuar. The onnxruntime wasm (27 MB, `ort-wasm-simd-threaded.asyncify`) ships as its own asset with a hash
+  (`?url`) and is passed to `env.backends.onnx.wasm.wasmPaths`, so it is not downloaded from jsdelivr. This is checked
+  by `scripts/chunks-ai.mjs`, which runs on every `npm run build` and exits 1 if the AI gets into the main bundle.
+- **The CSP** opens like this, and no more:
+  `connect-src 'self' https://huggingface.co/onnx-community/gemma-3-270m-it-ONNX/ https://*.hf.co`. It allows the
+  model's path and not the whole host, because huggingface.co's API accepts writes and would be a channel to leak
+  tokens. The weights redirect to `us.aws.cdn.hf.co`, and CSP3 does not check the path after a redirect. Also:
+  `script-src 'self' 'wasm-unsafe-eval' blob:` (Transformers.js imports the wasm factory as a Blob) and
+  `worker-src 'self' blob:`. **Pending:** the reviewer of PR #11 thinks both `blob:` are unnecessary. Without COOP/COEP
+  onnxruntime does not create workers, and passing only `wasmPaths.wasm` it would use its embedded factory. They stay
+  until the model has run once on the Pixel; then we try removing them. `scripts/humo-imagen` requires all three, and
+  also that both wasm files ship as `application/wasm`. The cost is that the page that stores tokens can talk to one
+  more origin.
 
-**Cómo probarlo.** La vía del servidor, en cualquier navegador: el preview del PR pasa `POST /ai/sparql` a producción
-(ver abajo), así que anda cuando ontologyLearning#31 esté desplegado; antes, la página dice que el servidor no la tiene.
-`pruebas/ai-servidor.test.tsx` la prueba sin Google: `servidor.ts` con un fetch falso, el cliente, y la consulta libre
-de punta a punta contra un HTTP local que imita `/ai/sparql` (pregunta → POST con el prompt → consulta validada en el
-editor; un 429; el servidor caído). `scripts/capturas.mjs` hace lo mismo en Chrome con la CSP real.
+**How to test it.** The server path, in any browser: the PR preview passes `POST /ai/sparql` to production (see below),
+so it works once ontologyLearning#31 is deployed; before that, the page says the server does not have it.
+`pruebas/ai-servidor.test.tsx` tests it without Google: `servidor.ts` with a fake fetch, the client, and the free query
+end to end against a local HTTP server that imitates `/ai/sparql` (question → POST with the prompt → validated query in
+the editor; a 429; the server down). `scripts/capturas.mjs` does the same in Chrome with the real CSP.
 
-Con el modelo de este dispositivo, solo en un dispositivo con WebGPU: Chrome de Android 12+ o de escritorio (que
-`navigator.gpu.requestAdapter` dé un adaptador, en core o en compatibilidad: lo dice `public/diagnostico-webgpu.html`).
-Se abre el preview del PR en `#/grafo/consulta`, se toca Preguntar con AI y después Continuar (en Preguntar en este
-dispositivo), se espera la descarga y se pregunta. **Nunca en chromium-box ni en Node**: no tienen GPU, y sin GPU el
-modelo no corre (no hay kernel de CPU para sus embeddings). El resto lo cubren los tests con un worker falso:
-`pruebas/ai.test.ts` (prompt, extractor y cliente) y `pruebas/ai-vista.test.tsx` (las dos vías: el botón del dispositivo
-solo con WebGPU core, el aviso va antes de la descarga, y lo generado pasa por el validador y no corre).
+With the on-device model, only on a device with WebGPU: Chrome on Android 12+ or desktop (where
+`navigator.gpu.requestAdapter` gives an adapter, in core or compatibility mode: `public/diagnostico-webgpu.html` tells
+you). Open the PR preview at `#/grafo/consulta`, tap Preguntar con AI and then Continuar (under Preguntar en este
+dispositivo), wait for the download and ask. **Never in chromium-box or Node**: they have no GPU, and without a GPU the
+model does not run (there is no CPU kernel for its embeddings). The rest is covered by tests with a fake worker:
+`pruebas/ai.test.ts` (prompt, extractor and client) and `pruebas/ai-vista.test.tsx` (both paths: the device button only
+with WebGPU core, the notice comes before the download, and what is generated goes through the validator and does not
+run).
 
-## Correrlo
+## Running it
 
 ```sh
 npm ci
-npm run dev        # http://localhost:5173/explorador/ ; el proxy manda las rutas de la API a producción
-npm test           # vitest, sin red
+npm run dev        # http://localhost:5173/explorador/ ; the proxy sends the API routes to production
+npm test           # vitest, no network
 npm run build      # tsc + vite build → dist/
 ```
 
-**Cuidado con `npm run dev`:** el proxy apunta a `https://ontology.kiri231.com`. Una acción corrida desde ahí escribe en
-producción igual que desde la página publicada.
+**Careful with `npm run dev`:** the proxy points to `https://ontology.kiri231.com`. An action run from there writes to
+production just like one run from the published page.
 
-**En Termux** el repo vive en `/storage`, donde no hay symlinks ni bit de ejecución, y `node_modules/` no se puede
-instalar ahí. Se trabaja en un `git worktree` en el home nativo:
+**In Termux** the repo lives in `/storage`, where there are no symlinks or executable bit, and `node_modules/` cannot be
+installed there. Work in a `git worktree` in the native home:
 
 ```sh
 git -C ~/Code/ontology-client worktree add ~/wt/ontology-client-explorador <rama>
@@ -206,65 +217,69 @@ cd ~/wt/ontology-client-explorador/explorador && npm ci
 npm test && npm run build
 ```
 
-Los scripts de `package.json` llaman a cada herramienta por su ruta (`node node_modules/vite/bin/vite.js`), no por
-nombre: los `.bin` con `#!/usr/bin/env` no corren en Android y `vite` a secas sale 127. Así andan igual en Termux, en CI
-y en el Dockerfile. Una herramienta nueva en un script va igual, con el `bin` de su `package.json`.
+The `package.json` scripts call each tool by its path (`node node_modules/vite/bin/vite.js`), not by name: `.bin`
+entries with `#!/usr/bin/env` do not run on Android, and plain `vite` exits 127. That way they work the same in Termux,
+in CI and in the Dockerfile. A new tool in a script goes the same way, with the `bin` from its `package.json`.
 
-Los bindings nativos (`@rolldown/binding-android-arm64`, `lightningcss-android-arm64`) existen y funcionan; el
-`package-lock.json` trae también los de linux para la imagen. Un build tarda un par de segundos.
+The native bindings (`@rolldown/binding-android-arm64`, `lightningcss-android-arm64`) exist and work; the
+`package-lock.json` also has the linux ones for the image. A build takes a couple of seconds.
 
-`deno fmt` y `deno lint` cubren este directorio. Correlos **desde la raíz y sin ruta**: `deno fmt explorador/` toma
-`explorador/package.json` como raíz, ignora el `lineWidth: 120` de `deno.json` y reformatea todo a 80 columnas.
+`deno fmt` and `deno lint` cover this directory. Run them **from the root and with no path**: `deno fmt explorador/`
+takes `explorador/package.json` as the root, ignores the `lineWidth: 120` in `deno.json` and reformats everything to 80
+columns.
 
 ## Tokens
 
-Las acciones (`jobs.descartar`, `jobs.marcarAplicado`) y `validarProyecto` piden token. Se escribe en la página, vive en
-el `sessionStorage` de la pestaña (se va al cerrarla), sale solo en el header `Authorization` del pedido y nunca va en
-la URL, en el bundle ni en un log. El campo va fuera del `<form>` y, donde el navegador lo permite, es texto enmascarado
-en vez de `type="password"`, para que el gestor de contraseñas no ofrezca guardarlo (detalle en `CampoToken.tsx`). El
-Caddyfile pone una CSP que solo deja correr el JS propio y hablar con el mismo origen.
+The actions (`jobs.descartar`, `jobs.marcarAplicado`) and `validarProyecto` need a token. You type it on the page; it
+lives in the tab's `sessionStorage` (it goes away when you close the tab), it only leaves in the request's
+`Authorization` header, and it never goes in the URL, the bundle or a log. The field sits outside the `<form>` and,
+where the browser allows it, is masked text instead of `type="password"`, so the password manager does not offer to save
+it (details in `CampoToken.tsx`). The Caddyfile sets a CSP that only lets our own JS run and only talks to the same
+origin.
 
-## Preview de un PR
+## PR preview
 
-Cada PR tiene su preview en una VM desechable de exe.dev: `https://pr-ontology-client-<n>.exe.xyz/` (privada, pide login
-de exe.dev). Lo arma `.github/workflows/preview.yml` con la composite action `preview-exe-dev` de Kiri23/kiriInfra:
-construye esta imagen, la manda por ssh a la VM y deja un comentario en el PR con la URL y el commit; cerrar el PR borra
-la VM. Como este repo es público y kiriInfra privado, el workflow baja la action con el PAT de solo lectura
-`KIRIINFRA_READ` y la usa como local; además necesita el secret `EXE_SSH_KEY`. La imagen corre con
-`API_UPSTREAM=https://ontology.kiri231.com`: el Caddyfile manda los GET de la API y de `/sparql` al servidor real y la
-raíz redirige a `/explorador/`. De los POST pasa uno solo, `POST /ai/sparql` (Preguntar con AI no escribe nada; el
-límite y la key quedan en el servidor): una acción corrida desde el preview no escribe en producción. En producción la
-variable no existe y esos bloques no matchean; ahí kiri-edge manda `/ai/sparql` a ontology-web, no a este contenedor.
+Each PR gets its preview on a disposable exe.dev VM: `https://pr-ontology-client-<n>.exe.xyz/` (private, it asks for the
+exe.dev login). `.github/workflows/preview.yml` builds it with the `preview-exe-dev` composite action from
+Kiri23/kiriInfra: it builds this image, sends it over ssh to the VM and leaves a comment on the PR with the URL and the
+commit; closing the PR deletes the VM. Because this repo is public and kiriInfra is private, the workflow downloads the
+action with the read-only PAT `KIRIINFRA_READ` and uses it as a local action; it also needs the `EXE_SSH_KEY` secret.
+The image runs with `API_UPSTREAM=https://ontology.kiri231.com`: the Caddyfile sends the API's and `/sparql`'s GETs to
+the real server, and the root redirects to `/explorador/`. Of the POSTs, only one passes, `POST /ai/sparql` (Preguntar
+con AI writes nothing; the limit and the key stay on the server): an action run from the preview does not write to
+production. In production the variable does not exist and those blocks do not match; there kiri-edge sends `/ai/sparql`
+to ontology-web, not to this container.
 
 ## Deploy
 
-`.github/workflows/deploy.yml`, con la receta de Kiri23/ontologyLearning:
+`.github/workflows/deploy.yml`, following Kiri23/ontologyLearning's recipe:
 
-- En un PR: construye la etapa de node, corre `npm test` adentro, construye la imagen final y le pasa
-  `scripts/humo-imagen` (que levanta la imagen y revisa el redirect de `/explorador`, el index, cada asset y fuente, la
-  CSP con `'wasm-unsafe-eval'`, el wasm del Grafo como `application/wasm`, el cache y que no corra como root).
-- En `main`: además publica `ghcr.io/kiri23/ontology-explorador` y la levanta en vps2 con `compose.prod.yaml`, detrás de
-  kiri-edge. Las labels `caddy.reverse_proxy_0: "/explorador …"` y `_1: "/explorador/* …"` se suman al sitio
-  `ontology.kiri231.com` que arman ontology-web y ontology-grlc; el comentario de `compose.prod.yaml` explica por qué no
-  choca.
+- On a PR: builds the node stage, runs `npm test` inside it, builds the final image and runs `scripts/humo-imagen` on it
+  (which starts the image and checks the `/explorador` redirect, the index, every asset and font, the CSP with
+  `'wasm-unsafe-eval'`, the Graph's wasm as `application/wasm`, the cache, and that it does not run as root).
+- On `main`: it also publishes `ghcr.io/kiri23/ontology-explorador` and starts it on vps2 with `compose.prod.yaml`,
+  behind kiri-edge. The labels `caddy.reverse_proxy_0: "/explorador …"` and `_1: "/explorador/* …"` are added to the
+  `ontology.kiri231.com` site that ontology-web and ontology-grlc set up; the comment in `compose.prod.yaml` explains
+  why they do not clash.
 
-Verificar después del merge:
+Check after the merge:
 
 ```sh
 curl -sI https://ontology.kiri231.com/explorador | grep -i location      # → /explorador/
 curl -s https://ontology.kiri231.com/explorador/ | grep -c 'id="raiz"'   # → 1
 ```
 
-## Capturas para un PR
+## Screenshots for a PR
 
-`kiri-pr-shots` y `chromium-shot.py` no sirven para una SPA. `scripts/capturas.mjs` hace que chromium-box navegue a la
-URL de producción y contesta `/explorador/*` con el `dist/` local y la misma CSP del Caddyfile; la API real responde los
-GET y cualquier otro método se aborta antes de salir. `POST /ai/sparql` lo contesta la respuesta falsa de cada captura
-(`ai`), y el script sale 1 si una captura que no pregunta lo manda. Sale 1 si la página tuvo alguna violación de CSP
-(así apareció una fuente `data:` que la CSP bloqueaba: por eso `assetsInlineLimit: 0` en `vite.config.ts`). Las del
-Grafo esperan a que el lienzo tenga su canvas y termine el layout (`.lienzo[data-listo="true"] canvas`).
+`kiri-pr-shots` and `chromium-shot.py` do not work for a SPA. `scripts/capturas.mjs` makes chromium-box navigate to the
+production URL and answers `/explorador/*` with the local `dist/` and the same CSP as the Caddyfile; the real API
+answers the GETs and any other method is aborted before it leaves. `POST /ai/sparql` is answered by each screenshot's
+fake response (`ai`), and the script exits 1 if a screenshot that does not ask sends it. It exits 1 if the page had any
+CSP violation (that is how a `data:` font that the CSP blocked showed up: hence `assetsInlineLimit: 0` in
+`vite.config.ts`). The Graph screenshots wait for the canvas to have its canvas element and finish the layout
+(`.lienzo[data-listo="true"] canvas`).
 
 ```sh
-npm run build && node scripts/capturas.mjs ~/tmp/capturas   # 12 capturas × 390 y 1280 px, 8 del Grafo
+npm run build && node scripts/capturas.mjs ~/tmp/capturas   # 12 screenshots × 390 and 1280 px, 8 of the Graph
 kiri-pr-shots subir <pr#> ~/tmp/capturas/*.png
 ```

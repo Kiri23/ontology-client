@@ -1,6 +1,6 @@
 {
   "name": "@kiri23/ontology-client",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "license": "MIT",
   "exports": {
     ".": "./mod.ts",
@@ -20,6 +20,7 @@
   "tasks": {
     "contrato": "deno run --allow-net --allow-env=ONTOLOGY_CONTRATO_URL --allow-write=contrato --allow-read --allow-run scripts/contrato.ts",
     "neo4j:cargar": "deno run --allow-net --allow-env --allow-sys=osRelease scripts/neo4j-cargar.ts",
+    "hola": "deno run --allow-net=ontology.kiri231.com ejemplos/hola.ts",
     "neo4j:hola": "deno run --allow-net --allow-env=NEO4J_URL,NEO4J_PASSWORD --allow-sys=osRelease ejemplos/hola-neo4j.ts",
     "generar": "deno run --allow-read --allow-write=generado --allow-env --allow-sys scripts/generar.ts",
     "vocabulario": "deno run --allow-read=. --allow-run=git --allow-write=docs/vocabulary --allow-env=READABLE_STREAM scripts/vocabulario.ts",
