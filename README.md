@@ -10,6 +10,12 @@ library, a CLI and a GitHub Action. Nobody writes the types by hand.
 
 > **0.x:** the API is not stable yet. A minor version can break it: pin the exact version.
 
+![A class in Turtle becomes a knowledge graph, a TypeScript type, a module of the SDK and a typed call](https://raw.githubusercontent.com/Kiri23/ontology-client/main/docs/media/readme.gif)
+
+A class in the graph becomes nodes and edges, a TypeScript type, a module of the SDK and a call the editor completes.
+`Book` is a stand-in for the graph's own classes. [Video](docs/media/readme.mp4) ·
+[scenes](docs/media/escenas/readme.py) · regenerate with `bash docs/media/escenas/generar.sh`.
+
 ## The problem
 
 A [knowledge graph](docs/vocabulary/knowledge-graph.md) is a good way to store connected data, but it's hard to use from
@@ -109,15 +115,16 @@ The dev server sends API calls to the live server, so anything you run from it b
 
 ## Commands
 
-| Command                  | What it does                                                                         |
-| ------------------------ | ------------------------------------------------------------------------------------ |
-| `deno task hola`         | Prints what the live graph holds: facts, classes, one instance                       |
-| `deno task test`         | Runs the test suite                                                                  |
-| `deno task contrato`     | Downloads the server's OpenAPI contract into `contrato/`                             |
-| `deno task generar`      | Regenerates the types from the contract; `--check` fails if they're stale            |
-| `deno task vocabulario`  | Renders the vocabulary into `docs/vocabulary/`; `--check` fails if it's stale        |
-| `deno task hooks`        | Installs a pre-commit hook that runs the CI checks                                   |
-| `deno task neo4j:cargar` | Rebuilds the Neo4j copy from the live graph (needs `NEO4J_URL` and `NEO4J_PASSWORD`) |
+| Command                              | What it does                                                                           |
+| ------------------------------------ | -------------------------------------------------------------------------------------- |
+| `deno task hola`                     | Prints what the live graph holds: facts, classes, one instance                         |
+| `deno task test`                     | Runs the test suite                                                                    |
+| `deno task contrato`                 | Downloads the server's OpenAPI contract into `contrato/`                               |
+| `deno task generar`                  | Regenerates the types from the contract; `--check` fails if they're stale              |
+| `deno task vocabulario`              | Renders the vocabulary into `docs/vocabulary/`; `--check` fails if it's stale          |
+| `deno task hooks`                    | Installs a pre-commit hook that runs the CI checks                                     |
+| `deno task neo4j:cargar`             | Rebuilds the Neo4j copy from the live graph (needs `NEO4J_URL` and `NEO4J_PASSWORD`)   |
+| `bash docs/media/escenas/generar.sh` | Re-renders the README animation with [ManimGX](https://manimgx.academa.ai/) and ffmpeg |
 
 The CLI and the GitHub Action check Turtle files against the graph's rules:
 
