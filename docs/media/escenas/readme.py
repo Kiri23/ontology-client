@@ -270,7 +270,7 @@ class ReadmeStory(m.Scene):
         self.play(m.FadeIn(popup, shift=0.1 * m.DOWN), m.FadeIn(hint))
         self.play(items[2].animate.set_color(ACCENT))
         until("Book is")
-        self.play(caption_to("Book is a stand-in. This call runs today:"), m.FadeOut(popup), m.FadeOut(hint), m.FadeOut(use), run_time=0.6)
+        self.play(caption_to("Book is just an example. This call runs today:"), m.FadeOut(popup), m.FadeOut(hint), m.FadeOut(use), run_time=0.6)
         until("this call")
         self.play(m.FadeIn(real), run_time=0.8)
         until()
