@@ -31,11 +31,12 @@ function seccion(titulo: string, items: string[]): string[] {
   return items.length ? [`**${titulo}**`, "", ...items.map((i) => `- ${i}`), ""] : [];
 }
 
-// Los archivos de prosa que enlazan `c`, sin repetidos y en orden, como links que andan desde docs/vocabulary/.
+// Los archivos de prosa que enlazan `c`, en orden, como links que andan desde docs/vocabulary/. Sin repetidos de
+// fábrica: el Store guarda cada triple una vez, así dos links del mismo archivo al mismo término son una mención.
 function menciones(c: Concepto, grafo: Store): string[] {
   const { namedNode } = DataFactory;
   const docs = grafo.getSubjects(namedNode(DCT_REFERENCES), namedNode(c.iri), null).map((s) => s.value);
-  return [...new Set(docs)].sort().map((ruta) => `[${ruta}](../../${ruta})`);
+  return docs.sort().map((ruta) => `[${ruta}](../../${ruta})`);
 }
 
 function pagina(c: Concepto, todos: Concepto[], porIri: Map<string, Concepto>, grafo: Store): string {

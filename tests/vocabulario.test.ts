@@ -237,6 +237,7 @@ Deno.test("menciones: un link con #ancla cuenta; una URL absoluta, una ruta con 
   const readme = [
     "[a](docs/vocabulary/turtle.md#see-also)",
     "[b](https://github.com/Kiri23/ontology-client/blob/main/docs/vocabulary/rdf.md)",
+    "[b2](https://example.com/docs/vocabulary/rdf.md)",
     "[c](/docs/vocabulary/rdf.md)",
     "```md",
     "[d](docs/vocabulary/rdf.md)",
