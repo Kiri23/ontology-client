@@ -60,4 +60,4 @@ The inputs reach the script through environment variables, never interpolated: n
 installs Deno 2.9.5 with `denoland/setup-deno` pinned by SHA and runs the `cli.ts` of the action's own version, with its
 own `deno.json` and lockfile (`--frozen`), so the consuming repo's `deno.json` does not interfere.
 
-`v0` is a moving tag that points to the latest `v0.x.y`; to pin, use `@v0.1.1` or a SHA.
+`v0` is a moving tag that points to the latest `v0.x.y`; to pin, use `@v0.1.2` or a SHA.

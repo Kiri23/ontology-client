@@ -5,7 +5,7 @@ The CLI validates project files (`proyecto.ttl`, written in [Turtle](vocabulary/
 
 ```sh
 export ONTOLOGY_PROYECTOS_TOKEN=...
-deno run --allow-net --allow-read --allow-env jsr:@kiri23/ontology-client@0.1.1/cli proyectos/*/proyecto.ttl
+deno run --allow-net --allow-read --allow-env jsr:@kiri23/ontology-client@0.1.2/cli proyectos/*/proyecto.ttl
 deno run --allow-net --allow-read --allow-env cli.ts --url http://localhost:8899 proyecto.ttl   # from the repo
 ```
 
