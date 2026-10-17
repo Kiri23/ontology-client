@@ -1,11 +1,14 @@
 // Tests de `deno task vocabulario` sin disco: el validador rechaza cada regla rota nombrando el término, el render
-// escribe los lados que el TTL no dice (Narrower, Related al revés) y la comparación de --check ve archivos editados
-// y sobrantes. `escribir` y el proceso de verdad están en vocabulario-disco.test.ts; que docs/vocabulary/ esté al día
+// escribe los lados que el TTL no dice (Narrower, Related al revés) y el Mentioned in de la prosa, y la comparación
+// de --check ve archivos editados y sobrantes. `escribir` y el proceso de verdad están en vocabulario-disco.test.ts; que docs/vocabulary/ esté al día
 // lo chequea CI con `deno task vocabulario --check`.
 
 import { assert, assertEquals, assertStringIncludes } from "@std/assert";
-import { leer } from "../scripts/vocabulario/leer.ts";
-import { validar } from "../scripts/vocabulario/validar.ts";
+// @ts-types="@types/n3"
+import { Store } from "n3";
+import { leer, triples } from "../scripts/vocabulario/leer.ts";
+import { validar, validarEnlaces } from "../scripts/vocabulario/validar.ts";
+import { enlacesAlVocabulario, esProsa, triplesDeMenciones } from "../scripts/vocabulario/menciones.ts";
 import { renderizar } from "../scripts/vocabulario/renderizar.ts";
 import { comparar } from "../scripts/vocabulario/archivos.ts";
 
@@ -23,6 +26,12 @@ function concepto(slug: string, extra = ""): string {
 }
 
 const errores = (ttl: string) => validar(leer(PREFIJOS + ttl));
+
+// Las páginas de un TTL completo (con prefijos) y la prosa `prosa` (ruta → contenido), como en scripts/vocabulario.ts.
+function renderizarCon(ttl: string, prosa = new Map<string, string>()): Map<string, string> {
+  const quads = triples(ttl);
+  return renderizar(leer(ttl), new Store([...quads, ...triplesDeMenciones(enlacesAlVocabulario(prosa))]));
+}
 
 Deno.test("validar: el vocabulario commiteado no rompe ninguna regla", async () => {
   const ttl = await Deno.readTextFile(new URL("../docs/vocabulary.ttl", import.meta.url));
@@ -47,7 +56,7 @@ Deno.test("validar: rechaza un término sin `a skos:Concept`", () => {
 Deno.test("validar: un skos:ConceptScheme no es un término ni lleva página", () => {
   const ttl = PREFIJOS + "v:esquema a skos:ConceptScheme .\n" + concepto("rdf");
   assertEquals(validar(leer(ttl)), []);
-  assertEquals([...renderizar(leer(ttl)).keys()], ["README.md", "rdf.md"]);
+  assertEquals([...renderizarCon(ttl).keys()], ["README.md", "rdf.md"]);
 });
 
 Deno.test("validar: rechaza un concepto que es nodo en blanco", () => {
@@ -140,7 +149,7 @@ const TERMINOS = [
   concepto("grafo", "skos:related v:rdf ;"),
   concepto("grafo-rdf", "skos:broader v:grafo ;"),
 ];
-const paginas = () => renderizar(leer(PREFIJOS + TERMINOS.join("")));
+const paginas = () => renderizarCon(PREFIJOS + TERMINOS.join(""));
 
 Deno.test("renderizar: Narrower en la página del padre sin que el TTL lo diga", () => {
   const grafo = paginas().get("grafo.md")!;
@@ -157,7 +166,7 @@ Deno.test("renderizar: Related aparece en las dos páginas aunque el triple est�
 Deno.test("renderizar: una página entera, con cabecera, definición y See also", () => {
   const ttl = PREFIJOS + concepto("rdf", "rdfs:seeAlso <https://www.w3.org/TR/rdf11-concepts/> ;");
   assertEquals(
-    renderizar(leer(ttl)).get("rdf.md"),
+    renderizarCon(ttl).get("rdf.md"),
     "<!-- Generated from docs/vocabulary.ttl by `deno task vocabulario`. Do not edit by hand: edit the TTL and run " +
       "the task. -->\n\n# RDF\n\nDefinition of rdf.\n\n**See also**\n\n- <https://www.w3.org/TR/rdf11-concepts/>\n",
   );
@@ -167,13 +176,13 @@ Deno.test("renderizar: See also sin repetidos y ordenado", () => {
   const ttl = PREFIJOS + concepto("rdf", "rdfs:seeAlso <https://b.example/>, <https://a.example/> ;") +
     "v:rdf rdfs:seeAlso <https://b.example/> .\n";
   assertStringIncludes(
-    renderizar(leer(ttl)).get("rdf.md")!,
+    renderizarCon(ttl).get("rdf.md")!,
     "**See also**\n\n- <https://a.example/>\n- <https://b.example/>\n",
   );
 });
 
 Deno.test("renderizar: el índice va ordenado por label y no depende del orden del TTL", () => {
-  assertEquals(renderizar(leer(PREFIJOS + TERMINOS.toReversed().join(""))), paginas());
+  assertEquals(renderizarCon(PREFIJOS + TERMINOS.toReversed().join("")), paginas());
   const indice = paginas().get("README.md")!;
   assert(indice.startsWith("<!-- Generated from docs/vocabulary.ttl"));
   const orden = [...indice.matchAll(/^- \[([^\]]+)\]/gm)].map((m) => m[1]);
@@ -192,4 +201,89 @@ Deno.test("comparar: igual no da diferencias; detecta un .md editado a mano, uno
     "turtle.md: falta",
     "viejo.md: sobra (no sale de docs/vocabulary.ttl)",
   ]);
+});
+
+Deno.test("esProsa: README.md en cualquier carpeta y .md bajo docs/, nunca docs/vocabulary/", () => {
+  const rutas = [
+    "README.md",
+    "neo4j/README.md",
+    "docs/guia.md",
+    "docs/sub/x.md",
+    "explorador/docs/diseno.md",
+    "docs/vocabulary/rdf.md",
+    "docs/vocabulary/README.md",
+    "AGENTS.md",
+    "docs/vocabulary.ttl",
+  ];
+  assertEquals(rutas.filter(esProsa), [
+    "README.md",
+    "neo4j/README.md",
+    "docs/guia.md",
+    "docs/sub/x.md",
+    "explorador/docs/diseno.md",
+  ]);
+});
+
+const DOS = PREFIJOS + concepto("rdf") + concepto("turtle", "skos:related v:rdf ;");
+const mencionesDe = (pagina: string) => pagina.split("**Mentioned in**\n\n")[1] ?? "";
+
+Deno.test("menciones: un link relativo desde docs/sub/x.md se resuelve contra su carpeta", () => {
+  const paginas = renderizarCon(DOS, new Map([["docs/sub/x.md", "Ver [RDF](../vocabulary/rdf.md)."]]));
+  assertEquals(mencionesDe(paginas.get("rdf.md")!), "- [docs/sub/x.md](../../docs/sub/x.md)\n");
+  assertEquals(mencionesDe(paginas.get("turtle.md")!), "");
+});
+
+Deno.test("menciones: un link con #ancla cuenta; una URL absoluta, una ruta con / y un bloque de código no", () => {
+  const readme = [
+    "[a](docs/vocabulary/turtle.md#see-also)",
+    "[b](https://github.com/Kiri23/ontology-client/blob/main/docs/vocabulary/rdf.md)",
+    "[c](/docs/vocabulary/rdf.md)",
+    "```md",
+    "[d](docs/vocabulary/rdf.md)",
+    "```",
+  ].join("\n");
+  const enlaces = enlacesAlVocabulario(new Map([["README.md", readme]]));
+  assertEquals(enlaces, [{
+    archivo: "README.md",
+    linea: 1,
+    link: "docs/vocabulary/turtle.md#see-also",
+    slug: "turtle",
+  }]);
+  const paginas = renderizarCon(DOS, new Map([["README.md", readme]]));
+  assertEquals(mencionesDe(paginas.get("turtle.md")!), "- [README.md](../../README.md)\n");
+  assert(!paginas.get("rdf.md")!.includes("Mentioned in"), "rdf solo tiene links que no cuentan");
+});
+
+Deno.test("menciones: dos links del mismo archivo al mismo término son un ítem; los archivos van ordenados", () => {
+  const prosa = new Map([
+    ["neo4j/README.md", "[RDF](../docs/vocabulary/rdf.md)"],
+    ["README.md", "[RDF](docs/vocabulary/rdf.md) y otra vez [rdf](./docs/vocabulary/rdf.md#top)."],
+  ]);
+  assertEquals(
+    mencionesDe(renderizarCon(DOS, prosa).get("rdf.md")!),
+    "- [README.md](../../README.md)\n- [neo4j/README.md](../../neo4j/README.md)\n",
+  );
+});
+
+Deno.test("menciones: Mentioned in va después de Related, y Related sale solo del TTL", () => {
+  const rdf = renderizarCon(DOS, new Map([["README.md", "[RDF](docs/vocabulary/rdf.md)"]])).get("rdf.md")!;
+  assertStringIncludes(
+    rdf,
+    "**Related**\n\n- [TURTLE](turtle.md)\n\n**Mentioned in**\n\n- [README.md](../../README.md)\n",
+  );
+});
+
+Deno.test("validarEnlaces: un link a una página que el TTL no genera es error con archivo, línea y link", () => {
+  const prosa = new Map([[
+    "docs/guia.md",
+    "Intro.\n\nVer [SHACL](../docs/vocabulary/shacl.md) y [índice](vocabulary/README.md).",
+  ]]);
+  assertEquals(validarEnlaces(enlacesAlVocabulario(prosa), leer(DOS)), [
+    'docs/guia.md:3: el link (../docs/vocabulary/shacl.md) apunta a docs/vocabulary/shacl.md, y "shacl" no es un ' +
+    "término de docs/vocabulary.ttl",
+  ]);
+  assertEquals(
+    validarEnlaces(enlacesAlVocabulario(new Map([["README.md", "[r](docs/vocabulary/rdf.md)"]])), leer(DOS)),
+    [],
+  );
 });

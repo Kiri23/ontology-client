@@ -6,7 +6,7 @@
 // concepto no exista.
 
 // @ts-types="@types/n3"
-import { Parser } from "n3";
+import { Parser, type Quad } from "n3";
 
 const SKOS = "http://www.w3.org/2004/02/skos/core#";
 const RDF_TYPE = "http://www.w3.org/1999/02/22-rdf-syntax-ns#type";
@@ -44,9 +44,17 @@ export function slugDe(iri: string): string {
   return iri.slice(Math.max(iri.lastIndexOf("#"), iri.lastIndexOf("/")) + 1);
 }
 
+// Los triples del TTL. Lanza el error de n3 (con la línea) si el texto no es Turtle.
+export function triples(ttl: string): Quad[] {
+  return new Parser().parse(ttl);
+}
+
 // Lanza el error de n3 (con la línea) si el texto no es Turtle.
 export function leer(ttl: string): Concepto[] {
-  const quads = new Parser().parse(ttl);
+  return conceptos(triples(ttl));
+}
+
+export function conceptos(quads: Quad[]): Concepto[] {
   const terminos = new Map<string, Concepto>();
   const termino = (sujeto: { value: string; termType: string }): Concepto => {
     const nuevo = {

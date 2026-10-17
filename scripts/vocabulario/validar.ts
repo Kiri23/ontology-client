@@ -8,9 +8,13 @@
 //   - skos:broader y skos:related apuntan a un skos:Concept del vocabulario, y related no apunta a sí mismo;
 //   - skos:broader no tiene ciclos, y related no une dos términos que broader ya une (SKOS S27: son disjuntas);
 //   - rdfs:seeAlso es un IRI http(s), no un literal.
+//
+// `validarEnlaces` suma la regla de la prosa: un link a docs/vocabulary/<slug>.md tiene que nombrar un término que
+// exista. La prosa no puede citar algo que no está en el TTL.
 
 import type { Concepto, Literal } from "./leer.ts";
 import { slugDe } from "./leer.ts";
+import type { Enlace } from "./menciones.ts";
 
 export const NAMESPACE = "https://kiri23.dev/vocabulario#";
 const SLUG = /^[a-z0-9]+(-[a-z0-9]+)*$/;
@@ -114,4 +118,13 @@ export function validar(terminos: Concepto[]): string[] {
     }
   }
   return [...errores, ...ciclos(porIri)];
+}
+
+// Un error por link de la prosa a una página que el TTL no genera, con archivo, línea y link.
+export function validarEnlaces(enlaces: Enlace[], terminos: Concepto[]): string[] {
+  const slugs = new Set(terminos.filter((c) => c.esConcepto).map((c) => c.slug));
+  return enlaces.filter((e) => !slugs.has(e.slug)).map((e) =>
+    `${e.archivo}:${e.linea}: el link (${e.link}) apunta a docs/vocabulary/${e.slug}.md, y "${e.slug}" no es un ` +
+    "término de docs/vocabulary.ttl"
+  );
 }
