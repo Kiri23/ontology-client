@@ -1,0 +1,124 @@
+{
+ "text": "This is a class in the knowledge graph, written in Turtle: a book, with a title, an author and a year.",
+ "voice": "ElevenLabs('SAz9YHcvj6GT2YYXdXww', 'eleven_v4_turbo', speed=0.9, stability=0.6)",
+ "suffix": ".mp3",
+ "audio": "48271f9d2c01c299",
+ "edit": {
+  "start": 0.0,
+  "end": null,
+  "speed": 1.0,
+  "loop": null,
+  "gain": 0.0,
+  "fade_in": 0.0,
+  "fade_out": 0.0,
+  "pan": 0.0,
+  "duck": 0.0
+ },
+ "words": [
+  [
+   "This",
+   0.0,
+   0.24
+  ],
+  [
+   "is",
+   0.28,
+   0.32
+  ],
+  [
+   "a",
+   0.4,
+   0.48
+  ],
+  [
+   "class",
+   0.68,
+   0.88
+  ],
+  [
+   "in",
+   0.92,
+   0.96
+  ],
+  [
+   "the",
+   1.04,
+   1.12
+  ],
+  [
+   "knowledge",
+   1.2,
+   1.52
+  ],
+  [
+   "graph,",
+   1.6,
+   1.92
+  ],
+  [
+   "written",
+   2.32,
+   2.48
+  ],
+  [
+   "in",
+   2.56,
+   2.64
+  ],
+  [
+   "Turtle:",
+   2.72,
+   3.12
+  ],
+  [
+   "a",
+   3.6,
+   3.64
+  ],
+  [
+   "book,",
+   3.68,
+   4.0
+  ],
+  [
+   "with",
+   4.32,
+   4.4
+  ],
+  [
+   "a",
+   4.44,
+   4.48
+  ],
+  [
+   "title,",
+   4.56,
+   4.88
+  ],
+  [
+   "an",
+   5.16,
+   5.2
+  ],
+  [
+   "author",
+   5.28,
+   5.68
+  ],
+  [
+   "and",
+   5.84,
+   5.92
+  ],
+  [
+   "a",
+   5.96,
+   6.0
+  ],
+  [
+   "year.",
+   6.08,
+   6.32
+  ]
+ ]
+}

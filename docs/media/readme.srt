@@ -1,0 +1,68 @@
+1
+00:00:00,000 --> 00:00:02,320
+This is a class in the knowledge graph,
+
+2
+00:00:02,320 --> 00:00:05,160
+written in Turtle: a book, with a title,
+
+3
+00:00:05,160 --> 00:00:06,320
+an author and a year.
+
+4
+00:00:08,067 --> 00:00:10,387
+Each line states one thing about the book.
+
+5
+00:00:10,867 --> 00:00:14,147
+That is a fact: a node, an edge, and a
+
+6
+00:00:14,147 --> 00:00:14,467
+node.
+
+7
+00:00:18,667 --> 00:00:20,987
+The server publishes the class's rules as
+
+8
+00:00:20,987 --> 00:00:24,427
+an OpenAPI schema, and deno task generar
+
+9
+00:00:24,427 --> 00:00:26,107
+turns them into a TypeScript type.
+
+10
+00:00:26,667 --> 00:00:27,947
+Nobody writes it by hand.
+
+11
+00:00:29,700 --> 00:00:32,420
+One module per class: the type comes for
+
+12
+00:00:32,420 --> 00:00:34,900
+free, and get returns a typed list of
+
+13
+00:00:34,900 --> 00:00:35,300
+books.
+
+14
+00:00:37,567 --> 00:00:40,487
+Import it from JSR, and autocomplete shows
+
+15
+00:00:40,487 --> 00:00:41,407
+the fields of a book.
+
+16
+00:00:41,967 --> 00:00:44,487
+Book is just an example; this call runs
+
+17
+00:00:44,487 --> 00:00:44,687
+today.
+

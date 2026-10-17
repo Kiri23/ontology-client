@@ -1,0 +1,114 @@
+{
+ "text": "Each line states one thing about the book. That is a fact: a node, an edge, and a node.",
+ "voice": "ElevenLabs('SAz9YHcvj6GT2YYXdXww', 'eleven_v4_turbo', speed=0.9, stability=0.6)",
+ "suffix": ".mp3",
+ "audio": "ac1a1823eea9e65d",
+ "edit": {
+  "start": 0.0,
+  "end": null,
+  "speed": 1.0,
+  "loop": null,
+  "gain": 0.0,
+  "fade_in": 0.0,
+  "fade_out": 0.0,
+  "pan": 0.0,
+  "duck": 0.0
+ },
+ "words": [
+  [
+   "Each",
+   0.0,
+   0.24
+  ],
+  [
+   "line",
+   0.32,
+   0.56
+  ],
+  [
+   "states",
+   0.64,
+   0.96
+  ],
+  [
+   "one",
+   1.12,
+   1.28
+  ],
+  [
+   "thing",
+   1.44,
+   1.68
+  ],
+  [
+   "about",
+   1.8,
+   1.92
+  ],
+  [
+   "the",
+   1.96,
+   2.0
+  ],
+  [
+   "book.",
+   2.08,
+   2.32
+  ],
+  [
+   "That",
+   2.8,
+   3.04
+  ],
+  [
+   "is",
+   3.12,
+   3.2
+  ],
+  [
+   "a",
+   3.28,
+   3.36
+  ],
+  [
+   "fact:",
+   3.44,
+   3.84
+  ],
+  [
+   "a",
+   4.28,
+   4.32
+  ],
+  [
+   "node,",
+   4.4,
+   4.8
+  ],
+  [
+   "an",
+   5.08,
+   5.12
+  ],
+  [
+   "edge,",
+   5.28,
+   5.6
+  ],
+  [
+   "and",
+   5.88,
+   5.92
+  ],
+  [
+   "a",
+   6.0,
+   6.04
+  ],
+  [
+   "node.",
+   6.08,
+   6.4
+  ]
+ ]
+}

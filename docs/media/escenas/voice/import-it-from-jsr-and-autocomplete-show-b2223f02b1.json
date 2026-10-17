@@ -1,0 +1,124 @@
+{
+ "text": "Import it from JSR, and autocomplete shows the fields of a book. Book is just an example; this call runs today.",
+ "voice": "ElevenLabs('SAz9YHcvj6GT2YYXdXww', 'eleven_v4_turbo', speed=0.9, stability=0.6)",
+ "suffix": ".mp3",
+ "audio": "ece114f5e635cf56",
+ "edit": {
+  "start": 0.0,
+  "end": null,
+  "speed": 1.0,
+  "loop": null,
+  "gain": 0.0,
+  "fade_in": 0.0,
+  "fade_out": 0.0,
+  "pan": 0.0,
+  "duck": 0.0
+ },
+ "words": [
+  [
+   "Import",
+   0.0,
+   0.367
+  ],
+  [
+   "it",
+   0.4,
+   0.48
+  ],
+  [
+   "from",
+   0.56,
+   0.64
+  ],
+  [
+   "JSR,",
+   0.72,
+   1.36
+  ],
+  [
+   "and",
+   1.64,
+   1.76
+  ],
+  [
+   "autocomplete",
+   1.92,
+   2.56
+  ],
+  [
+   "shows",
+   2.64,
+   2.88
+  ],
+  [
+   "the",
+   2.92,
+   2.96
+  ],
+  [
+   "fields",
+   3.04,
+   3.36
+  ],
+  [
+   "of",
+   3.4,
+   3.44
+  ],
+  [
+   "a",
+   3.493,
+   3.547
+  ],
+  [
+   "book.",
+   3.6,
+   3.84
+  ],
+  [
+   "Book",
+   4.4,
+   4.64
+  ],
+  [
+   "is",
+   4.72,
+   4.8
+  ],
+  [
+   "just",
+   4.88,
+   5.04
+  ],
+  [
+   "an",
+   5.08,
+   5.12
+  ],
+  [
+   "example;",
+   5.36,
+   5.6
+  ],
+  [
+   "this",
+   6.08,
+   6.16
+  ],
+  [
+   "call",
+   6.24,
+   6.4
+  ],
+  [
+   "runs",
+   6.48,
+   6.72
+  ],
+  [
+   "today.",
+   6.92,
+   7.12
+  ]
+ ]
+}
