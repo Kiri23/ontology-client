@@ -90,7 +90,7 @@ deno task hooks   # optional: runs the CI checks before every commit
 ```
 The graph has 1279 facts (triples).
 
-Classes, by number of instances (top 8 of 8):
+Domain classes, by number of instances (top 6 of 6):
     131  JobPost     https://kiri23.dev/jobs#JobPost
      43  Uso         https://kiri23.dev/catalogo#Uso
      21  Workflow    https://kiri23.dev/catalogo#Workflow
@@ -122,7 +122,7 @@ The dev server sends API calls to the live server, so anything you run from it b
 The CLI and the GitHub Action check Turtle files against the graph's rules:
 
 ```sh
-deno run --allow-net --allow-read --allow-env jsr:@kiri23/ontology-client/cli <files>
+deno run --allow-net --allow-read --allow-env jsr:@kiri23/ontology-client@0.1.2/cli <files>
 ```
 
 ```yaml
