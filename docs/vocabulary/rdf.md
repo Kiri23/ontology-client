@@ -14,7 +14,3 @@ The Resource Description Framework, a W3C data model that states every fact as a
 **See also**
 
 - <https://www.w3.org/TR/rdf11-concepts/>
-
-**Mentioned in**
-
-- [README.md](../../README.md)
