@@ -14,6 +14,7 @@ A compact, human-readable text syntax for writing RDF. It lets you declare short
 
 **Mentioned in**
 
+- [README.md](../../README.md)
 - [docs/action.md](../../docs/action.md)
 - [docs/cli.md](../../docs/cli.md)
 - [docs/library.md](../../docs/library.md)

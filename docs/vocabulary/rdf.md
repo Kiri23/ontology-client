@@ -17,6 +17,7 @@ The Resource Description Framework, a W3C data model that states every fact as a
 
 **Mentioned in**
 
+- [README.md](../../README.md)
 - [docs/engines.md](../../docs/engines.md)
 - [explorador/README.md](../../explorador/README.md)
 - [neo4j/README.md](../../neo4j/README.md)
