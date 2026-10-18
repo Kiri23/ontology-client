@@ -1,0 +1,191 @@
+{
+  "_léeme": "Editable a mano. Por sistema: 'base' es el prefijo de ruta del sistema y cada clave de 'patrones' es un prefijo (termina en /) o un archivo exacto, relativo a la base; gana la clave más larga. Lo que no matchea queda 'Sin rol'. 'puede-servir-a' es una PROPUESTA: rol → roles que pueden importarlo (B sirve-a A cuando A importa B). Se edita y se recarga con deno task proto:grafo.",
+  "sistemas": {
+    "SDK": {
+      "base": "",
+      "patrones": {
+        "mod.ts": "Entrada",
+        "jobs.ts": "Módulo",
+        "sparql.ts": "Módulo",
+        "motor.ts": "Motor",
+        "neo4j.ts": "Motor",
+        "vista-neo4j.ts": "Motor",
+        "cliente.ts": "Transporte",
+        "cli.ts": "Superficie",
+        "action.yml": "Superficie",
+        "contrato/": "Fuente",
+        "generado/": "Derivado",
+        "scripts/": "Pipeline",
+        "tests/": "Tests",
+        "ejemplos/": "Ejemplos",
+        "docs/": "Docs",
+        "neo4j/": "Infra",
+        ".github/": "Infra",
+        ".githooks/": "Infra"
+      }
+    },
+    "Explorador": {
+      "base": "explorador/",
+      "patrones": {
+        "src/App.tsx": "Entrada",
+        "src/main.tsx": "Entrada",
+        "src/grafo/vistas/": "Vista",
+        "src/componentes/": "Componente",
+        "src/grafo/componentes/": "Componente",
+        "src/hooks/": "Estado",
+        "src/grafo/hooks/": "Estado",
+        "src/logica/": "Lógica pura",
+        "src/grafo/logica/": "Lógica pura",
+        "src/historias/": "Catálogo",
+        "src/grafo/ai/": "Adaptador",
+        "src/grafo/motor.ts": "Motor",
+        "src/estilos/": "Estilo",
+        "pruebas/": "Tests"
+      }
+    }
+  },
+  "puede-servir-a": {
+    "_léeme": "PROPUESTA para editar. Rol → roles que pueden importarlo. Tests y Ejemplos pueden importar cualquier cosa. Una arista SIRVE_A entre dos roles que no están acá rompe la regla; 'Sin rol' no se juzga.",
+    "Lógica pura": [
+      "Lógica pura",
+      "Vista",
+      "Componente",
+      "Estado",
+      "Motor",
+      "Adaptador",
+      "Entrada",
+      "Catálogo",
+      "Módulo",
+      "Transporte",
+      "Superficie",
+      "Pipeline",
+      "Estilo",
+      "Docs",
+      "Tests",
+      "Ejemplos"
+    ],
+    "Vista": [
+      "Vista",
+      "Entrada",
+      "Catálogo",
+      "Tests",
+      "Ejemplos"
+    ],
+    "Componente": [
+      "Componente",
+      "Vista",
+      "Adaptador",
+      "Entrada",
+      "Catálogo",
+      "Tests",
+      "Ejemplos"
+    ],
+    "Estado": [
+      "Estado",
+      "Componente",
+      "Vista",
+      "Adaptador",
+      "Entrada",
+      "Catálogo",
+      "Tests",
+      "Ejemplos"
+    ],
+    "Adaptador": [
+      "Adaptador",
+      "Componente",
+      "Vista",
+      "Entrada",
+      "Catálogo",
+      "Tests",
+      "Ejemplos"
+    ],
+    "Estilo": [
+      "Componente",
+      "Vista",
+      "Adaptador",
+      "Entrada",
+      "Tests"
+    ],
+    "Catálogo": [
+      "Catálogo",
+      "Componente",
+      "Estado",
+      "Vista",
+      "Entrada",
+      "Tests",
+      "Ejemplos"
+    ],
+    "Motor": [
+      "Motor",
+      "Módulo",
+      "Estado",
+      "Vista",
+      "Adaptador",
+      "Entrada",
+      "Superficie",
+      "Pipeline",
+      "Catálogo",
+      "Tests",
+      "Ejemplos"
+    ],
+    "Transporte": [
+      "Módulo",
+      "Motor",
+      "Superficie",
+      "Entrada",
+      "Tests",
+      "Ejemplos"
+    ],
+    "Módulo": [
+      "Módulo",
+      "Entrada",
+      "Superficie",
+      "Adaptador",
+      "Catálogo",
+      "Tests",
+      "Ejemplos"
+    ],
+    "Derivado": [
+      "Transporte",
+      "Módulo",
+      "Motor",
+      "Entrada",
+      "Tests",
+      "Ejemplos"
+    ],
+    "Fuente": [
+      "Derivado",
+      "Pipeline",
+      "Tests",
+      "Ejemplos"
+    ],
+    "Entrada": [
+      "Entrada",
+      "Superficie",
+      "Catálogo",
+      "Tests",
+      "Ejemplos"
+    ],
+    "Superficie": [
+      "Tests",
+      "Ejemplos"
+    ],
+    "Pipeline": [
+      "Pipeline",
+      "Tests"
+    ],
+    "Tests": [
+      "Tests"
+    ],
+    "Ejemplos": [
+      "Ejemplos",
+      "Tests"
+    ],
+    "Docs": [
+      "Tests"
+    ],
+    "Infra": [
+      "Tests"
+    ]
+  }
+}
