@@ -1,0 +1,64 @@
+# kiri-pm — stub para repos PÚBLICOS. No lo copies a mano: `kiri-pm conectar <repo> <Área>` lo elige
+# cuando el repo es público, lo instala por PR en .github/workflows/kiri-pm.yml (con el Área en
+# `area:`), carga los dos secretos desde Doppler y agrega la fila a config/kiri-pm/repos.tsv. Con
+# --dry-run dice qué falta sin escribir nada. Los privados usan pm-stub.yml.
+# Un repo público no puede hacer `uses:` de una action guardada en un repo privado. Puente: checkout
+# de TermuxConfig con un PAT de solo lectura y `uses:` de la action como local. Corre la misma
+# action y el mismo bin/kiri-pm que el stub de los repos privados: no hay lógica copiada.
+# Secretos (los PRs de forks no los reciben: el job sale sin hacer nada):
+#   PM_TOKEN           PAT clásico con SOLO el scope `project`   (Doppler agent-tools/prd GH_PROJECT_TOKEN)
+#   TERMUXCONFIG_READ  PAT fine-grained: solo Kiri23/TermuxConfig, Contents: read-only   (Doppler agent-tools/prd TERMUXCONFIG_READ)
+name: kiri-pm
+
+on:
+  push:
+  pull_request:
+    types: [opened, closed, reopened]
+  issues:
+    types: [opened, closed, reopened, edited]
+
+# Sin `concurrency`: un PR mergeado que cierra un issue dispara 3 eventos a la vez y el grupo
+# cancelaría el del medio. Las corridas paralelas las resuelve el engine.
+
+permissions:
+  contents: read
+
+jobs:
+  actividad:
+    # Defensa en profundidad: solo eventos disparados por el dueño del repo.
+    if: github.event.sender.login == github.repository_owner
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      # `secrets` no se puede usar en un `if:`; se mira por env.
+      - name: ¿Están los secretos?
+        id: secretos
+        env:
+          PM_TOKEN: ${{ secrets.PM_TOKEN }}
+          TERMUXCONFIG_READ: ${{ secrets.TERMUXCONFIG_READ }}
+        run: |
+          if [ -n "$PM_TOKEN" ] && [ -n "$TERMUXCONFIG_READ" ]; then
+            echo "ok=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "kiri-pm: falta PM_TOKEN o TERMUXCONFIG_READ (¿PR de fork/Dependabot?); nada que hacer."
+          fi
+
+      # Solo lo que la action necesita: el resto del repo privado no baja al runner. Sin
+      # config/kiri-pm/: con --area (lo pasa la action) kiri-pm no lee repos.tsv.
+      - if: steps.secretos.outputs.ok == 'true'
+        uses: actions/checkout@v7
+        with:
+          repository: Kiri23/TermuxConfig
+          token: ${{ secrets.TERMUXCONFIG_READ }}
+          path: .termuxconfig
+          persist-credentials: false
+          sparse-checkout-cone-mode: false
+          sparse-checkout: |
+            .github/actions/pm-actividad/
+            bin/kiri-pm
+
+      - if: steps.secretos.outputs.ok == 'true'
+        uses: ./.termuxconfig/.github/actions/pm-actividad
+        with:
+          area: OntologyClient
+          token: ${{ secrets.PM_TOKEN }}
