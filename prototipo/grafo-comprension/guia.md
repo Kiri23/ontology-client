@@ -272,6 +272,33 @@ ORDER BY borde
 > `logica/vistas.ts` → `App.tsx:8` y `Barra.tsx:5`. Las que entran son el SDK (`mod.ts`), los estilos,
 > `componentes/Tabla.tsx`, `logica/` y el catálogo. Un borde con 3 salidas se parece mucho a un sub-sistema.
 
+## 3b. El CLI `grafo` y el MCP, mismo motor
+
+El grafo también se consulta sin pegar Cypher. `comandos/` tiene un comando por archivo (`buscar`, `archivo`,
+`backtracking`, `pr`, `decide`, `capas`, `cypher`); `grafo.ts` los corre desde la terminal y `mcp.ts` los publica como
+tools de MCP para clientes sin shell. Engine/transport: la consulta vive una vez, en el comando.
+
+```sh
+doppler run -p ontology -c dev -- deno task grafo                       # lista los comandos
+doppler run -p ontology -c dev -- deno task grafo archivo Nodo.tsx      # la ficha, con quién le sirve y a quién sirve
+doppler run -p ontology -c dev -- deno task grafo backtracking Nodo.tsx --profundidad 2
+doppler run -p ontology -c dev -- deno task grafo decide forma          # "quiero que los nodos sean puntos"
+doppler run -p ontology -c dev -- deno task grafo pr 10
+doppler run -p ontology -c dev -- deno task grafo capas
+```
+
+Por default habla con el proto por el tailnet (`bolt://100.123.48.55:7688`); `NEO4J_URL=bolt://localhost:7688` para el
+túnel. Toda respuesta trae anclas (`archivo:línea`, PR, sha) y nada de interpretación: el agente lee el archivo en el
+ancla.
+
+El MCP está registrado en Claude Code a nivel usuario (`claude mcp get grafo-comprension`), así que una sesión nueva en
+cualquier directorio ve las siete tools. Está escrito a mano sobre JSON-RPC por stdio (cinco métodos) porque `deno.lock`
+está congelado y no entra el SDK de MCP. Se prueba sin Claude:
+
+```sh
+printf '%s\n' '{"jsonrpc":"2.0","id":1,"method":"tools/list"}' | doppler run -p ontology -c dev -- deno task grafo:mcp
+```
+
 ## 4. Qué queda afuera y por qué
 
 - **Externos:** `npm:`, `jsr:`, `react`, `oxigraph`, `cytoscape` no entran como nodos. El grafo es del repo, y un
