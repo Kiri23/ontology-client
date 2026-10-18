@@ -7,17 +7,19 @@
 # subtitles) is written beside it, then merged into sentences (frases.py) and burned into the video.
 set -euo pipefail
 cd "$(dirname "$0")"
-# `bash generar.sh mapa` renders mapa.py instead: the Spanish walkthrough of how the repo is built
-# (voice.py's Edge, edge-tts: no key), MP4 only.
-if [[ "${1:-}" == "mapa" ]]; then
-  manimgx render mapa.py Mapa -r 960x540 --fps 30 -o ../mapa.mp4
-  python3 frases.py ../mapa.srt
-  ffmpeg -y -loglevel warning -i ../mapa.mp4 -c:a copy \
-    -vf "subtitles=../mapa.srt:force_style='FontName=DejaVu Sans,FontSize=13,PrimaryColour=&H00FFFFFF,BorderStyle=3,BackColour=&HA0000000,Outline=0,Shadow=0,MarginV=8'" \
-    ../mapa.sub.mp4
-  mv ../mapa.sub.mp4 ../mapa.mp4
-  rm -f ../mapa.storyboard*.png
-  ls -la ../mapa.mp4 ../mapa.srt
+# `bash generar.sh mapa` or `motor` renders a Spanish walkthrough instead (voice.py's Edge, edge-tts: no key), MP4
+# only: mapa.py, how the repo is built; motor.py, the local SPARQL engine with the real code (720p, for the code).
+if [[ "${1:-}" == "mapa" || "${1:-}" == "motor" ]]; then
+  escena="$1"
+  resolucion=$([[ "$escena" == "motor" ]] && echo 1280x720 || echo 960x540)
+  manimgx render "$escena.py" "${escena^}" -r "$resolucion" --fps 30 -o "../$escena.mp4"
+  python3 frases.py "../$escena.srt"
+  ffmpeg -y -loglevel warning -i "../$escena.mp4" -c:a copy \
+    -vf "subtitles=../$escena.srt:force_style='FontName=DejaVu Sans,FontSize=13,PrimaryColour=&H00FFFFFF,BorderStyle=3,BackColour=&HA0000000,Outline=0,Shadow=0,MarginV=8'" \
+    "../$escena.sub.mp4"
+  mv "../$escena.sub.mp4" "../$escena.mp4"
+  rm -f ../"$escena".storyboard*.png
+  ls -la "../$escena.mp4" "../$escena.srt"
   exit 0
 fi
 manimgx render readme.py ReadmeStory -r 960x540 --fps 30 -o ../readme.mp4
