@@ -202,7 +202,16 @@ for (const r of archivos) {
   aristas.push({ tipo: "TIENE_ROL", de: ["Archivo", r], a: ["Rol", rol.rol], fuente: "roles.json", ancla: rol.ancla });
 
   if (!binario && CODIGO.test(r)) {
-    texto.split("\n").forEach((linea, i) => {
+    const todas = texto.split("\n");
+    // `import type …` / `export type …`: solo tipos, se borra al compilar. Un import de varias líneas se mira en la
+    // línea donde arranca la sentencia.
+    const soloTipos = (i: number) => {
+      if (/\bimport\s*\(/.test(todas[i])) return false; // import() dinámico: trae código
+      let j = i;
+      while (j > 0 && i - j < 40 && !/^\s*(import|export)\b/.test(todas[j])) j--;
+      return /^\s*(import|export)\s+type\b/.test(todas[j]);
+    };
+    todas.forEach((linea, i) => {
       const t = linea.trim();
       if (t.startsWith("//") || t.startsWith("*") || t.startsWith("/*")) return;
       for (const [, esp] of linea.matchAll(ESPECIFICADOR)) {
@@ -211,7 +220,7 @@ for (const r of archivos) {
           if (esp.startsWith(".")) sinResolver.push(`${r}:${i + 1} ${esp}`);
           continue;
         }
-        const props: Record<string, unknown> = {};
+        const props: Record<string, unknown> = { soloTipos: soloTipos(i) };
         if (aliases.has(esp)) props.alias = esp;
         aristas.push({
           tipo: "SIRVE_A",
