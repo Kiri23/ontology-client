@@ -17,6 +17,10 @@ A class in the graph becomes nodes and edges, a TypeScript type, a module of the
 ([the .srt](docs/media/readme.srt)) · [scenes](docs/media/escenas/readme.py) · regenerate with
 `bash docs/media/escenas/generar.sh`.
 
+How the repo is built, narrated in Spanish: [a walkthrough](docs/media/mapa.mp4) of the SDK's layers, the trip of
+`jobs.get()` and what the agent wrote in PR #10 ([scenes](docs/media/escenas/mapa.py), regenerate with
+`bash docs/media/escenas/generar.sh mapa`).
+
 ## The problem
 
 A [knowledge graph](docs/vocabulary/knowledge-graph.md) is a good way to store connected data, but it's hard to use from

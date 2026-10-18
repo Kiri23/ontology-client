@@ -1,0 +1,107 @@
+1
+00:00:00,103 --> 00:00:01,984
+Este repo tiene dos sistemas.
+
+2
+00:00:02,895 --> 00:00:06,961
+El SDK, una librería que le habla al servidor de ontología.
+
+3
+00:00:07,882 --> 00:00:12,395
+Y el Explorador, una app de React que muestra el SDK y dibuja el grafo.
+
+4
+00:00:13,303 --> 00:00:17,895
+El Explorador usa el SDK por su puerta pública, mod punto ts.
+
+5
+00:00:20,036 --> 00:00:22,246
+El SDK es una pila de capas.
+
+6
+00:00:23,157 --> 00:00:26,104
+Abajo está el contrato, que genera el servidor.
+
+7
+00:00:27,012 --> 00:00:28,486
+De él salen los tipos.
+
+8
+00:00:29,394 --> 00:00:32,736
+Encima, el transporte, que hace cada pedido.
+
+9
+00:00:33,644 --> 00:00:39,381
+Después el motor, los módulos como jobs, la puerta pública, y arriba la CLI.
+
+10
+00:00:40,812 --> 00:00:42,733
+Los tipos no se escriben a mano.
+
+11
+00:00:43,644 --> 00:00:47,565
+Suben desde el contrato hasta jobs, y ahí se llaman JobPost.
+
+12
+00:00:48,588 --> 00:00:51,693
+Una llamada a jobs punto get hace el camino al revés.
+
+13
+00:00:52,604 --> 00:01:03,630
+Baja desde la puerta pública hasta el motor, y el motor elige de dónde leer: del servidor por HTTP, que es el default, o de Neo4j, que llegó en el PR nueve.
+
+14
+00:01:04,538 --> 00:01:07,735
+Las acciones que escriben van siempre por HTTP.
+
+15
+00:01:09,869 --> 00:01:15,382
+En el PR diez, el agente escribió la vista Grafo: treinta y nueve archivos nuevos.
+
+16
+00:01:16,293 --> 00:01:21,596
+App punto tsx la carga perezosa, para no bajar el WASM si no hace falta.
+
+17
+00:01:22,503 --> 00:01:24,911
+VistaGrafo elige una de cuatro vistas.
+
+18
+00:01:25,819 --> 00:01:31,925
+Las vistas dibujan con Lienzo, que usa Cytoscape, y piensan con diez archivos de lógica pura.
+
+19
+00:01:32,832 --> 00:01:41,977
+Los datos vienen de un motor SPARQL que corre en el navegador, oxigraph en WASM, que recibe el grafo entero por el SDK, nunca con un fetch a mano.
+
+20
+00:01:44,103 --> 00:01:47,708
+La herramienta capas encontró ocho imports contra la matriz.
+
+21
+00:01:48,618 --> 00:01:50,645
+El más interesante es un ciclo.
+
+22
+00:01:51,553 --> 00:01:55,158
+Jobs usa al motor en el código, para saber de dónde leer.
+
+23
+00:01:56,066 --> 00:01:59,711
+Y el motor usa los tipos de jobs, porque devuelve puestos.
+
+24
+00:02:00,618 --> 00:02:03,105
+Es solo de tipos, pero cierra la vuelta.
+
+25
+00:02:05,236 --> 00:02:06,368
+Ese es el mapa.
+
+26
+00:02:07,278 --> 00:02:11,383
+El grafo guarda el índice: rutas, líneas y PRs.
+
+27
+00:02:12,304 --> 00:02:15,502
+El porqué lo lees en el archivo al que apunta cada ancla.
