@@ -1,0 +1,144 @@
+{
+ "text": "The server publishes the class's rules as an OpenAPI schema, and deno task generar turns them into a TypeScript type. Nobody writes it by hand.",
+ "voice": "ElevenLabs('SAz9YHcvj6GT2YYXdXww', 'eleven_v4_turbo', speed=0.9, stability=0.6)",
+ "suffix": ".mp3",
+ "audio": "9c2a74660abff658",
+ "edit": {
+  "start": 0.0,
+  "end": null,
+  "speed": 1.0,
+  "loop": null,
+  "gain": 0.0,
+  "fade_in": 0.0,
+  "fade_out": 0.0,
+  "pan": 0.0,
+  "duck": 0.0
+ },
+ "words": [
+  [
+   "The",
+   0.0,
+   0.133
+  ],
+  [
+   "server",
+   0.16,
+   0.507
+  ],
+  [
+   "publishes",
+   0.56,
+   1.12
+  ],
+  [
+   "the",
+   1.16,
+   1.2
+  ],
+  [
+   "class's",
+   1.36,
+   1.68
+  ],
+  [
+   "rules",
+   1.76,
+   2.16
+  ],
+  [
+   "as",
+   2.2,
+   2.24
+  ],
+  [
+   "an",
+   2.32,
+   2.48
+  ],
+  [
+   "OpenAPI",
+   2.68,
+   3.28
+  ],
+  [
+   "schema,",
+   3.36,
+   3.76
+  ],
+  [
+   "and",
+   4.2,
+   4.32
+  ],
+  [
+   "deno",
+   4.44,
+   4.64
+  ],
+  [
+   "task",
+   4.72,
+   5.04
+  ],
+  [
+   "generar",
+   5.12,
+   5.68
+  ],
+  [
+   "turns",
+   5.76,
+   6.0
+  ],
+  [
+   "them",
+   6.08,
+   6.24
+  ],
+  [
+   "into",
+   6.36,
+   6.48
+  ],
+  [
+   "a",
+   6.52,
+   6.56
+  ],
+  [
+   "TypeScript",
+   6.64,
+   7.12
+  ],
+  [
+   "type.",
+   7.28,
+   7.44
+  ],
+  [
+   "Nobody",
+   8.0,
+   8.4
+  ],
+  [
+   "writes",
+   8.52,
+   8.64
+  ],
+  [
+   "it",
+   8.68,
+   8.72
+  ],
+  [
+   "by",
+   8.8,
+   8.96
+  ],
+  [
+   "hand.",
+   9.12,
+   9.28
+  ]
+ ]
+}

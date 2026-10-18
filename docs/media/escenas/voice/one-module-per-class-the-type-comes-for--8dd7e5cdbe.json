@@ -1,0 +1,104 @@
+{
+ "text": "One module per class: the type comes for free, and get returns a typed list of books.",
+ "voice": "ElevenLabs('SAz9YHcvj6GT2YYXdXww', 'eleven_v4_turbo', speed=0.9, stability=0.6)",
+ "suffix": ".mp3",
+ "audio": "158fdc220dbc66cb",
+ "edit": {
+  "start": 0.0,
+  "end": null,
+  "speed": 1.0,
+  "loop": null,
+  "gain": 0.0,
+  "fade_in": 0.0,
+  "fade_out": 0.0,
+  "pan": 0.0,
+  "duck": 0.0
+ },
+ "words": [
+  [
+   "One",
+   0.0,
+   0.2
+  ],
+  [
+   "module",
+   0.24,
+   0.72
+  ],
+  [
+   "per",
+   0.8,
+   0.88
+  ],
+  [
+   "class:",
+   0.96,
+   1.44
+  ],
+  [
+   "the",
+   1.88,
+   1.92
+  ],
+  [
+   "type",
+   2.0,
+   2.24
+  ],
+  [
+   "comes",
+   2.36,
+   2.48
+  ],
+  [
+   "for",
+   2.56,
+   2.64
+  ],
+  [
+   "free,",
+   2.72,
+   2.96
+  ],
+  [
+   "and",
+   3.32,
+   3.44
+  ],
+  [
+   "get",
+   3.6,
+   3.76
+  ],
+  [
+   "returns",
+   4.0,
+   4.24
+  ],
+  [
+   "a",
+   4.32,
+   4.4
+  ],
+  [
+   "typed",
+   4.48,
+   4.8
+  ],
+  [
+   "list",
+   4.88,
+   5.04
+  ],
+  [
+   "of",
+   5.12,
+   5.16
+  ],
+  [
+   "books.",
+   5.2,
+   5.6
+  ]
+ ]
+}
