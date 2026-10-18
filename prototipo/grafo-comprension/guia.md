@@ -49,17 +49,21 @@ SCREAMING_SNAKE: `sirve-a` es `SIRVE_A`, `nació-en` es `NACIO_EN`, y así.
 
 Nodos: `Sistema {nombre}` (SDK = todo lo que no es `explorador/`; Explorador), `Folder {ruta}` (`.` es la raíz del SDK),
 `Archivo {ruta, sistema, intencion, lineas, commits, binario}`, `Rol {nombre}`,
-`PR {numero, titulo, rama, mergeCommit}`, `Alias {nombre}`, `Comportamiento {nombre, descripcion, tipo, existe, nota}`.
-`intencion` es la primera línea del archivo sin `//`, `#` ni el `nombre.ts —` del principio.
+`PR {numero, titulo, rama, mergeCommit}`, `Alias {nombre}`, `Comportamiento {nombre, tipo, existe}` (`descripcion` y
+`nota` se quedan en `comportamientos.json`: son significado, no índice). `intencion` es la primera línea del archivo sin
+`//`, `#` ni el `nombre.ts —` del principio.
 
 Lo que supuse, para que lo corrijas:
 
 - **`SIRVE_A` lleva `soloTipos`** (`true` si es `import type` / `export type`). No es un predicado nuevo, es una
   propiedad de la firma. Sin ella el backtracking de `Nodo.tsx` cruza `Nodo.tsx:10` (`import type { Ir }` de
   `VistaGrafo.tsx`), que cierra un ciclo, y trae 53 archivos en vez de 13.
-- **PRs:** `git log --first-parent --merges origin/main`; los commits del PR son `merge^1..merge^2`. Un commit directo a
-  main va al PR `0` ("directo a main"), y uno que todavía no entró a main, al PR `-1` ("sin merge: <rama>"). Los títulos
-  salen de `gh pr list`; si `gh` falla, el título es el nombre de la rama y `extraer.ts` lo avisa.
+- **PRs:** todos los merges de `origin/main` (`git log --merges --topo-order --reverse`), no solo los de la primera
+  línea de main: #18 se mergeó dentro de la rama de #17 y con `--first-parent` desaparecía, y su trabajo se le atribuía
+  a #17. Los commits del PR son `merge^1..merge^2`, del más viejo al más nuevo y "el primero gana", así el PR apilado
+  reclama sus commits antes que el PR base. Un commit directo a main va al PR `0` ("directo a main"), y uno que todavía
+  no entró a main, al PR `-1` ("sin merge: <rama>"). Los títulos salen de `gh pr list`; si `gh` falla, el título es el
+  nombre de la rama y `extraer.ts` lo avisa.
 - **`cambió-en` no repite el PR de nacimiento:** los retoques dentro del PR que creó el archivo cuentan como su
   nacimiento.
 - **`explorador/pruebas/` es `Tests`**, aunque el handoff solo mapeaba `explorador/src/`.
@@ -72,10 +76,14 @@ Lo que supuse, para que lo corrijas:
 - **"¿Lógica no sirve hacia arriba?"** lo leí así: hacia arriba = hacia Vista y Componente, y eso **está permitido**. Lo
   que no puede pasar es lo contrario: que Vista o Componente le sirvan a Lógica pura. Si lo leés al revés, cambiá
   `roles.json` y recargá.
+- **La matriz tiene vueltas que la consulta de capas no ve:** Adaptador↔Componente y Catálogo↔Componente/Estado/Vista/
+  Entrada están permitidos en los dos sentidos, así que una inversión entre esos roles nunca sale en la consulta [1]. Y
+  "Entrada" junta `mod.ts` (SDK) con `App.tsx`/`main.tsx` (Explorador); hoy ya hay Catálogo→Entrada ×1 y
+  Entrada→Catálogo ×5. Quitá las vueltas o partí Entrada por sistema en `roles.json`, y recargá.
 
 ## 3. Consultas
 
-Probadas contra la carga de HEAD `cf7d4ff` + esta guía. Debajo de cada una va lo que devolvió.
+Probadas contra la carga del HEAD de esta rama (el sha lo imprime `cargar`). Debajo de cada una va lo que devolvió.
 
 ### Mapa
 
@@ -199,7 +207,7 @@ Los diez comportamientos, con el que no existe:
 
 ```cypher
 MATCH (c:Comportamiento)-[d:LO_DECIDE]->(f:Archivo)
-RETURN c.nombre AS comportamiento, c.tipo AS tipo, c.existe AS existe, c.nota AS nota, collect(d.ancla) AS anclas
+RETURN c.nombre AS comportamiento, c.tipo AS tipo, c.existe AS existe, collect(d.ancla) AS anclas
 ORDER BY tipo, comportamiento
 ```
 
@@ -268,9 +276,15 @@ ORDER BY borde
   la línea, y ahí se lee. `soloTipos` es el único matiz que entra, porque cambia el recorrido.
 - **Significado:** ningún nodo explica nada. `intencion` es la primera línea tal cual (a veces corta a mitad de frase, o
   es un `{`). El "por qué" lo lee el LLM o la persona en el archivo al que apunta el ancla.
-- **"Sin rol" (40):** la config y los docs de `explorador/`, la raíz del repo (README, deno.json…), `explorador/public/`
+- **"Sin rol" (41):** la config y los docs de `explorador/`, la raíz del repo (README, deno.json…), `explorador/public/`
   y `explorador/scripts/`, este prototipo, y tres de código: `VistaGrafo.tsx` (15 `SIRVE_A`: lo más conectado sin rol),
-  `colores.ts` y `ambiente.d.ts`. Se ven a propósito: asignales un rol en `roles.json` si lo tienen.
+  `colores.ts` y `ambiente.d.ts`; también `vite/doc-sdk.ts` (4 `SIRVE_A` salientes y sin rol, así que escapa a la
+  consulta de capas), `vite.config.ts`, `scripts/*.mjs` y `public/*.js`. Se ven a propósito: asignales un rol en
+  `roles.json` si lo tienen. El revisor propone: `VistaGrafo.tsx` es la Entrada del sub-sistema `grafo/` (elige la vista
+  por URL y carga el grafo); `colores.ts` pinta en un canvas, es Adaptador o Componente, no Lógica pura.
+- **Dependencias que no son `import`:** `App.tsx:3` importa `virtual:doc-sdk`, un módulo virtual de Vite que resuelve a
+  `vite/doc-sdk.ts`, y el grafo no lo ve. `action.yml` no sirve a nadie (lo lee GitHub) y `cli.ts` solo a su test. Lo
+  que une un archivo con otro sin un `import` no está.
 - **Imports por regex:** las líneas que empiezan con `//` o `*` no cuentan (los ejemplos en comentarios). Un `from "…"`
   dentro de un string de varias líneas podría colarse; solo entra si resuelve a un archivo de `git ls-files`.
 - **Alias:** solo `deno.json` (`exports` e imports locales). `explorador/tsconfig.json` mapea `openapi-fetch` a

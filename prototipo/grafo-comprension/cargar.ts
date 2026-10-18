@@ -43,7 +43,10 @@ async function q(driver: Driver, cypher: string, p: Record<string, unknown> = {}
 }
 
 async function guardaAntiProduccion(driver: Driver): Promise<void> {
-  if (/:7687\/?$/.test(URL_NEO4J)) throw new Error(`${URL_NEO4J} es el puerto de la vista RDF de producción: no`);
+  const puerto = new URL(URL_NEO4J).port; // "" = 7687, el default de bolt
+  if (puerto === "" || puerto === "7687") {
+    throw new Error(`${URL_NEO4J} es el puerto de la vista RDF de producción: no`);
+  }
   const labels = (await q(driver, "CALL db.labels() YIELD label RETURN label")).map((r) => r.label as string);
   const rdf = labels.filter((l) => l.startsWith("j__") || l.startsWith("Resource") || l.startsWith("_Carga"));
   if (rdf.length) throw new Error(`${URL_NEO4J} tiene labels del RDF (${rdf.join(", ")}): es la vista, no se borra`);
@@ -59,12 +62,11 @@ async function main(): Promise<void> {
   const grafo = JSON.parse(Deno.readTextFileSync(new URL("generado/grafo.json", import.meta.url))) as Grafo;
 
   // Capa 2: Comportamiento y LO_DECIDE, armados acá desde comportamientos.json.
+  // Solo índice: `descripcion` y `nota` son significado y se quedan en comportamientos.json, que es el ancla.
   grafo.nodos.Comportamiento = comportamientos.map((c) => ({
     nombre: c.nombre,
-    descripcion: c.descripcion,
     tipo: c.tipo,
     existe: c.existe ?? true,
-    nota: c.nota ?? null,
   }));
   for (const c of comportamientos) {
     for (const { archivo, lineas: [desde, hasta], simbolo } of c["lo-decide"]) {

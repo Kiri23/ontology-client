@@ -47,6 +47,10 @@ export function validar(comportamientos: Comportamiento[]): { fallos: string[]; 
         fallos.push(`${donde}: rango fuera del archivo (tiene ${total} líneas)`);
         continue;
       }
+      if (!simbolo) {
+        fallos.push(`${donde}: simbolo vacío`);
+        continue;
+      }
       if (!lineas.slice(desde - 1, hasta).join("\n").includes(simbolo)) {
         fallos.push(`${donde}: "${simbolo}" no aparece en esas líneas`);
       }

@@ -88,7 +88,10 @@ try {
   ghFallo = String(e).split("\n")[0];
 }
 
-const merges = (await correr("git", ["log", "--first-parent", "--merges", "origin/main", "--format=%H %s"]))
+// Todos los merges, no solo los de la primera línea de main: un PR apilado (#18 se mergeó dentro de la rama de #17)
+// tiene su merge fuera de --first-parent. Del más viejo al más nuevo y "el primero gana": el PR interno reclama sus
+// commits antes de que el PR base los vea en su rango merge^1..merge^2.
+const merges = (await correr("git", ["log", "--merges", "--topo-order", "--reverse", "origin/main", "--format=%H %s"]))
   .split("\n").filter(Boolean);
 for (const linea of merges) {
   const [sha, ...resto] = linea.split(" ");
@@ -206,6 +209,7 @@ for (const r of archivos) {
     // `import type …` / `export type …`: solo tipos, se borra al compilar. Un import de varias líneas se mira en la
     // línea donde arranca la sentencia.
     const soloTipos = (i: number) => {
+      if (r.endsWith(".d.ts")) return true; // un .d.ts se borra entero al compilar
       if (/\bimport\s*\(/.test(todas[i])) return false; // import() dinámico: trae código
       let j = i;
       while (j > 0 && i - j < 40 && !/^\s*(import|export)\b/.test(todas[j])) j--;
