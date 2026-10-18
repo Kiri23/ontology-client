@@ -13,8 +13,8 @@ library, a CLI and a GitHub Action. Nobody writes the types by hand.
 ![A class in Turtle becomes a knowledge graph, a TypeScript type, a module of the SDK and a typed call](https://raw.githubusercontent.com/Kiri23/ontology-client/main/docs/media/readme.gif)
 
 A class in the graph becomes nodes and edges, a TypeScript type, a module of the SDK and a call the editor completes.
-`Book` is a stand-in for the graph's own classes. [Video with narration](docs/media/readme.mp4)
-([subtitles](docs/media/readme.srt)) · [scenes](docs/media/escenas/readme.py) · regenerate with
+`Book` is a stand-in for the graph's own classes. [Video with narration and subtitles](docs/media/readme.mp4)
+([the .srt](docs/media/readme.srt)) · [scenes](docs/media/escenas/readme.py) · regenerate with
 `bash docs/media/escenas/generar.sh`.
 
 ## The problem
