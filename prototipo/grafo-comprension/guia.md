@@ -30,6 +30,10 @@ Abrí `http://localhost:7475/browser/`, conectate a `bolt://localhost:7688` con 
 
 Cambiaste `roles.json` o `comportamientos.json` → corré la task de nuevo. Cada corrida rehace todo.
 
+**Sin túnel, desde el tailnet** (Pixel con Tailscale): la VM publica los dos puertos con `tailscale serve --tcp`, solo
+dentro del tailnet. Browser en `http://100.123.48.55:7475/browser/` y bolt en `bolt://100.123.48.55:7688` (con
+`neo4j://` falla: el servidor anuncia `localhost`). Mismo usuario y password.
+
 ## 2. El modelo
 
 Cada predicado existe porque habilita un recorrido que sin él no se puede hacer. Cada arista lleva **firma**: `fuente`
