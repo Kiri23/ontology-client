@@ -1,0 +1,151 @@
+1
+00:00:00,103 --> 00:00:05,695
+Sigamos el grafo desde el padre hasta el último descendiente, con el código real de cada archivo.
+
+2
+00:00:06,605 --> 00:00:09,500
+Cinco archivos, cada uno llama al siguiente.
+
+3
+00:00:10,536 --> 00:00:12,904
+El padre es App punto tsx.
+
+4
+00:00:13,815 --> 00:00:19,170
+En la línea trece no importa la vista: le da a lazy una función que la importa después.
+
+5
+00:00:20,078 --> 00:00:29,460
+El import corre recién aquí, cuando la línea noventa y dos dibuja VistaGrafo, y le pasa la url y el fetch, que van a bajar hasta el último archivo.
+
+6
+00:00:31,003 --> 00:00:35,726
+El hijo, VistaGrafo, recibe esas props en la línea cincuenta y dos.
+
+7
+00:00:36,637 --> 00:00:45,255
+En la cincuenta y cuatro se las pasa al hook useGrafo, y en la cincuenta y seis espera: mientras la fase no sea listo, no hay grafo que dibujar.
+
+8
+00:00:46,769 --> 00:00:48,138
+El nieto es el hook.
+
+9
+00:00:49,061 --> 00:00:51,653
+Cuando el componente monta, corre el efecto.
+
+10
+00:00:52,561 --> 00:01:00,943
+Primero avisa que está cargando, después llama a cargarGrafo con la url y el fetch, y cuando vuelve el grafo, cambia la fase a listo.
+
+11
+00:01:02,469 --> 00:01:06,390
+El bisnieto es motor punto ts, y aquí aparece oxigraph.
+
+12
+00:01:07,301 --> 00:01:09,498
+La línea tres trae init y Store.
+
+13
+00:01:10,406 --> 00:01:15,209
+Oxigraph es una base de datos de grafos escrita en Rust, que entiende SPARQL.
+
+14
+00:01:16,117 --> 00:01:22,380
+Un navegador no corre Rust, pero sí corre WASM: el Rust se compila a un archivo punto wasm.
+
+15
+00:01:23,301 --> 00:01:30,222
+La línea cuatro trae la dirección de ese archivo, y la cinco trae el SDK, el único camino al servidor.
+
+16
+00:01:31,769 --> 00:01:34,243
+En cargar pasan dos cosas en paralelo.
+
+17
+00:01:35,153 --> 00:01:43,746
+Init levanta el WASM dentro de la pestaña, y el SDK pide el grafo entero, con un CONSTRUCT que trae todas las tripletas, en Turtle.
+
+18
+00:01:44,667 --> 00:01:50,811
+Cuando las dos terminan, se crea un Store vacío, y load lo llena con el Turtle que mandó el servidor.
+
+19
+00:01:52,336 --> 00:01:54,770
+Todo esto pasa una sola vez por pestaña.
+
+20
+00:01:55,681 --> 00:02:01,733
+El operador de la línea cincuenta guarda la promesa: la segunda vista que pida el grafo recibe la misma.
+
+21
+00:02:02,641 --> 00:02:07,141
+Si la carga falla, se borra, y el próximo intento vuelve a empezar.
+
+22
+00:02:08,669 --> 00:02:12,656
+El último eslabón vive en el SDK: sparql punto ts.
+
+23
+00:02:13,567 --> 00:02:21,172
+Arma la url con la consulta como parámetro, hace el fetch con el Accept que pidió el motor, y devuelve el texto tal cual.
+
+24
+00:02:22,080 --> 00:02:24,896
+No interpreta nada: eso le toca al motor.
+
+25
+00:02:26,403 --> 00:02:34,271
+Y el resultado sube por la misma cadena: del SDK al motor, del motor al hook, del hook a la vista, que por fin dibuja.
+
+26
+00:02:36,203 --> 00:02:38,308
+Ahora una consulta que escribes tú.
+
+27
+00:02:39,218 --> 00:02:43,824
+VistaGrafo elige la consulta libre, y correrValidada hace dos pasos.
+
+28
+00:02:44,732 --> 00:02:48,205
+Primero valida, y si hay motivos, ni toca el motor.
+
+29
+00:02:49,126 --> 00:02:51,587
+Después corre, y mide cuánto tardó.
+
+30
+00:02:53,136 --> 00:02:56,110
+El validador lee la consulta antes que el motor.
+
+31
+00:02:57,020 --> 00:03:00,718
+Si cambia datos, un INSERT o un DELETE, la rechaza.
+
+32
+00:03:01,625 --> 00:03:05,744
+SERVICE y FROM también: aquí solo se consulta el grafo que se cargó.
+
+33
+00:03:07,269 --> 00:03:08,651
+Y correr es una línea.
+
+34
+00:03:09,561 --> 00:03:17,640
+Store punto query corre el SPARQL dentro del WASM, sin red, y leerResultado lo convierte en tabla, sí o no, o tripletas.
+
+35
+00:03:19,569 --> 00:03:20,385
+Así queda.
+
+36
+00:03:21,296 --> 00:03:24,072
+El grafo baja una vez, por el SDK.
+
+37
+00:03:24,993 --> 00:03:27,980
+Vive en un Store de oxigraph, dentro de la pestaña.
+
+38
+00:03:28,888 --> 00:03:32,177
+Y cada consulta corre ahí, sin volver al servidor.

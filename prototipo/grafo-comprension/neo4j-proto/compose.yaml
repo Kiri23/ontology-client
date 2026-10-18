@@ -1,0 +1,37 @@
+# PROTOTIPO — el segundo Neo4j de la VM neo4j-ontology, para el grafo de comprensión del repo
+# (prototipo/grafo-comprension/). No es la vista del RDF: esa es ../../neo4j/, en 7687/7474, y
+# `deno task neo4j:cargar` la borra entera. Este contenedor es otro, con otro volumen y otros puertos,
+# imagen oficial sin n10s: lo que entra lo escribe cargar.ts con Cypher.
+#
+#   ssh neo4j-ontology.exe.xyz 'mkdir -p ~/neo4j-proto'
+#   doppler run -p ontology -c dev -- sh -c 'printf "NEO4J_AUTH=neo4j/%s\n" "$NEO4J_PASSWORD" |
+#     ssh neo4j-ontology.exe.xyz "umask 077; cat > ~/neo4j-proto/.env"'
+#   scp compose.yaml neo4j-ontology.exe.xyz:neo4j-proto/
+#   ssh neo4j-ontology.exe.xyz 'cd ~/neo4j-proto && docker compose up -d'
+#
+# Misma password que el Neo4j de producción (Doppler ontology/dev, NEO4J_PASSWORD): un secreto, no dos.
+# Solo escucha en 127.0.0.1; desde el Pixel: ssh -N -L 7688:localhost:7688 -L 7475:localhost:7475 <vm>
+# y http://localhost:7475/browser/ con bolt://localhost:7688.
+name: neo4j-proto
+services:
+  neo4j:
+    image: neo4j:2025.06.2-community
+    container_name: neo4j-proto
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      NEO4J_server_memory_heap_initial__size: 128m
+      NEO4J_server_memory_heap_max__size: 256m
+      NEO4J_server_memory_pagecache_size: 64m
+      NEO4J_dbms_usage__report_enabled: "false"
+      # Para que el Browser en :7475 proponga el bolt correcto (el 7688 del túnel), no el 7687 de producción.
+      NEO4J_server_bolt_advertised__address: localhost:7688
+    ports:
+      - "127.0.0.1:7688:7687"
+      - "127.0.0.1:7475:7474"
+    volumes:
+      - datos:/data
+    mem_limit: 768m
+
+volumes:
+  datos:

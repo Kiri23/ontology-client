@@ -17,6 +17,12 @@ A class in the graph becomes nodes and edges, a TypeScript type, a module of the
 ([the .srt](docs/media/readme.srt)) · [scenes](docs/media/escenas/readme.py) · regenerate with
 `bash docs/media/escenas/generar.sh`.
 
+How the repo is built, narrated in Spanish: [a walkthrough](docs/media/mapa.mp4) of the SDK's layers, the trip of
+`jobs.get()` and what the agent wrote in PR #10 ([scenes](docs/media/escenas/mapa.py), regenerate with
+`bash docs/media/escenas/generar.sh mapa`). And [the local SPARQL engine](docs/media/motor.mp4) with the real code, from
+`App.tsx` down to the SDK: oxigraph compiled to WASM, the graph loaded once per tab, and a query validated and run in
+the browser ([scenes](docs/media/escenas/motor.py), `bash docs/media/escenas/generar.sh motor`).
+
 ## The problem
 
 A [knowledge graph](docs/vocabulary/knowledge-graph.md) is a good way to store connected data, but it's hard to use from
