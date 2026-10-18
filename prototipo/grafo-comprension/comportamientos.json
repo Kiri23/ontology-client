@@ -1,0 +1,123 @@
+{
+  "_léeme": "Capa 2, solo el Grafo del explorador. Cada comportamiento dice qué archivo y qué líneas lo deciden; validar-comportamientos.ts comprueba que el archivo existe, que el rango cabe y que 'simbolo' aparece literal en esas líneas. lineas = [desde, hasta], 1-based, inclusivo.",
+  "comportamientos": [
+    {
+      "nombre": "Formas de los nodos",
+      "descripcion": "qué forma de Cytoscape lleva cada clase en el lienzo y en la leyenda",
+      "tipo": "dato",
+      "lo-decide": [
+        { "archivo": "explorador/src/grafo/logica/clases.ts", "lineas": [26, 75], "simbolo": "forma" },
+        { "archivo": "explorador/src/grafo/componentes/Lienzo.tsx", "lineas": [55, 55], "simbolo": "data(forma)" },
+        { "archivo": "explorador/src/estilos/grafo.css", "lineas": [200, 218], "simbolo": "data-forma" }
+      ]
+    },
+    {
+      "nombre": "Tamaño de los nodos",
+      "descripcion": "el lado en px de cada nodo según su clase",
+      "tipo": "dato",
+      "lo-decide": [
+        { "archivo": "explorador/src/grafo/logica/clases.ts", "lineas": [26, 75], "simbolo": "tamano" },
+        { "archivo": "explorador/src/grafo/componentes/Lienzo.tsx", "lineas": [53, 54], "simbolo": "data(tamano)" }
+      ]
+    },
+    {
+      "nombre": "Hover sobre un nodo",
+      "descripcion": "qué pasa al pasar el puntero sobre un nodo",
+      "tipo": "lógica",
+      "existe": false,
+      "nota": "no existe: el lienzo solo escucha tap; acá se agregaría un cy.on('mouseover', …)",
+      "lo-decide": [
+        { "archivo": "explorador/src/grafo/componentes/Lienzo.tsx", "lineas": [172, 172], "simbolo": "cy.on(\"tap\"" }
+      ]
+    },
+    {
+      "nombre": "Llamadas a la API",
+      "descripcion": "quién le pide datos al servidor desde el explorador",
+      "tipo": "estructura",
+      "nota": "fuera del explorador: las hace el SDK (mod.ts), el explorador solo lo importa",
+      "lo-decide": [
+        { "archivo": "explorador/src/historias/jobs.ts", "lineas": [2, 2], "simbolo": "../../../mod.ts" },
+        { "archivo": "explorador/src/grafo/motor.ts", "lineas": [5, 5], "simbolo": "../../../mod.ts" }
+      ]
+    },
+    {
+      "nombre": "Botón Preguntar con AI",
+      "descripcion": "el botón y el panel de Preguntar con AI, y en qué vista aparece",
+      "tipo": "estilo",
+      "nota": "montado solo en la consulta libre; para tenerlo en todas las vistas es un cambio de estructura",
+      "lo-decide": [
+        {
+          "archivo": "explorador/src/grafo/ai/PreguntarConAi.tsx",
+          "lineas": [143, 143],
+          "simbolo": "export function PreguntarConAi"
+        },
+        {
+          "archivo": "explorador/src/grafo/vistas/ConsultaLibre.tsx",
+          "lineas": [99, 99],
+          "simbolo": "<PreguntarConAi"
+        },
+        { "archivo": "explorador/src/estilos/ai.css", "lineas": [15, 30], "simbolo": ".boton-ai" }
+      ]
+    },
+    {
+      "nombre": "Colores de los nodos",
+      "descripcion": "el color de cada clase, con modo oscuro, resuelto a rgb para el canvas",
+      "tipo": "estilo",
+      "lo-decide": [
+        { "archivo": "explorador/src/estilos/grafo.css", "lineas": [6, 12], "simbolo": "--clase-" },
+        { "archivo": "explorador/src/grafo/logica/clases.ts", "lineas": [26, 75], "simbolo": "tono" },
+        { "archivo": "explorador/src/grafo/colores.ts", "lineas": [4, 4], "simbolo": "resolverColor" },
+        { "archivo": "explorador/src/grafo/componentes/Lienzo.tsx", "lineas": [129, 130], "simbolo": "resolverColor" }
+      ]
+    },
+    {
+      "nombre": "Leyenda del mapa",
+      "descripcion": "la lista de clases con forma, color y conteo; tocar una la resalta",
+      "tipo": "estructura",
+      "lo-decide": [
+        {
+          "archivo": "explorador/src/grafo/componentes/Leyenda.tsx",
+          "lineas": [14, 14],
+          "simbolo": "export function Leyenda"
+        },
+        { "archivo": "explorador/src/grafo/vistas/Mapa.tsx", "lineas": [48, 48], "simbolo": "<Leyenda" }
+      ]
+    },
+    {
+      "nombre": "Disposición de los nodos",
+      "descripcion": "dónde cae cada nodo: fcose con semilla fija, la misma forma al recargar",
+      "tipo": "lógica",
+      "lo-decide": [
+        {
+          "archivo": "explorador/src/grafo/componentes/Lienzo.tsx",
+          "lineas": [208, 208],
+          "simbolo": "name: \"fcose\""
+        },
+        { "archivo": "explorador/src/grafo/componentes/disposicion.ts", "lineas": [31, 31], "simbolo": "conSemilla" }
+      ]
+    },
+    {
+      "nombre": "Copiar al portapapeles",
+      "descripcion": "el botón Copiar y dónde aparece (el SPARQL de las vistas y la consulta libre)",
+      "tipo": "estructura",
+      "lo-decide": [
+        { "archivo": "explorador/src/grafo/componentes/Copiar.tsx", "lineas": [12, 12], "simbolo": "writeText" },
+        { "archivo": "explorador/src/grafo/componentes/Sparql.tsx", "lineas": [19, 19], "simbolo": "<Copiar" },
+        { "archivo": "explorador/src/grafo/vistas/ConsultaLibre.tsx", "lineas": [118, 118], "simbolo": "<Copiar" }
+      ]
+    },
+    {
+      "nombre": "Ficha de un nodo",
+      "descripcion": "qué muestra el stepper de un nodo y cómo se salta a sus vecinos",
+      "tipo": "estructura",
+      "lo-decide": [
+        {
+          "archivo": "explorador/src/grafo/componentes/Ficha.tsx",
+          "lineas": [19, 19],
+          "simbolo": "export function Ficha"
+        },
+        { "archivo": "explorador/src/grafo/vistas/Nodo.tsx", "lineas": [49, 49], "simbolo": "<Ficha" }
+      ]
+    }
+  ]
+}
