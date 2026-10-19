@@ -1,0 +1,35 @@
+1
+00:00:00,700 --> 00:00:08,062
+Antes, vocabulario.ts solo renderizaba un archivo: el docs/vocabulary.ttl de este repo.
+
+2
+00:00:10,828 --> 00:00:17,316
+Añadimos tres flags: ttl, out y context, para que ahora pueda renderizar cualquier vocabulary.ttl.
+
+3
+00:00:17,328 --> 00:00:27,043
+Por ejemplo, el de Modal, que vive en Learning, fuera del repo: trece términos, y las páginas salen en español.
+
+4
+00:00:29,732 --> 00:00:38,732
+Añadimos context para que un término pueda apuntar a otro vocabulario: modal:sandbox es un ambiente:entorno-aislado, y la página muestra su nombre.
+
+5
+00:00:41,416 --> 00:00:49,004
+Añadimos Análogos para que cada página liste los términos que comparten padre: sandbox y la VM de exe cuelgan de entorno aislado.
+
+6
+00:00:49,866 --> 00:00:52,491
+Es la base para las analogías de las lecciones.
+
+7
+00:00:55,164 --> 00:01:01,002
+Escribir borra lo que sobra, y la revisión encontró que un out mal puesto podía borrar páginas ajenas.
+
+8
+00:01:01,876 --> 00:01:05,989
+Ahora, si la carpeta tiene un archivo que no generó, se niega.
+
+9
+00:01:08,672 --> 00:01:12,834
+Así queda la página de sandbox, generada desde el vocabulario de Modal.
