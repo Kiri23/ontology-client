@@ -1,9 +1,10 @@
-// leer.ts — de docs/vocabulary.ttl (Turtle) a la lista de términos SKOS, sin validar nada.
+// leer.ts — de un vocabulary.ttl (Turtle) a la lista de términos SKOS, sin validar nada.
 //
 // Un término es todo sujeto que es `a skos:Concept` o que tiene skos:prefLabel o skos:definition: así un término al
-// que le falta el tipo no desaparece en silencio, lo rechaza el validador. Los literales guardan su idioma y los
-// seeAlso su tipo de nodo para que el validador pueda exigir @en e IRIs; broader/related quedan como IRI aunque el
-// concepto no exista.
+// que le falta el tipo no desaparece en silencio, lo rechaza el validador. Un `a skos:ConceptScheme` no es término:
+// lo devuelve `esquemas` (su label y su definición encabezan el índice de un vocabulario externo). Los literales
+// guardan su idioma y los seeAlso su tipo de nodo para que el validador pueda exigir el idioma del vocabulario e IRIs;
+// broader/related quedan como IRI aunque el concepto no exista.
 
 // @ts-types="@types/n3"
 import { Parser, type Quad } from "n3";
@@ -30,10 +31,13 @@ export interface Concepto {
   enBlanco: boolean;
   // Si el TTL dice `a skos:Concept`.
   esConcepto: boolean;
+  // Si el TTL dice `a skos:ConceptScheme`: entonces no es término.
+  esEsquema: boolean;
   // El local name del IRI (lo que sigue al último # o /): nombre de la página.
   slug: string;
   prefLabel: Literal[];
   definition: Literal[];
+  example: Literal[];
   broader: string[];
   related: string[];
   seeAlso: Objeto[];
@@ -49,21 +53,41 @@ export function triples(ttl: string): Quad[] {
   return new Parser().parse(ttl);
 }
 
+// Los @prefix del TTL como namespace → prefijo ("https://kiri23.dev/ambiente#" → "ambiente"). Lanza como `triples`.
+export function prefijos(ttl: string): Map<string, string> {
+  const vistos = new Map<string, string>();
+  new Parser().parse(ttl, null, (prefijo, iri) => {
+    if (prefijo) vistos.set(iri.value, prefijo);
+  });
+  return vistos;
+}
+
 // Lanza el error de n3 (con la línea) si el texto no es Turtle.
 export function leer(ttl: string): Concepto[] {
   return conceptos(triples(ttl));
 }
 
 export function conceptos(quads: Quad[]): Concepto[] {
+  return sujetos(quads).filter((c) => !c.esEsquema);
+}
+
+// Los `a skos:ConceptScheme` del TTL, con sus literales y seeAlso.
+export function esquemas(quads: Quad[]): Concepto[] {
+  return sujetos(quads).filter((c) => c.esEsquema);
+}
+
+function sujetos(quads: Quad[]): Concepto[] {
   const terminos = new Map<string, Concepto>();
   const termino = (sujeto: { value: string; termType: string }): Concepto => {
     const nuevo = {
       iri: sujeto.value,
       enBlanco: sujeto.termType === "BlankNode",
       esConcepto: false,
+      esEsquema: false,
       slug: slugDe(sujeto.value),
       prefLabel: [],
       definition: [],
+      example: [],
       broader: [],
       related: [],
       seeAlso: [],
@@ -77,6 +101,7 @@ export function conceptos(quads: Quad[]): Concepto[] {
     switch (q.predicate.value) {
       case RDF_TYPE:
         if (o.value === `${SKOS}Concept`) termino(q.subject).esConcepto = true;
+        if (o.value === `${SKOS}ConceptScheme`) termino(q.subject).esEsquema = true;
         break;
       case `${SKOS}prefLabel`:
         termino(q.subject).prefLabel.push(literal);
@@ -95,6 +120,9 @@ export function conceptos(quads: Quad[]): Concepto[] {
         break;
       case `${SKOS}related`:
         c.related.push(q.object.value);
+        break;
+      case `${SKOS}example`:
+        c.example.push({ valor: q.object.value, idioma: q.object.termType === "Literal" ? q.object.language : "" });
         break;
       case RDFS_SEE_ALSO:
         c.seeAlso.push({ valor: q.object.value, tipo: q.object.termType });

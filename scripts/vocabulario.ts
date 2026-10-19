@@ -1,13 +1,21 @@
 // vocabulario.ts — genera docs/vocabulary/*.md desde docs/vocabulary.ttl (SKOS): una página por término y un índice.
-// Cada página lista además qué prosa del repo la enlaza ("Mentioned in").
+// Cada página lista además qué prosa del repo la enlaza ("Mentioned in"). Con --ttl renderiza cualquier otro
+// vocabulary.ttl (el de Modal en el vault, por ejemplo) a la carpeta de --out.
 //
 //   deno task vocabulario            valida el TTL y los links de la prosa y reescribe docs/vocabulary/ (borra las
 //                                    páginas que sobran)
 //   deno task vocabulario --check    no escribe: falla (exit 1) si algo no valida o si lo commiteado en
 //                                    docs/vocabulary/ no es lo que sale del TTL y la prosa, archivos sobrantes incluidos
 //
+//   VOCABULARIO_LEER=<ttl>,<contexto…>,<out> VOCABULARIO_ESCRIBIR=<out> \
+//     deno task vocabulario:externo --ttl <ttl> --out <out> [--context <ttl>]… [--check]
+//                                    lo mismo para un vocabulario externo, en su idioma (en o es), sin Mentioned in.
+//                                    Cada --context (domain/ambiente.ttl de ontologyLearning) no lleva páginas: nombra
+//                                    los broader y related que cruzan de vocabulario y suma Análogos. Las dos
+//                                    variables son los permisos de Deno: la tarea no lee ni escribe nada más.
+//
 // docs/vocabulary/ no se edita a mano: cambia el TTL o la prosa, se regenera, se commitean juntos. CI corre --check.
-// Leer, validar, menciones, renderizar y el disco viven en scripts/vocabulario/, un archivo cada uno.
+// Leer, validar, menciones, renderizar, el disco y el modo externo viven en scripts/vocabulario/, un archivo cada uno.
 
 import { parseArgs } from "@std/cli/parse-args";
 // @ts-types="@types/n3"
@@ -17,16 +25,44 @@ import { validar, validarEnlaces } from "./vocabulario/validar.ts";
 import { enlacesAlVocabulario, leerProsa, triplesDeMenciones } from "./vocabulario/menciones.ts";
 import { renderizar } from "./vocabulario/renderizar.ts";
 import { comparar, escribir, leerDirectorio } from "./vocabulario/archivos.ts";
+import { correrExterno } from "./vocabulario/externo.ts";
 
 const RAIZ = new URL("../", import.meta.url);
 const TTL = new URL("../docs/vocabulary.ttl", import.meta.url);
 const DESTINO = new URL("../docs/vocabulary/", import.meta.url);
 
+const AYUDA = `Uso:
+  deno task vocabulario [--check]
+      docs/vocabulary.ttl → docs/vocabulary/, con "Mentioned in" de la prosa del repo.
+
+  VOCABULARIO_LEER=<ttl>,<contexto…>,<out> VOCABULARIO_ESCRIBIR=<out> \\
+    deno task vocabulario:externo --ttl <ttl> --out <out> [--context <ttl>]… [--check]
+      Un vocabulary.ttl cualquiera → <out>/, en el idioma del TTL (en o es), sin "Mentioned in".
+      --ttl       el vocabulario a renderizar (declara un skos:ConceptScheme)
+      --out       la carpeta de las páginas; solo puede tener páginas generadas por este script
+      --context   un TTL cuyos términos no llevan página pero nombran los broader/related que cruzan de vocabulario
+                  y suman Análogos; se repite
+      Las rutas son absolutas o relativas a la raíz del repo. Las variables son los permisos de lectura y escritura.
+
+  --check     no escribe: sale 1 si la carpeta no es lo que sale del TTL`;
+
 async function main(): Promise<number> {
-  const o = parseArgs(Deno.args, { boolean: ["check", "help"], alias: { h: "help" } });
+  const o = parseArgs(Deno.args, {
+    boolean: ["check", "help"],
+    string: ["ttl", "out", "context"],
+    collect: ["context"],
+    alias: { h: "help" },
+  });
   if (o.help) {
-    console.log("Uso: deno task vocabulario [--check]");
+    console.log(AYUDA);
     return 0;
+  }
+  if (o.ttl !== undefined || o.out !== undefined || o.context.length) {
+    if (!o.ttl || !o.out) {
+      console.error("Un vocabulario externo necesita --ttl y --out (ver --help).");
+      return 1;
+    }
+    return await correrExterno({ ttl: o.ttl, out: o.out, context: o.context, check: o.check });
   }
   let ttl;
   try {
