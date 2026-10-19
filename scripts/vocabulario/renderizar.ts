@@ -9,7 +9,8 @@
 //
 // Los términos de `contexto` (los TTL de --context) no llevan página: sirven para nombrar un broader o related que
 // cruza de vocabulario ("Entorno aislado (ambiente:)", sin link) y para encontrar análogos en otros vocabularios.
-// Los títulos de las secciones van en el idioma del vocabulario (`TEXTOS`).
+// Los títulos de las secciones van en el idioma del vocabulario (`TEXTOS`). Ejemplos y Analogous salen solo si las
+// opciones los piden (el modo externo); docs/vocabulary/ no los pide y su salida no depende de qué diga su TTL.
 //
 // Mentioned in sale del grafo (el TTL más los triples de menciones.ts): la consulta inversa `?doc dct:references
 // v:<slug>`. Nunca sale de docs/vocabulary/, que es la salida de este script. Sin triples de menciones (un
@@ -23,6 +24,10 @@ import { DCT_REFERENCES } from "./menciones.ts";
 export const CABECERA =
   "<!-- Generated from docs/vocabulary.ttl by `deno task vocabulario`. Do not edit by hand: edit the TTL and run the task. -->";
 
+// Una ruta como destino de link markdown: espacios y paréntesis codificados para que el link no se corte
+// (`docs/my notes (v2).md` → `docs/my%20notes%20%28v2%29.md`).
+const codificar = (ruta: string) => encodeURI(ruta).replace(/\(/g, "%28").replace(/\)/g, "%29");
+
 // Los títulos de sección y el índice, por idioma. Un vocabulario en otro idioma lo rechaza externo.ts.
 export const TEXTOS = {
   en: {
@@ -35,7 +40,7 @@ export const TEXTOS = {
     verTambien: "See also",
     menciones: "Mentioned in",
     vocabulario: "Vocabulary",
-    fuente: (ttl: string) => `The source is [\`${ttl.split("/").at(-1)}\`](${ttl}), a SKOS vocabulary.`,
+    fuente: (ttl: string) => `The source is [\`${ttl.split("/").at(-1)}\`](${codificar(ttl)}), a SKOS vocabulary.`,
     cabecera: (ttl: string) =>
       `<!-- Generated from ${ttl} by \`deno task vocabulario:externo\`. Do not edit by hand: edit the TTL and run the task. -->`,
   },
@@ -49,7 +54,7 @@ export const TEXTOS = {
     verTambien: "Ver también",
     menciones: "Mencionado en",
     vocabulario: "Vocabulario",
-    fuente: (ttl: string) => `La fuente es [\`${ttl.split("/").at(-1)}\`](${ttl}), un vocabulario SKOS.`,
+    fuente: (ttl: string) => `La fuente es [\`${ttl.split("/").at(-1)}\`](${codificar(ttl)}), un vocabulario SKOS.`,
     cabecera: (ttl: string) =>
       `<!-- Generado desde ${ttl} con \`deno task vocabulario:externo\`. No se edita a mano: cambiá el TTL y corré la tarea. -->`,
   },
@@ -68,6 +73,9 @@ export interface Opciones {
   contexto: Concepto[];
   // namespace → prefijo, para escribir "(ambiente:)" detrás de un término de contexto.
   prefijos: Map<string, string>;
+  // Las secciones Ejemplos (skos:example) y Analogous (mismo skos:broader directo).
+  ejemplos: boolean;
+  analogos: boolean;
 }
 
 // Las de docs/vocabulary/: con estas la salida es la de siempre, byte por byte.
@@ -80,6 +88,8 @@ const DEL_REPO: Opciones = {
   ],
   contexto: [],
   prefijos: new Map(),
+  ejemplos: false,
+  analogos: false,
 };
 
 // El literal en `idioma`; un término de contexto sin ese idioma da el primero que tenga, o `siNo`.
@@ -107,9 +117,8 @@ function menciones(c: Concepto, grafo: Store): string[] {
 
 // Un nombre de archivo como texto de link: escapa los corchetes.
 const texto = (ruta: string) => ruta.replace(/[[\]\\]/g, (c) => `\\${c}`);
-// Un nombre de archivo como destino desde docs/vocabulary/: espacios y paréntesis codificados para que el link no se
-// corte (`docs/my notes (v2).md` → `../../docs/my%20notes%20%28v2%29.md`).
-const destino = (ruta: string) => `../../${encodeURI(ruta).replace(/\(/g, "%28").replace(/\)/g, "%29")}`;
+// Un nombre de archivo de la prosa como destino desde docs/vocabulary/.
+const destino = (ruta: string) => `../../${codificar(ruta)}`;
 
 // Nombre de archivo (relativo a la carpeta de salida) → contenido, con las claves en orden.
 export function renderizar(conceptos: Concepto[], grafo: Store, opciones: Partial<Opciones> = {}): Map<string, string> {
@@ -148,10 +157,10 @@ export function renderizar(conceptos: Concepto[], grafo: Store, opciones: Partia
       "",
       definicion(c),
       "",
-      ...seccion(t.ejemplos, [...new Set(ejemplos)].sort()),
+      ...seccion(t.ejemplos, o.ejemplos ? [...new Set(ejemplos)].sort() : []),
       ...seccion(t.broader, lista(c.broader).map(nombre)),
       ...seccion(t.narrower, narrower.map(nombre)),
-      ...seccion(t.analogos, analogos(c)),
+      ...seccion(t.analogos, o.analogos ? analogos(c) : []),
       ...seccion(t.related, related.map(nombre)),
       ...seccion(t.verTambien, [...new Set(c.seeAlso.map((s) => s.valor))].sort().map((url) => `<${url}>`)),
       ...seccion(t.menciones, menciones(c, grafo)),

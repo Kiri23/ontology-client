@@ -9,8 +9,9 @@
 //   - no hay "Mentioned in": eso es la prosa de este repo, que un vocabulario de afuera no tiene.
 //
 // `renderizarExterno` no toca el disco (los tests le pasan strings); `correrExterno` lee, compara y escribe. Como
-// escribir borra lo que sobra en la carpeta de salida, se niega a tocar una que tenga archivos que este script no
-// generó: un --out mal puesto (la carpeta del TTL, por ejemplo) no se lleva puesto nada.
+// escribir borra lo que sobra en la carpeta de salida, se niega a tocar una que tenga un archivo cuya primera línea no
+// sea exactamente la cabecera que esta corrida escribe para este TTL: un --out mal puesto (la carpeta del TTL, la
+// docs/vocabulary/ del repo, la de otro vocabulario) no se lleva puesto nada.
 
 // @ts-types="@types/n3"
 import { type Quad, Store } from "n3";
@@ -25,10 +26,9 @@ export interface Turtle {
   texto: string;
 }
 
-export type Resultado = { errores: string[] } | { archivos: Map<string, string>; terminos: number; idioma: Idioma };
-
-// La primera línea de una página generada, en cualquier idioma: lo que no empieza así no lo escribió este script.
-const MARCAS = ["<!-- Generated from ", "<!-- Generado desde "];
+export type Resultado =
+  | { errores: string[] }
+  | { archivos: Map<string, string>; terminos: number; idioma: Idioma; cabecera: string };
 
 function parsear(t: Turtle): Quad[] | string {
   try {
@@ -81,20 +81,24 @@ export function renderizarExterno(vocabulario: Turtle, fuente: string, contexto:
     ...(definicion ? [definicion] : []),
     t.fuente(fuente) + (verTambien.length ? ` ${t.verTambien}: ${verTambien.join(", ")}.` : ""),
   ];
+  const cabecera = t.cabecera(fuente);
   const archivos = renderizar(terminos, new Store(), {
     idioma: idioma as Idioma,
-    cabecera: t.cabecera(fuente),
+    cabecera,
     titulo: label,
     intro,
     contexto: otros,
     prefijos,
+    ejemplos: true,
+    analogos: true,
   });
-  return { archivos, terminos: terminos.length, idioma: idioma as Idioma };
+  return { archivos, terminos: terminos.length, idioma: idioma as Idioma, cabecera };
 }
 
-// Los archivos de la carpeta de salida que no generó este script, en orden.
-export function ajenos(actual: Map<string, string>): string[] {
-  return [...actual].filter(([, texto]) => !MARCAS.some((m) => texto.startsWith(m))).map(([n]) => n).sort();
+// Los archivos de la carpeta de salida que no generó esta corrida para este TTL: los que no empiezan con `cabecera`
+// como primera línea entera. Una página de docs/vocabulary/ o de otro vocabulario externo tiene otra cabecera.
+export function ajenos(actual: Map<string, string>, cabecera: string): string[] {
+  return [...actual].filter(([, texto]) => texto.split("\n")[0] !== cabecera).map(([n]) => n).sort();
 }
 
 // Una ruta de la línea de comandos como URL absoluta (relativa al directorio actual, `.` y `..` resueltos).
@@ -144,12 +148,11 @@ export async function correrExterno(p: Pedido): Promise<number> {
     console.error(`${resultado.errores.length} error(es):\n${resultado.errores.map((e) => `  ${e}`).join("\n")}`);
     return 1;
   }
-  const extranos = ajenos(actual);
+  const extranos = ajenos(actual, resultado.cabecera);
   if (extranos.length) {
     console.error(
-      `${p.out} tiene archivos que no generó este script; elegí una carpeta vacía o solo con páginas generadas:\n${
-        extranos.map((n) => `  ${n}`).join("\n")
-      }`,
+      `${p.out} tiene archivos que no generó este script desde ${p.ttl}; elegí una carpeta vacía o con solo sus ` +
+        `páginas (si cambió la ruta o el idioma del TTL, vaciala):\n${extranos.map((n) => `  ${n}`).join("\n")}`,
     );
     return 1;
   }

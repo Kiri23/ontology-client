@@ -83,13 +83,12 @@ function ancestros(iri: string, porIri: Map<string, Concepto>): Set<string> {
   return vistos;
 }
 
-function relaciones(c: Concepto, porIri: Map<string, Concepto>, conContexto: boolean): string[] {
+function relaciones(c: Concepto, porIri: Map<string, Concepto>): string[] {
   const errores: string[] = [];
-  const donde = conContexto ? "del vocabulario ni de los de contexto" : "del vocabulario";
   for (const propiedad of ["broader", "related"] as const) {
     for (const destino of c[propiedad]) {
       if (!porIri.has(destino)) {
-        errores.push(`${c.slug}: skos:${propiedad} apunta a ${destino}, que no es un skos:Concept ${donde}`);
+        errores.push(`${c.slug}: skos:${propiedad} apunta a ${destino}, que no es un skos:Concept del vocabulario`);
       }
     }
   }
@@ -131,7 +130,7 @@ export function validar(terminos: Concepto[], reglas: Reglas = REGLAS_DEL_REPO):
       ...literalesEn(c, "prefLabel", c.prefLabel, idioma),
       ...literalesEn(c, "definition", c.definition, idioma),
     );
-    errores.push(...relaciones(c, porIri, contexto.length > 0));
+    errores.push(...relaciones(c, porIri));
     for (const { valor, tipo } of c.seeAlso) {
       if (tipo !== "NamedNode") {
         errores.push(`${c.slug}: rdfs:seeAlso "${valor}" es un ${tipo}; tiene que ser un IRI <https://…>`);
