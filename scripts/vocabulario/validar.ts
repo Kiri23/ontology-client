@@ -4,10 +4,16 @@
 //   - hay al menos un skos:Concept, y todo término (lo que tiene prefLabel o definition) es `a skos:Concept`;
 //   - un término es un IRI del namespace, no un nodo en blanco, y su local name sirve de nombre de archivo
 //     (minúsculas, dígitos y guiones; no "readme");
-//   - exactamente un skos:prefLabel y una skos:definition en @en, no vacíos, y ninguno en otro idioma o sin idioma;
-//   - skos:broader y skos:related apuntan a un skos:Concept del vocabulario, y related no apunta a sí mismo;
+//   - exactamente un skos:prefLabel y una skos:definition en el idioma del vocabulario, no vacíos, y ninguno en otro
+//     idioma o sin idioma;
+//   - skos:broader y skos:related apuntan a un skos:Concept del vocabulario o de uno de contexto, y related no apunta
+//     a sí mismo;
 //   - skos:broader no tiene ciclos, y related no une dos términos que broader ya une (SKOS S27: son disjuntas);
 //   - rdfs:seeAlso es un IRI http(s), no un literal.
+//
+// Las `Reglas` por defecto son las de docs/vocabulary.ttl: namespace v:, @en y sin vocabularios de contexto. Un
+// vocabulario externo (scripts/vocabulario/externo.ts) pasa su namespace, su idioma y los términos de los TTL de
+// contexto, a los que sus broader y related pueden apuntar sin que esos términos se validen acá.
 //
 // `validarEnlaces` suma la regla de la prosa: un link a docs/vocabulary/<slug>.md tiene que nombrar un término que
 // exista. La prosa no puede citar algo que no está en el TTL.
@@ -19,15 +25,24 @@ import type { Enlace } from "./menciones.ts";
 export const NAMESPACE = "https://kiri23.dev/vocabulario#";
 const SLUG = /^[a-z0-9]+(-[a-z0-9]+)*$/;
 
-function literalesEn(c: Concepto, propiedad: "prefLabel" | "definition", literales: Literal[]): string[] {
-  const errores = literales.filter((l) => l.idioma !== "en").map((l) =>
+export interface Reglas {
+  namespace: string;
+  idioma: string;
+  // Términos de otros vocabularios: destinos válidos de broader y related, que no se validan ni se renderizan.
+  contexto: Concepto[];
+}
+
+export const REGLAS_DEL_REPO: Reglas = { namespace: NAMESPACE, idioma: "en", contexto: [] };
+
+function literalesEn(c: Concepto, propiedad: "prefLabel" | "definition", literales: Literal[], idioma: string) {
+  const errores = literales.filter((l) => l.idioma !== idioma).map((l) =>
     `${c.slug}: skos:${propiedad} "${l.valor}" ${
       l.idioma ? `tiene idioma @${l.idioma}` : "no tiene etiqueta de idioma"
-    }; se espera @en`
+    }; se espera @${idioma}`
   );
-  const en = literales.filter((l) => l.idioma === "en");
+  const en = literales.filter((l) => l.idioma === idioma);
   if (en.length !== 1) {
-    errores.push(`${c.slug}: tiene ${en.length} skos:${propiedad} en @en; tiene que tener exactamente uno`);
+    errores.push(`${c.slug}: tiene ${en.length} skos:${propiedad} en @${idioma}; tiene que tener exactamente uno`);
   }
   if (en.some((l) => l.valor.trim() === "")) errores.push(`${c.slug}: skos:${propiedad} está vacío`);
   return errores;
@@ -68,12 +83,13 @@ function ancestros(iri: string, porIri: Map<string, Concepto>): Set<string> {
   return vistos;
 }
 
-function relaciones(c: Concepto, porIri: Map<string, Concepto>): string[] {
+function relaciones(c: Concepto, porIri: Map<string, Concepto>, conContexto: boolean): string[] {
   const errores: string[] = [];
+  const donde = conContexto ? "del vocabulario ni de los de contexto" : "del vocabulario";
   for (const propiedad of ["broader", "related"] as const) {
     for (const destino of c[propiedad]) {
       if (!porIri.has(destino)) {
-        errores.push(`${c.slug}: skos:${propiedad} apunta a ${destino}, que no es un skos:Concept del vocabulario`);
+        errores.push(`${c.slug}: skos:${propiedad} apunta a ${destino}, que no es un skos:Concept ${donde}`);
       }
     }
   }
@@ -89,28 +105,33 @@ function relaciones(c: Concepto, porIri: Map<string, Concepto>): string[] {
   return errores;
 }
 
-export function validar(terminos: Concepto[]): string[] {
+export function validar(terminos: Concepto[], reglas: Reglas = REGLAS_DEL_REPO): string[] {
+  const { namespace, idioma, contexto } = reglas;
   const conceptos = terminos.filter((c) => c.esConcepto && !c.enBlanco);
   if (!terminos.some((c) => c.esConcepto)) return ["el vocabulario no tiene ningún skos:Concept"];
-  const porIri = new Map(conceptos.map((c) => [c.iri, c]));
+  // Los de contexto primero: si un IRI está en los dos, manda el del vocabulario.
+  const porIri = new Map([...contexto, ...conceptos].map((c) => [c.iri, c]));
   const errores: string[] = [];
   for (const c of terminos) {
     if (c.enBlanco) {
       const label = c.prefLabel[0]?.valor ?? c.iri;
-      errores.push(`nodo en blanco "${label}": un término necesita un IRI ${NAMESPACE}<local name>`);
+      errores.push(`nodo en blanco "${label}": un término necesita un IRI ${namespace}<local name>`);
       continue;
     }
     if (!c.esConcepto) {
       errores.push(`${c.slug}: tiene skos:prefLabel o skos:definition pero no es \`a skos:Concept\``);
       continue;
     }
-    if (c.iri !== NAMESPACE + c.slug) {
-      errores.push(`${c.iri}: un término tiene que estar en el namespace ${NAMESPACE}`);
+    if (c.iri !== namespace + c.slug) {
+      errores.push(`${c.iri}: un término tiene que estar en el namespace ${namespace}`);
     } else if (!SLUG.test(c.slug) || c.slug === "readme") {
       errores.push(`${c.iri}: el local name "${c.slug}" tiene que ser minúsculas, dígitos y guiones, y no "readme"`);
     }
-    errores.push(...literalesEn(c, "prefLabel", c.prefLabel), ...literalesEn(c, "definition", c.definition));
-    errores.push(...relaciones(c, porIri));
+    errores.push(
+      ...literalesEn(c, "prefLabel", c.prefLabel, idioma),
+      ...literalesEn(c, "definition", c.definition, idioma),
+    );
+    errores.push(...relaciones(c, porIri, contexto.length > 0));
     for (const { valor, tipo } of c.seeAlso) {
       if (tipo !== "NamedNode") {
         errores.push(`${c.slug}: rdfs:seeAlso "${valor}" es un ${tipo}; tiene que ser un IRI <https://…>`);
