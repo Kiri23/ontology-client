@@ -620,7 +620,12 @@
       "Technology": {
         "type": "object",
         "properties": {
-          "link": { "type": "string", "format": "uri", "description": "La URI del nodo: su identificador." },
+          "link": {
+            "type": "string",
+            "format": "uri",
+            "description": "La URI del nodo: su identificador.",
+            "pattern": "^https://kiri231\\.com/tecnologia/[A-Za-z0-9-]+$"
+          },
           "nombre": { "type": "string" },
           "sinonimos": { "type": "array", "items": { "type": "string" } }
         },
