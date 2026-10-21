@@ -245,6 +245,10 @@ describe("App", () => {
         "aria-current",
       ),
     ).toBe("page");
+    // "ontologia" también es un nombre sin barra: la ruta de la vista no se toma como fragmento de un IRI.
+    await screen.findByText("3 clases (1 prestadas)", { exact: false });
+    expect(screen.queryByText(/No hay ningún término/)).toBeNull();
+    expect(location.hash).toBe("#/ontologia");
   });
 
   it("#porque (el fragmento de un IRI) es la Ontología en ese término, y el hash queda limpio", async () => {
