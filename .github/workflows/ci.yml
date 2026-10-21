@@ -2,8 +2,8 @@ name: CI
 
 # Tres jobs: `calidad` revisa el código (formato, lint, tipos, tests, generado/ al día con el contrato,
 # docs/vocabulary/ al día con su TTL, publish en seco); `action` prueba la action (`uses: ./`) contra el servidor
-# falso de tests/ con rutas y globs, fichas y vocabularios; `descubrimiento` prueba lo que hace sin el input archivos: sin repo git, con
-# un repo sin fichas y con nombres parecidos a proyecto.ttl y rutas no ASCII.
+# falso de tests/ con rutas y globs, fichas y vocabularios; `descubrimiento` prueba lo que hace sin inputs: sin repo git,
+# con un repo sin fichas ni vocabularios, y con nombres parecidos a proyecto.ttl y vocabulary.ttl y rutas no ASCII.
 on:
   push:
     branches: [main]
@@ -141,7 +141,9 @@ jobs:
           url: http://127.0.0.1:8787
           token: otro
 
-      # Sin `archivos`: busca con git ls-files y encuentra las dos fichas de tests/fichas, una no conforma.
+      # Sin inputs: busca con git ls-files y encuentra las fichas de tests/fichas y los vocabularios de
+      # tests/vocabularios (y docs/vocabulary.ttl, que al servidor falso le conforma); hay una ficha y un
+      # vocabulario que no conforman.
       - name: Descubrimiento por defecto (tiene que fallar)
         id: por_defecto
         continue-on-error: true
@@ -202,27 +204,32 @@ jobs:
       - name: Repo sin fichas
         run: git init -q
 
-      # Un repo git sin ninguna proyecto.ttl: verde con aviso.
-      - name: Sin fichas (tiene que pasar)
+      # Un repo git sin ninguna proyecto.ttl ni vocabulary.ttl: verde con aviso.
+      - name: Sin fichas ni vocabularios (tiene que pasar)
         uses: ./accion
         with:
           url: http://127.0.0.1:8787
           token: prueba
 
-      # Solo valen los proyecto.ttl exactos (año/ incluido); otroproyecto.ttl y mi-proyecto.ttl no conforman
-      # y no se tienen que validar.
-      - name: Fichas con nombres parecidos y rutas no ASCII
+      # Solo valen los proyecto.ttl y vocabulary.ttl exactos (año/ incluido); otroproyecto.ttl, mi-proyecto.ttl,
+      # mi-vocabulary.ttl y vocabularios.ttl no conforman y no se tienen que validar.
+      - name: Fichas y vocabularios con nombres parecidos y rutas no ASCII
         run: |
           mkdir -p año sub
           cp accion/tests/fichas/conforme/proyecto.ttl proyecto.ttl
           cp accion/tests/fichas/conforme/proyecto.ttl año/proyecto.ttl
+          cp accion/tests/vocabularios/conforme/vocabulary.ttl vocabulary.ttl
+          cp accion/tests/vocabularios/conforme/vocabulary.ttl año/vocabulary.ttl
           for f in otroproyecto.ttl mi-proyecto.ttl sub/otroproyecto.ttl; do
             cp accion/tests/fichas/no-conforme/proyecto.ttl "$f"
           done
-          git add proyecto.ttl año otroproyecto.ttl mi-proyecto.ttl sub
+          for f in mi-vocabulary.ttl sub/vocabularios.ttl; do
+            cp accion/tests/vocabularios/no-conforme/vocabulary.ttl "$f"
+          done
+          git add proyecto.ttl vocabulary.ttl año otroproyecto.ttl mi-proyecto.ttl mi-vocabulary.ttl sub
           git ls-files
 
-      - name: Solo proyecto.ttl exactos (tiene que pasar)
+      - name: Solo proyecto.ttl y vocabulary.ttl exactos (tiene que pasar)
         uses: ./accion
         with:
           url: http://127.0.0.1:8787

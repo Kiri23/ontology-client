@@ -26,28 +26,34 @@ jobs:
       - uses: Kiri23/ontology-client@v0
         with:
           token: ${{ secrets.ONTOLOGY_PROYECTOS_TOKEN }}
-          # archivos: proyectos/*/proyecto.ttl   # optional; default: every proyecto.ttl that git knows
-          # vocabularios: domain/*/vocabulary.ttl  # optional; default: none
+          # archivos: proyectos/*/proyecto.ttl     # optional
+          # vocabularios: domain/*/vocabulary.ttl  # optional
+          # With neither: every proyecto.ttl and vocabulary.ttl that git knows
           # url: https://ontology.kiri231.com    # optional
           # timeout: 30                          # optional, seconds per file
 ```
 
-| Input          | Default                         | What it is                                                                              |
-| -------------- | ------------------------------- | --------------------------------------------------------------------------------------- |
-| `token`        | (required)                      | the server's token; without it the step fails                                           |
-| `archivos`     | the repo's `proyecto.ttl` files | paths or globs (`**` included) separated by spaces or newlines                          |
-| `vocabularios` | none                            | `vocabulary.ttl` files to check against `POST /vocabularios`, same syntax as `archivos` |
-| `url`          | `https://ontology.kiri231.com`  | the server's base URL                                                                   |
-| `timeout`      | `30`                            | seconds per file before giving the server up as down                                    |
+| Input          | Default                        | What it is                                                                              |
+| -------------- | ------------------------------ | --------------------------------------------------------------------------------------- |
+| `token`        | (required)                     | the server's token; without it the step fails                                           |
+| `archivos`     | see below                      | `proyecto.ttl` files: paths or globs (`**` included) separated by spaces or newlines    |
+| `vocabularios` | see below                      | `vocabulary.ttl` files to check against `POST /vocabularios`, same syntax as `archivos` |
+| `url`          | `https://ontology.kiri231.com` | the server's base URL                                                                   |
+| `timeout`      | `30`                           | seconds per file before giving the server up as down                                    |
 
-Without `archivos`, it validates the files named exactly `proyecto.ttl` (not `otroproyecto.ttl`) that git knows:
-`git ls-files -z -- ':(glob)proyecto.ttl' ':(glob)**/proyecto.ttl'`, non-ASCII paths included. If the repo has none, and
-no `vocabularios` were named, it exits 0 with a warning.
+With `archivos` or `vocabularios`, it validates exactly what they say and looks for nothing else. With neither, it
+validates the files named exactly `proyecto.ttl` and `vocabulary.ttl` (not `otroproyecto.ttl`, not `mi-vocabulary.ttl`)
+that git knows, non-ASCII paths included; the file name picks the endpoint. If the repo has none, it exits 0 with a
+notice.
 
-Vocabularies are never discovered by name: a file called `vocabulary.ttl` is not always a SKOS vocabulary (this repo's
-`docs/vocabulary.ttl` is a documentation vocabulary), and the server tells what a `.ttl` is by its content. Name them in
-`vocabularios` and they go to `POST /vocabularios` with the same token; a vocabulary that does not conform is annotated
-in the PR like a project file.
+```sh
+git ls-files -z -- ':(glob)proyecto.ttl' ':(glob)**/proyecto.ttl' ':(glob)vocabulary.ttl' ':(glob)**/vocabulary.ttl'
+```
+
+A `vocabulary.ttl` that is not a SKOS vocabulary (this repo's `docs/vocabulary.ttl` is a documentation glossary) gets
+reported by the server as not conforming, like a broken `proyecto.ttl` would; name the real ones in `vocabularios` to
+leave it out. Both endpoints take the same token; a vocabulary that does not conform is annotated in the PR like a
+project file.
 
 Before you adopt it:
 
