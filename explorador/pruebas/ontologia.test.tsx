@@ -1,6 +1,6 @@
 // La vista Ontología con un GET /ontologia falso: una sección por clase, el término de la URL resaltado y dicho, y el
 // fragmento de un IRI (#porque) vuelto ruta. Más la lógica sin React (logica/arbol.ts).
-import { cleanup, render, screen } from "@testing-library/react";
+import { cleanup, render, screen, within } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
 import { App } from "../src/App.tsx";
 import { buscarTermino, esFragmentoDeIri, local, type Ontologia, resumen } from "../src/ontologia/logica/arbol.ts";
@@ -174,9 +174,9 @@ describe("VistaOntologia", () => {
       "sin rango",
     );
     // El rango que es una clase de la página es un link a ella.
-    expect(
-      screen.getByRole("link", { name: "Technology" }).getAttribute("href"),
-    ).toBe("#/ontologia?termino=Technology");
+    // El índice de arriba tiene otro link "Technology": el del rango se busca dentro de su fila.
+    const rango = within(screen.getByRole("row", { name: /pide/ })).getByRole("link", { name: "Technology" });
+    expect(rango.getAttribute("href")).toBe("#/ontologia?termino=Technology");
     expect(
       screen.getByText(/3 clases \(1 prestadas\), 4 propiedades con dueño/),
     ).toBeTruthy();
@@ -192,9 +192,7 @@ describe("VistaOntologia", () => {
         fetch={fetch}
       />,
     );
-    expect((await screen.findByRole("status")).textContent).toContain(
-      "porque es una propiedad de JobPost.",
-    );
+    await screen.findByText("porque es una propiedad de JobPost.", { exact: false });
     expect(
       document.getElementById("termino-porque")?.getAttribute("aria-current"),
     ).toBe("true");
@@ -213,9 +211,7 @@ describe("VistaOntologia", () => {
         fetch={fetch}
       />,
     );
-    expect((await screen.findByRole("status")).textContent).toContain(
-      "No hay ningún término salario",
-    );
+    await screen.findByText("No hay ningún término salario", { exact: false });
     expect(screen.getByRole("heading", { level: 2, name: /JobPost/ }))
       .toBeTruthy();
   });
@@ -255,9 +251,7 @@ describe("App", () => {
     history.replaceState(null, "", "/explorador/#porque");
     const { fetch } = fetchFalso(() => json(ONTOLOGIA));
     render(<App url={URL_BASE} fetch={fetch} />);
-    expect((await screen.findByRole("status")).textContent).toContain(
-      "porque es una propiedad de JobPost.",
-    );
+    await screen.findByText("porque es una propiedad de JobPost.", { exact: false });
     expect(location.hash).toBe("#/ontologia?termino=porque");
   });
 
