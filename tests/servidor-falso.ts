@@ -1,4 +1,5 @@
-// servidor-falso.ts — imita el contrato de POST /proyectos sin el motor ni las reglas (que son privados).
+// servidor-falso.ts — imita el contrato de POST /proyectos y POST /vocabularios sin el motor ni las reglas (que son
+// privados). Las dos puertas responden igual; la regla de juguete es la misma.
 //
 //   deno run --allow-net --allow-read tests/servidor-falso.ts [--puerto 8787] [--token prueba]
 //
@@ -21,8 +22,8 @@ export function atenderFalso(token: string | undefined): (pedido: Request) => Pr
     if (ruta === "/openapi.json" && pedido.method === "GET") {
       return new Response(await Deno.readTextFile(CONTRATO), { headers: { "Content-Type": "application/json" } });
     }
-    if (ruta !== "/proyectos") return json(404, { error: "no existe" });
-    if (pedido.method !== "POST") return json(405, { error: "proyectos va por POST" });
+    if (ruta !== "/proyectos" && ruta !== "/vocabularios") return json(404, { error: "no existe" });
+    if (pedido.method !== "POST") return json(405, { error: `${ruta.slice(1)} va por POST` });
     if (!token) return json(503, { error: "el servidor no tiene token configurado" });
     const [esquema, recibido] = (pedido.headers.get("Authorization") ?? "").split(" ");
     if (esquema?.toLowerCase() !== "bearer" || recibido !== token) {
@@ -34,7 +35,9 @@ export function atenderFalso(token: string | undefined): (pedido: Request) => Pr
     }
     const tipo = (pedido.headers.get("Content-Type") ?? "").split(";")[0].trim().toLowerCase();
     if (cuerpo && tipo !== "text/turtle") return json(415, { error: `el body va como text/turtle, no ${tipo}` });
-    if (!cuerpo.trim()) return json(400, { error: "falta: fichas (el body, text/turtle)" });
+    if (!cuerpo.trim()) {
+      return json(400, { error: `falta: ${ruta === "/proyectos" ? "fichas" : "vocabularios"} (el body, text/turtle)` });
+    }
     if (cuerpo.includes(MARCA_NO_CONFORMA)) {
       return json(200, {
         conforma: false,

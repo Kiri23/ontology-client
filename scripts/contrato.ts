@@ -12,7 +12,7 @@ export const URL_CONTRATO = "https://ontology.kiri231.com/openapi.json";
 const DESTINO = new URL("../contrato/openapi.json", import.meta.url);
 
 // El contrato como texto listo para escribir, o el motivo por el que no sirve. Se exige lo que este
-// cliente usa: OpenAPI 3.x y la operación POST /proyectos.
+// cliente usa: OpenAPI 3.x y las operaciones POST /proyectos y POST /vocabularios.
 export function validarContrato(texto: string): { contrato: string } | { error: string } {
   let json: { openapi?: unknown; paths?: Record<string, { post?: unknown }> };
   try {
@@ -23,7 +23,9 @@ export function validarContrato(texto: string): { contrato: string } | { error: 
   if (typeof json.openapi !== "string" || !json.openapi.startsWith("3.")) {
     return { error: "no es un contrato OpenAPI 3.x (falta el campo openapi)" };
   }
-  if (!json.paths?.["/proyectos"]?.post) return { error: "el contrato no tiene POST /proyectos" };
+  for (const ruta of ["/proyectos", "/vocabularios"]) {
+    if (!json.paths?.[ruta]?.post) return { error: `el contrato no tiene POST ${ruta}` };
+  }
   // Tal como llegó, sin re-serializar: JSON.parse ordena las claves numéricas ("413" antes que "401" pasa
   // a ser al revés) y el diff contra la copia anterior dejaría de ser el cambio real.
   return { contrato: texto.endsWith("\n") ? texto : texto + "\n" };

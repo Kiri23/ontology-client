@@ -5,9 +5,10 @@ import { JOBS } from "./jobs.ts";
 import { MOTOR } from "./motor.ts";
 import { PROYECTOS } from "./proyectos.ts";
 import { SPARQL } from "./sparql.ts";
+import { VOCABULARIOS } from "./vocabularios.ts";
 import type { Clase, Historia } from "./tipos.ts";
 
-export const CLASES: Clase[] = [JOBS, PROYECTOS, SPARQL, MOTOR, CLIENTE];
+export const CLASES: Clase[] = [JOBS, PROYECTOS, VOCABULARIOS, SPARQL, MOTOR, CLIENTE];
 
 export const HISTORIAS: Historia[] = CLASES.flatMap((c) => c.historias);
 

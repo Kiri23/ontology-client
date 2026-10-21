@@ -1,7 +1,7 @@
-// Tests de validarProyecto con un fetch falso: nunca tocan la red.
+// Tests de validarProyecto y validarVocabulario con un fetch falso: nunca tocan la red.
 
 import { assertEquals, assertStringIncludes } from "@std/assert";
-import { crearCliente, URL_PRODUCCION, validarProyecto } from "../mod.ts";
+import { crearCliente, URL_PRODUCCION, validarProyecto, validarVocabulario } from "../mod.ts";
 import { servidorMudo } from "./servidor-mudo.ts";
 import { atenderFalso, MARCA_NO_CONFORMA } from "./servidor-falso.ts";
 
@@ -27,6 +27,27 @@ Deno.test("200 conforma: manda la ficha cruda como text/turtle con el Bearer", a
   assertEquals(visto.pedido?.headers.get("Content-Type"), "text/turtle; charset=utf-8");
   assertEquals(visto.pedido?.headers.get("Authorization"), "Bearer secreto");
   assertEquals(visto.cuerpo, FICHA); // sin JSON.stringify: el bug que evita bodySerializer
+});
+
+const VOCABULARIO =
+  "@prefix skos: <http://www.w3.org/2004/02/skos/core#> .\n<https://kiri23.dev/vocabulario/p#v> a skos:ConceptScheme .\n";
+
+Deno.test("validarVocabulario: POST /vocabularios con el mismo Bearer y el mismo Resultado", async () => {
+  const { fetch, visto } = grabador(atenderFalso("secreto"));
+  const r = await validarVocabulario(VOCABULARIO, { token: "secreto", url: "http://falso/", fetch });
+  assertEquals(r, { ok: true, conforma: true, reporte: "Conforms: True" });
+  assertEquals(visto.pedido?.url, "http://falso/vocabularios");
+  assertEquals(visto.pedido?.headers.get("Content-Type"), "text/turtle; charset=utf-8");
+  assertEquals(visto.pedido?.headers.get("Authorization"), "Bearer secreto");
+  assertEquals(visto.cuerpo, VOCABULARIO);
+  const no = await validarVocabulario(VOCABULARIO + MARCA_NO_CONFORMA, {
+    token: "secreto",
+    url: "http://falso",
+    fetch,
+  });
+  assertEquals(no.ok && no.conforma, false);
+  const sinToken = await validarVocabulario(VOCABULARIO, { token: "otro", url: "http://falso", fetch });
+  assertEquals(sinToken, { ok: false, status: 401, error: "falta el token o no es el correcto" });
 });
 
 Deno.test("200 no conforma: es un resultado, no un error", async () => {

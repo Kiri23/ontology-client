@@ -1,11 +1,12 @@
-// @kiri23/ontology-client — el cliente HTTP de ontologyLearning: valida fichas proyecto.ttl y lee los
-// puestos de trabajo.
+// @kiri23/ontology-client — el cliente HTTP de ontologyLearning: valida proyecto.ttl y vocabulary.ttl y lee
+// los puestos de trabajo.
 //
 // Un módulo por clase de la ontología, no por endpoint, y la capa de abajo queda a la vista:
 //
 //   crearCliente(opciones)        el Client de openapi-fetch tipado con los paths del contrato
 //                                 (generado/api.ts). Es la librería tal cual: .POST, .GET, .use(middleware).
 //   validarProyecto(turtle, o)    POST /proyectos con la ficha, y la respuesta reducida a un Resultado.
+//   validarVocabulario(turtle, o) POST /vocabularios con el vocabulary.ttl: mismo token, mismo Resultado.
 //   jobs.get(filtros?, o?)        GET /jobs: los puestos como JobPost[] (jobs.ts).
 //   jobs.descartar(job, porque)   POST /jobs/descartar y POST /jobs/marcar-aplicado (jobs.marcarAplicado):
 //                                 las acciones sobre un puesto; devuelven el JobPost como queda.
@@ -28,8 +29,11 @@ export type { OpcionesSparql, RespuestaSparql } from "./sparql.ts";
 export { configurar, type Motor, motorHttp } from "./motor.ts";
 export type { FiltrosJobs, JobPost, OpcionesAcciones, OpcionesJobs, ReferenciaJob, Technology } from "./jobs.ts";
 
-/** Lo que responde POST /proyectos con 200, tal como lo declara el contrato. */
+/** Lo que responde POST /proyectos con 200, tal como lo declara el contrato (POST /vocabularios responde lo mismo). */
 export type Validacion = paths["/proyectos"]["post"]["responses"][200]["content"]["application/json"];
+
+/** Las dos puertas que validan un Turtle: la clase del archivo dice cuál. */
+export type RutaDeValidacion = "/proyectos" | "/vocabularios";
 
 /**
  * El resultado de validar una ficha. `ok: true` es que el servidor la validó: `conforma` dice si pasó
@@ -53,13 +57,25 @@ export interface OpcionesValidar {
   timeoutMs?: number;
 }
 
-/** Valida una ficha Turtle contra el servidor. Nunca tira: todo lo que pasa vuelve como {@link Resultado}. */
-export async function validarProyecto(turtle: string, opciones: OpcionesValidar): Promise<Resultado> {
+/** Valida una ficha proyecto.ttl contra el servidor (POST /proyectos). Nunca tira: todo vuelve como {@link Resultado}. */
+export function validarProyecto(turtle: string, opciones: OpcionesValidar): Promise<Resultado> {
+  return validar("/proyectos", turtle, opciones);
+}
+
+/**
+ * Valida un vocabulary.ttl contra el servidor (POST /vocabularios): las reglas de todo vocabulario SKOS más sus
+ * regex (k:patron, k:importa). Mismo token y mismo {@link Resultado} que {@link validarProyecto}. Nunca tira.
+ */
+export function validarVocabulario(turtle: string, opciones: OpcionesValidar): Promise<Resultado> {
+  return validar("/vocabularios", turtle, opciones);
+}
+
+async function validar(ruta: RutaDeValidacion, turtle: string, opciones: OpcionesValidar): Promise<Resultado> {
   try {
     const data = await pedir(
       opciones,
       (cliente, signal) =>
-        cliente.POST("/proyectos", {
+        cliente.POST(ruta, {
           body: turtle,
           // openapi-fetch serializa el body a JSON por default: la ficha saldría entre comillas.
           bodySerializer: (ficha: string) => ficha,

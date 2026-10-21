@@ -1,7 +1,12 @@
-// cli.ts — valida fichas proyecto.ttl contra el servidor de ontologyLearning.
+// cli.ts — valida proyecto.ttl y vocabulary.ttl contra el servidor de ontologyLearning.
 //
-//   deno run --allow-net --allow-read --allow-env cli.ts [--url URL] [--timeout S] archivo...
+//   deno run --allow-net --allow-read --allow-env cli.ts [--url URL] [--timeout S] [--vocabulario V]... archivo...
 //   deno run --allow-net --allow-read --allow-env jsr:@kiri23/ontology-client/cli archivo...
+//
+// Un archivo suelto es un proyecto.ttl (POST /proyectos); `--vocabulario X` es un vocabulary.ttl (POST
+// /vocabularios), tantas veces como haga falta. Es una bandera y no el nombre del archivo porque el servidor decide
+// qué es un .ttl por su contenido, no por cómo se llama (docs/vocabulary.ttl de este repo es una doc, no un
+// vocabulario SKOS): quien llama dice qué manda.
 //
 // URL: --url, o ONTOLOGY_URL, o https://ontology.kiri231.com. Token: ONTOLOGY_PROYECTOS_TOKEN, solo por
 // entorno (por flag quedaría en el historial y en la lista de procesos). Timeout por ficha: --timeout, o
@@ -15,11 +20,28 @@
 // sale neutralizado: no puede colar un workflow command en el log (ver neutralizarComandos).
 
 import { parseArgs } from "@std/cli/parse-args";
-import { type OpcionesValidar, TIMEOUT_MS, URL_PRODUCCION, validarProyecto } from "./mod.ts";
+import {
+  type OpcionesValidar,
+  type Resultado,
+  TIMEOUT_MS,
+  URL_PRODUCCION,
+  validarProyecto,
+  validarVocabulario,
+} from "./mod.ts";
 
-const USO = "Uso: deno run --allow-net --allow-read --allow-env cli.ts [--url URL] [--timeout S] archivo...\n" +
+const USO =
+  "Uso: deno run --allow-net --allow-read --allow-env cli.ts [--url URL] [--timeout S] [--vocabulario V]... archivo...\n" +
+  "  archivo: un proyecto.ttl. --vocabulario V: un vocabulary.ttl (repetible).\n" +
   "  URL: --url, ONTOLOGY_URL o " + URL_PRODUCCION + ". Token: ONTOLOGY_PROYECTOS_TOKEN.\n" +
-  `  Timeout por ficha en segundos: --timeout u ONTOLOGY_TIMEOUT (default ${TIMEOUT_MS / 1000}).`;
+  `  Timeout por archivo en segundos: --timeout u ONTOLOGY_TIMEOUT (default ${TIMEOUT_MS / 1000}).`;
+
+// Qué es cada archivo: a qué puerta va, cómo se anota cuando no conforma.
+interface Clase {
+  validar: (turtle: string, opciones: OpcionesValidar) => Promise<Resultado>;
+  noConforma: string;
+}
+const PROYECTO: Clase = { validar: validarProyecto, noConforma: "La ficha no conforma" };
+const VOCABULARIO: Clase = { validar: validarVocabulario, noConforma: "El vocabulario no conforma" };
 
 // Lo que el CLI toca del mundo: los tests pasan uno en memoria.
 export interface Entorno {
@@ -85,7 +107,8 @@ export async function correr(args: string[], entorno: Entorno): Promise<number> 
 
   let desconocido = "";
   const o = parseArgs(args, {
-    string: ["url", "timeout"],
+    string: ["url", "timeout", "vocabulario"],
+    collect: ["vocabulario"],
     boolean: ["help"],
     alias: { h: "help" },
     unknown: (arg) => {
@@ -105,7 +128,11 @@ export async function correr(args: string[], entorno: Entorno): Promise<number> 
     return 2;
   }
   // Sin los vacíos: `--url ""` deja el "" también entre los posicionales (parseArgs), y no es un archivo.
-  const archivos = o._.map(String).filter((a) => a !== "");
+  // Primero los proyectos, en su orden; después los vocabularios, en el suyo.
+  const archivos: [string, Clase][] = [
+    ...o._.map(String).filter((a) => a !== "").map((a): [string, Clase] => [a, PROYECTO]),
+    ...o.vocabulario.filter((v) => v !== "").map((v): [string, Clase] => [v, VOCABULARIO]),
+  ];
   if (archivos.length === 0) {
     err(`Falta al menos un archivo.\n${USO}`);
     return 2;
@@ -139,7 +166,7 @@ export async function correr(args: string[], entorno: Entorno): Promise<number> 
 
   let noConforman = 0;
   let errores = 0;
-  for (const [i, archivo] of archivos.entries()) {
+  for (const [i, [archivo, clase]] of archivos.entries()) {
     let turtle: string;
     try {
       turtle = await entorno.leer(archivo);
@@ -149,13 +176,13 @@ export async function correr(args: string[], entorno: Entorno): Promise<number> 
       anotar(archivo, "No se pudo leer", (e as Error).message);
       continue;
     }
-    const r = await validarProyecto(turtle, { url, token, fetch: entorno.fetch, timeoutMs: timeoutS * 1000 });
+    const r = await clase.validar(turtle, { url, token, fetch: entorno.fetch, timeoutMs: timeoutS * 1000 });
     if (r.ok && r.conforma) {
       out(`✓ ${archivo} conforma`);
     } else if (r.ok) {
       noConforman++;
       out(`✗ ${archivo} no conforma\n${sangrar(r.reporte)}`);
-      anotar(archivo, "La ficha no conforma", r.reporte);
+      anotar(archivo, clase.noConforma, r.reporte);
     } else {
       errores++;
       const http = r.status === null ? "sin respuesta" : `HTTP ${r.status}`;
@@ -164,8 +191,8 @@ export async function correr(args: string[], entorno: Entorno): Promise<number> 
       anotar(archivo, `No se pudo validar (${http})`, mensaje);
       if (esDelServidor(r.status)) {
         const resto = archivos.length - i - 1;
-        if (resto === 1) err("Corto acá: la ficha que falta fallaría igual.");
-        if (resto > 1) err(`Corto acá: las ${resto} fichas que faltan fallarían igual.`);
+        if (resto === 1) err("Corto acá: el archivo que falta fallaría igual.");
+        if (resto > 1) err(`Corto acá: los ${resto} archivos que faltan fallarían igual.`);
         break;
       }
     }

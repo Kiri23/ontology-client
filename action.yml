@@ -1,7 +1,8 @@
-name: Validar fichas proyecto.ttl
+name: Validar proyecto.ttl y vocabulary.ttl
 description: >
-  Valida las fichas proyecto.ttl del repo contra el servidor de ontologyLearning (POST /proyectos) y
-  anota en el PR las que no conforman. El motor y las reglas son privados: viaja la ficha, vuelve el reporte.
+  Valida las fichas proyecto.ttl del repo contra el servidor de ontologyLearning (POST /proyectos), y los
+  vocabulary.ttl que se le pasan (POST /vocabularios), y anota en el PR los que no conforman. El motor y las
+  reglas son privados: viaja el archivo, vuelve el reporte.
 author: Kiri23
 branding:
   icon: check-circle
@@ -15,12 +16,20 @@ inputs:
       hay ninguno, sale 0 con un aviso.
     required: false
     default: ""
+  vocabularios:
+    description: >
+      Vocabularios (vocabulary.ttl) a validar contra POST /vocabularios: rutas o globs separados por espacios o
+      saltos de línea. Vacío: ninguno. No se buscan solos como las fichas: un archivo llamado vocabulary.ttl no
+      es siempre un vocabulario SKOS (docs/vocabulary.ttl de ontology-client es una doc), y el servidor decide
+      qué es un .ttl por su contenido.
+    required: false
+    default: ""
   url:
     description: La URL base del servidor.
     required: false
     default: https://ontology.kiri231.com
   token:
-    description: El token del servidor (secreto ONTOLOGY_PROYECTOS_TOKEN). Sin token, el paso falla.
+    description: El token del servidor (secreto ONTOLOGY_PROYECTOS_TOKEN), el mismo para las dos puertas. Sin token, el paso falla.
     required: true
   timeout:
     description: Segundos de espera por ficha antes de dar el servidor por caído (exit 2).
@@ -35,11 +44,12 @@ runs:
       with:
         deno-version: v2.9.5
 
-    - name: Validar fichas
+    - name: Validar fichas y vocabularios
       shell: bash
       env:
         # Los inputs van por env y nunca interpolados en el script: así no se puede inyectar shell.
         ARCHIVOS: ${{ inputs.archivos }}
+        VOCABULARIOS: ${{ inputs.vocabularios }}
         ONTOLOGY_URL: ${{ inputs.url }}
         ONTOLOGY_PROYECTOS_TOKEN: ${{ inputs.token }}
         ONTOLOGY_TIMEOUT: ${{ inputs.timeout }}
@@ -63,11 +73,15 @@ runs:
           mapfile -d '' -t fichas <"$lista"
           rm -f "$lista"
         fi
-        if [ "${#fichas[@]}" -eq 0 ]; then
-          echo "::notice title=Sin fichas::No hay archivos proyecto.ttl en el repo: nada que validar."
+        # Cada vocabulario va con su --vocabulario: el CLI lo manda a POST /vocabularios. Sin comillas, como arriba.
+        shopt -s globstar
+        vocabularios=()
+        for v in $VOCABULARIOS; do vocabularios+=(--vocabulario "$v"); done
+        if [ "${#fichas[@]}" -eq 0 ] && [ "${#vocabularios[@]}" -eq 0 ]; then
+          echo "::notice title=Sin fichas::No hay archivos proyecto.ttl en el repo ni vocabularios pedidos: nada que validar."
           exit 0
         fi
         # --config: el deno.json de la action, no el del repo que la usa (si tiene uno).
         deno run --allow-net --allow-read --allow-env=ONTOLOGY_URL,ONTOLOGY_PROYECTOS_TOKEN,ONTOLOGY_TIMEOUT,GITHUB_ACTIONS \
           --config "$GITHUB_ACTION_PATH/deno.json" --frozen \
-          "$GITHUB_ACTION_PATH/cli.ts" "${fichas[@]}"
+          "$GITHUB_ACTION_PATH/cli.ts" "${vocabularios[@]}" "${fichas[@]}"

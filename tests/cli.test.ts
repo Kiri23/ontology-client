@@ -76,7 +76,7 @@ Deno.test("exit 2: token malo, y corta en la primera ficha", async () => {
   assertEquals(await correr(["a.ttl", "b.ttl"], e), 2);
   assertStringIncludes(err.join("\n"), "HTTP 401");
   assertStringIncludes(err.join("\n"), "Revisá ONTOLOGY_PROYECTOS_TOKEN");
-  assertStringIncludes(err.join("\n"), "Corto acá: la ficha que falta fallaría igual.");
+  assertStringIncludes(err.join("\n"), "Corto acá: el archivo que falta fallaría igual.");
 });
 
 Deno.test("exit 2: sin token, mensaje claro y sin tocar la red", async () => {
@@ -84,6 +84,44 @@ Deno.test("exit 2: sin token, mensaje claro y sin tocar la red", async () => {
   e.fetch = () => Promise.reject(new Error("no debería llamar"));
   assertEquals(await correr(["a.ttl"], e), 2);
   assertStringIncludes(err[0], "Falta ONTOLOGY_PROYECTOS_TOKEN");
+});
+
+// ── --vocabulario ──
+
+Deno.test("--vocabulario va a POST /vocabularios y lo suelto a POST /proyectos, en ese orden", async () => {
+  const { e, out } = entorno({ archivos: { "v.ttl": CONFORME, "p.ttl": CONFORME } });
+  const rutas: string[] = [];
+  const atender = atenderFalso("secreto");
+  e.fetch = (pedido: Request) => {
+    rutas.push(new URL(pedido.url).pathname);
+    return atender(pedido);
+  };
+  assertEquals(await correr(["--vocabulario", "v.ttl", "p.ttl"], e), 0);
+  assertEquals(rutas, ["/proyectos", "/vocabularios"]);
+  assertEquals(out, ["✓ p.ttl conforma", "✓ v.ttl conforma"]);
+});
+
+Deno.test("--vocabulario se repite, y solo vocabularios también vale", async () => {
+  const { e, out } = entorno({ archivos: { "a.ttl": CONFORME, "b.ttl": NO_CONFORME } });
+  assertEquals(await correr(["--vocabulario", "a.ttl", "--vocabulario", "b.ttl"], e), 1);
+  assertStringIncludes(out.join("\n"), "✗ b.ttl no conforma");
+});
+
+Deno.test("en Actions, un vocabulario que no conforma se anota como vocabulario", async () => {
+  const { e, out } = entorno({ env: { GITHUB_ACTIONS: "true" }, archivos: { "x/vocabulary.ttl": NO_CONFORME } });
+  assertEquals(await correr(["--vocabulario", "x/vocabulary.ttl"], e), 1);
+  assertEquals(
+    out.find((l) => l.startsWith("::error "))?.startsWith(
+      "::error file=x/vocabulary.ttl,title=El vocabulario no conforma::",
+    ),
+    true,
+  );
+});
+
+Deno.test('--vocabulario "" no es un archivo', async () => {
+  const { e } = entorno({ archivos: { "a.ttl": CONFORME } });
+  assertEquals(await correr(["--vocabulario", "", "a.ttl"], e), 0);
+  assertEquals(await correr(["--vocabulario", ""], e), 2);
 });
 
 Deno.test("exit 2: sin archivos, o archivo que no existe", async () => {

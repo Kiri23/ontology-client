@@ -2,7 +2,7 @@ name: CI
 
 # Tres jobs: `calidad` revisa el código (formato, lint, tipos, tests, generado/ al día con el contrato,
 # docs/vocabulary/ al día con su TTL, publish en seco); `action` prueba la action (`uses: ./`) contra el servidor
-# falso de tests/ con rutas y globs; `descubrimiento` prueba lo que hace sin el input archivos: sin repo git, con
+# falso de tests/ con rutas y globs, fichas y vocabularios; `descubrimiento` prueba lo que hace sin el input archivos: sin repo git, con
 # un repo sin fichas y con nombres parecidos a proyecto.ttl y rutas no ASCII.
 on:
   push:
@@ -97,6 +97,32 @@ jobs:
           url: http://127.0.0.1:8787
           token: prueba
 
+      - name: Vocabulario conforme, con una ficha (tiene que pasar)
+        uses: ./
+        with:
+          archivos: tests/fichas/conforme/proyecto.ttl
+          vocabularios: tests/vocabularios/conforme/vocabulary.ttl
+          url: http://127.0.0.1:8787
+          token: prueba
+
+      - name: Solo vocabularios, con glob (tiene que pasar)
+        uses: ./
+        with:
+          archivos: tests/fichas/conforme/proyecto.ttl
+          vocabularios: tests/vocabularios/conf*/vocabulary.ttl
+          url: http://127.0.0.1:8787
+          token: prueba
+
+      - name: Vocabulario no conforme (tiene que fallar)
+        id: vocabulario_no_conforme
+        continue-on-error: true
+        uses: ./
+        with:
+          archivos: tests/fichas/conforme/proyecto.ttl
+          vocabularios: tests/vocabularios/no-conforme/vocabulary.ttl
+          url: http://127.0.0.1:8787
+          token: prueba
+
       - name: Ficha no conforme (tiene que fallar)
         id: no_conforme
         continue-on-error: true
@@ -128,11 +154,12 @@ jobs:
         env:
           GLOB_TODAS: ${{ steps.glob_todas.outcome }}
           NO_CONFORME: ${{ steps.no_conforme.outcome }}
+          VOCABULARIO_NO_CONFORME: ${{ steps.vocabulario_no_conforme.outcome }}
           TOKEN_MALO: ${{ steps.token_malo.outcome }}
           POR_DEFECTO: ${{ steps.por_defecto.outcome }}
         run: |
           fallo=0
-          for caso in GLOB_TODAS NO_CONFORME TOKEN_MALO POR_DEFECTO; do
+          for caso in GLOB_TODAS NO_CONFORME VOCABULARIO_NO_CONFORME TOKEN_MALO POR_DEFECTO; do
             if [ "${!caso}" != "failure" ]; then
               echo "::error::$caso terminó en ${!caso}, se esperaba failure"
               fallo=1
