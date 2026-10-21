@@ -63,7 +63,10 @@ function VistaHistoria({ ruta, navegar, url, fetch }: {
 export function App({ url = globalThis.location.origin, fetch }: Props) {
   const [rutaDelHash, navegar] = useRuta();
   // `#porque`: el fragmento de un IRI. Se lee como la Ontología en ese término y el hash se reescribe limpio.
-  const fragmento = !buscarHistoria(rutaDelHash.id) && esFragmentoDeIri(rutaDelHash.id) ? rutaDelHash.id : "";
+  const fragmento = !buscarHistoria(rutaDelHash.id) && !esRutaDeGrafo(rutaDelHash.id) &&
+      !esRutaDeOntologia(rutaDelHash.id) && esFragmentoDeIri(rutaDelHash.id)
+    ? rutaDelHash.id
+    : "";
   const ruta: Ruta = fragmento ? { id: PREFIJO_ONTOLOGIA, valores: { termino: fragmento } } : rutaDelHash;
   useEffect(() => {
     if (fragmento) navegar(ruta, "reemplazo");
