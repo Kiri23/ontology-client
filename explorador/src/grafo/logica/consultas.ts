@@ -35,11 +35,11 @@ ORDER BY DESC(?usos) ?accion`),
     sparql: conPrefijos(`SELECT ?proyecto ?accion ?usan ?otros WHERE {
   { SELECT (COUNT(DISTINCT ?x) AS ?total) WHERE { ?x a doap:Project ; ontologia:tieneWorkflow ?w . } }
   { SELECT ?accion (COUNT(DISTINCT ?q) AS ?usan) WHERE {
-      ?q a doap:Project ; ontologia:tieneWorkflow/k:tieneUso/k:accion ?accion .
+      ?q a doap:Project ; ontologia:tieneWorkflow/ontologia:tieneUso/ontologia:accion ?accion .
     } GROUP BY ?accion }
   ?proyecto a doap:Project .
   FILTER EXISTS { ?proyecto ontologia:tieneWorkflow ?algun . }
-  FILTER NOT EXISTS { ?proyecto ontologia:tieneWorkflow/k:tieneUso/k:accion ?accion . }
+  FILTER NOT EXISTS { ?proyecto ontologia:tieneWorkflow/ontologia:tieneUso/ontologia:accion ?accion . }
   BIND(?total - 1 AS ?otros)
   FILTER(2 * ?usan >= ?otros)
 }
@@ -60,7 +60,7 @@ ORDER BY DESC(?puestos) ?tecnologia`),
     nombre: "Acciones por proyecto",
     pregunta: "Qué acción usa cada proyecto, siguiendo workflow → uso → acción (un property path).",
     sparql: conPrefijos(`SELECT DISTINCT ?proyecto ?accion WHERE {
-  ?proyecto ontologia:tieneWorkflow/k:tieneUso/k:accion ?accion .
+  ?proyecto ontologia:tieneWorkflow/ontologia:tieneUso/ontologia:accion ?accion .
 }
 ORDER BY ?proyecto ?accion`),
   },

@@ -41,7 +41,7 @@ export function nombreCorto(iri: string): string {
   return partes.at(-1) ?? iri;
 }
 
-/** Las líneas `PREFIX` de los prefijos que el texto usa (`k:`, `doap:`…), en el orden de {@link PREFIJOS}. */
+/** Las líneas `PREFIX` de los prefijos que el texto usa (`ontologia:`, `doap:`…), en el orden de {@link PREFIJOS}. */
 export function declaraciones(texto: string): string {
   return Object.entries(PREFIJOS)
     .filter(([p]) => new RegExp(`(^|[\\s(/^|{.;,])${p}:`).test(texto))

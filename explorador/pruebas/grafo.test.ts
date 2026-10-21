@@ -178,7 +178,7 @@ describe("validador", () => {
     expect(rechazo(`PREFIX ontologia: <${PREFIJOS.ontologia}>\nSELECT ?s WHERE { ?s ontologia:salario ?x }`)).toMatch(
       /^La propiedad ontologia:salario no existe en el grafo/,
     );
-    expect(rechazo(`${K_}SELECT ?s WHERE { ?s ontologia:tieneWorkflow/k:tieneUzo ?u }`)).toBe(
+    expect(rechazo(`${K_}SELECT ?s WHERE { ?s ontologia:tieneWorkflow/ontologia:tieneUzo ?u }`)).toBe(
       "La propiedad ontologia:tieneUzo no existe en el grafo; parecida: ontologia:tieneUso.",
     );
   });
