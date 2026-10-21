@@ -87,6 +87,7 @@ describe("doc-sdk", () => {
       "motorHttp.jobs.get",
       "sparql.consultar",
       "validarProyecto",
+      "validarVocabulario",
     ]);
     expect(doc["jobs.get"].archivo).toBe("jobs.ts");
     expect(doc["jobs.get"].descripcion).toContain("Los puestos, lo más nuevo primero");
