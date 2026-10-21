@@ -1,0 +1,191 @@
+/* ---- la vista Ontología: una sección por clase, en el papel de las fichas ---- */
+
+.ontologia {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 1.25rem;
+  min-width: 0;
+}
+
+.ontologia-cabecera h1 {
+  margin: 0 0 0.4rem;
+  font: 600 clamp(1.9rem, 1.4rem + 2.2vw, 3rem)/1.05 var(--f-prosa);
+  letter-spacing: -0.025em;
+}
+
+.ontologia-bajada,
+.ontologia-foco,
+.ontologia-aviso {
+  margin: 0;
+  color: var(--tinta-suave);
+  font-size: 0.95rem;
+}
+
+.ontologia-foco {
+  margin-top: 0.5rem;
+  color: var(--tinta);
+}
+
+.ontologia-indice {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem 0.6rem;
+  font: 500 0.85rem var(--f-ui);
+}
+
+.ontologia-indice a[aria-current] {
+  text-decoration: none;
+  border-bottom: 2px solid var(--azul);
+}
+
+.ontologia-clase {
+  padding: 1rem 1.1rem;
+  background: var(--papel-ficha);
+  border: 1px solid var(--regla);
+  border-radius: 0.6rem;
+  scroll-margin-top: 4rem;
+}
+
+.ontologia-clase[aria-current] {
+  border-color: var(--azul);
+}
+
+.ontologia-clase-titulo {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.3rem 0.7rem;
+  margin: 0 0 0.4rem;
+  font: 600 1.25rem var(--f-prosa);
+}
+
+.ontologia-clase-titulo small {
+  font: 500 0.78rem var(--f-mono);
+  color: var(--tinta-suave);
+}
+
+.ontologia-prestada {
+  font-family: var(--f-ui);
+}
+
+.ontologia-comentario {
+  margin: 0 0 0.6rem;
+  font: 0.92rem/1.45 var(--f-prosa);
+  color: var(--tinta-suave);
+}
+
+.ontologia-propiedades {
+  width: 100%;
+  margin: 0.4rem 0 0.6rem;
+  border-collapse: collapse;
+  font-size: 0.88rem;
+}
+
+.ontologia-propiedades th,
+.ontologia-propiedades td {
+  padding: 0.35rem 0.5rem 0.35rem 0;
+  text-align: left;
+  vertical-align: top;
+  border-bottom: 1px solid var(--regla);
+}
+
+.ontologia-propiedades thead th {
+  font: 500 0.72rem var(--f-ui);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--tinta-suave);
+}
+
+.ontologia-propiedades tbody th {
+  font-weight: 500;
+}
+
+.ontologia-propiedades td.ontologia-comentario {
+  margin: 0;
+}
+
+.ontologia-propiedades tr[data-foco],
+.ontologia-otros div[data-foco] {
+  background: var(--renglon);
+}
+
+.ontologia-termino {
+  scroll-margin-top: 4rem;
+}
+
+.ontologia-termino[aria-current] {
+  outline: 2px solid var(--azul);
+  outline-offset: 2px;
+  border-radius: 0.2rem;
+}
+
+.ontologia-sin-rango {
+  font: italic 0.85rem var(--f-prosa);
+  color: var(--tinta-suave);
+}
+
+.ontologia-cortos {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.3rem 0.5rem;
+  margin: 0.3rem 0;
+  font-size: 0.88rem;
+}
+
+.ontologia-etiqueta {
+  font: 500 0.72rem var(--f-ui);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--tinta-suave);
+}
+
+.ontologia-otros {
+  margin: 0.4rem 0 0;
+  font-size: 0.88rem;
+}
+
+.ontologia-otros div {
+  padding: 0.35rem 0;
+  border-bottom: 1px solid var(--regla);
+}
+
+.ontologia-otros dt {
+  display: flex;
+  gap: 0.5rem;
+  align-items: baseline;
+}
+
+.ontologia-otros dt small {
+  color: var(--tinta-suave);
+}
+
+.ontologia-otros dd {
+  margin: 0.15rem 0 0;
+}
+
+@media (max-width: 40rem) {
+  .ontologia-propiedades,
+  .ontologia-propiedades thead,
+  .ontologia-propiedades tbody,
+  .ontologia-propiedades tr,
+  .ontologia-propiedades th,
+  .ontologia-propiedades td {
+    display: block;
+  }
+
+  .ontologia-propiedades thead {
+    display: none;
+  }
+
+  .ontologia-propiedades tr {
+    padding: 0.4rem 0;
+    border-bottom: 1px solid var(--regla);
+  }
+
+  .ontologia-propiedades th,
+  .ontologia-propiedades td {
+    padding: 0.1rem 0;
+    border: 0;
+  }
+}

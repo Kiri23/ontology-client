@@ -46,7 +46,7 @@
 	@preview-api {
 		expression `{env.API_UPSTREAM} != ""`
 		method GET
-		path /sparql /sparql/* /jobs /jobs/* /proyectos /preguntar /reportes/* /openapi.json
+		path /sparql /sparql/* /jobs /jobs/* /proyectos /preguntar /reportes/* /ontologia /openapi.json
 	}
 	@preview-ai {
 		expression `{env.API_UPSTREAM} != ""`

@@ -30,6 +30,7 @@ explorador/
   src/componentes/ Barra, PanelHistoria, Controles, CampoToken, Respuesta, Tabla, Json, Prosa
   src/logica/      the hash route and the table cells, no React
   src/grafo/       the Graph view (see below): VistaGrafo, motor.ts, vistas/, componentes/, hooks/ and logica/ (no React)
+  src/ontologia/   the Ontology view (see below): VistaOntologia, hooks/useOntologia, logica/arbol.ts (no React)
   src/estilos/     one CSS file per section (base, barra, panel, ficha, recibo, tabla, grafo); each component imports its own
   vite/doc-sdk.ts  Vite plugin: each function's JSDoc and signature, read from the SDK's code
   pruebas/         vitest: stories, hooks and panel with a fake fetch; grafo.test.ts with datos/grafo.ttl (no network)
@@ -104,6 +105,17 @@ with AI, below) goes through here before it runs.
 not JS `eval`, and the WASM is our own asset with a hash. Cytoscape wants to inject a `<style>`, which
 `style-src 'self'` blocks: `Lienzo.tsx` takes its id first with a `<meta>`, and its only rule (`position: relative`)
 lives in `grafo.css`.
+
+## Ontology
+
+`#/ontologia` shows what `https://kiri231.com/ontologia#` defines, by class: one section per class with its properties
+(range and comment), its shape and its actions, and at the end what hangs from no class. It is `GET /ontologia` rendered
+(the server builds it from `domain/*.ttl`): there is no list in the page. `#/ontologia?termino=porque` opens the page on
+that term, whatever it is (a class, a property, a shape, an action), and says whose it is.
+
+The name of a term is its IRI, `https://kiri231.com/ontologia#porque`. `kiri231.com/ontologia` redirects to this page
+and the browser keeps the `#porque`; a hash without a slash that is no story is read as that fragment and rewritten to
+`#/ontologia?termino=porque` (`App.tsx`). The PR preview proxies `GET /ontologia` to production like the other reads.
 
 ## Explore with AI
 
