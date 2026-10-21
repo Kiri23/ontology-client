@@ -15,7 +15,7 @@ export interface Conocidas {
   propiedades: Set<string>;
 }
 
-// Las usadas y también las declaradas en el esquema: j:porque es una rdf:Property aunque ningún puesto la tenga todavía.
+// Las usadas y también las declaradas en el esquema: ontologia:porque es una rdf:Property aunque ningún puesto la tenga todavía.
 export const CONSULTA_CLASES = `SELECT DISTINCT ?c WHERE { { ?s a ?c } UNION { ?c a <${PREFIJOS.rdfs}Class> } }`;
 export const CONSULTA_PROPIEDADES =
   `SELECT DISTINCT ?p WHERE { { ?s ?p ?o } UNION { ?p a <${PREFIJOS.rdf}Property> } }`;

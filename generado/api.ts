@@ -30,7 +30,7 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * Los puestos como JobPost[]: cada uno con la forma de j:JobPostShape, el schema JobPost del contrato.
+         * Los puestos como JobPost[]: cada uno con la forma de ontologia:JobPostShape, el schema JobPost del contrato.
          * @description GET /jobs. Filtra por tecnologia como consultas/jobs.rq (prefLabel o altLabel, sin mayúsculas) y por
          *     fuente contra el campo fuente del puesto (igual, sin mayúsculas: remotive, hn). El orden es el del
          *     .rq: lo más nuevo primero. Para traer puestos nuevos, POST /jobs (las dos fuentes).
@@ -83,7 +83,7 @@ export interface paths {
         put?: never;
         /**
          * Descarta un puesto: no me interesa, y digo por qué.
-         * @description La acción https://kiri23.dev/jobs#Descartar (dash:ModifyAction): la declara domain/, la corre core/acciones.py.
+         * @description La acción https://kiri231.com/jobs/Descartar (dash:ModifyAction): la declara domain/, la corre core/acciones.py.
          */
         post: operations["jobs_descartar"];
         delete?: never;
@@ -103,7 +103,7 @@ export interface paths {
         put?: never;
         /**
          * Marca que apliqué a un puesto. Uno descartado también se puede marcar.
-         * @description La acción https://kiri23.dev/jobs#MarcarAplicado (dash:ModifyAction): la declara domain/, la corre core/acciones.py.
+         * @description La acción https://kiri231.com/jobs/MarcarAplicado (dash:ModifyAction): la declara domain/, la corre core/acciones.py.
          */
         post: operations["jobs_marcar_aplicado"];
         delete?: never;

@@ -7,7 +7,7 @@ import { URL_PRODUCCION } from "../mod.ts";
 import { servidorMudo } from "./servidor-mudo.ts";
 import { atenderFalso, MARCA_NO_CONFORMA, servidorFalso } from "./servidor-falso.ts";
 
-const CONFORME = "@prefix k: <https://kiri23.dev/catalogo#> .\nk:x a k:Proyecto .\n";
+const CONFORME = "@prefix k: <https://kiri231.com/ontologia#> .\nk:x a ontologia:Proyecto .\n";
 const NO_CONFORME = CONFORME + MARCA_NO_CONFORMA + "\n";
 
 // ── escapado ──
@@ -183,7 +183,7 @@ Deno.test("neutralizarComandos: solo toca las líneas que el runner ejecutaría"
   assertEquals(neutralizarComandos("  ::warning::x"), "  \u200b::warning::x");
   assertEquals(neutralizarComandos("a\r::add-mask::b"), "a\n\u200b::add-mask::b");
   assertEquals(neutralizarComandos("\u0085\t::stop-commands::t"), "\u0085\t\u200b::stop-commands::t");
-  assertEquals(neutralizarComandos("Result Path: k:x :: nada"), "Result Path: k:x :: nada");
+  assertEquals(neutralizarComandos("Result Path: ontologia:x :: nada"), "Result Path: ontologia:x :: nada");
 });
 
 Deno.test("en Actions, un reporte con ::comandos no inyecta nada; solo sale nuestra anotación", async () => {

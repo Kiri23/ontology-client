@@ -23,7 +23,7 @@ try {
   const info = await driver.getServerInfo();
   console.log(`conectado a ${info.address} (${info.agent})\n`);
 
-  // 2. Cypher a mano: cuántos nodos hay de cada clase. Las clases RDF son labels acortados (j:JobPost → j__JobPost).
+  // 2. Cypher a mano: cuántos nodos hay de cada clase. Las clases RDF son labels acortados (ontologia:JobPost → j__JobPost).
   const { records: clases } = await driver.executeQuery(
     `MATCH (n) UNWIND labels(n) AS clase WITH clase, count(*) AS n WHERE clase <> 'Resource' AND NOT clase STARTS WITH '_'
      RETURN clase, n ORDER BY n DESC LIMIT 8`,
@@ -33,9 +33,9 @@ try {
   console.log("nodos por clase:");
   for (const r of clases) console.log(`  ${String(r.get("n")).padStart(4)}  ${r.get("clase")}`);
 
-  // 3. Un puesto con las tecnologías que pide: un triple j:pide es una arista.
+  // 3. Un puesto con las tecnologías que pide: un triple ontologia:pide es una arista.
   const { records: [puesto] } = await driver.executeQuery(
-    `MATCH (p:j__JobPost)-[:j__pide]->(t:t__Technology)
+    `MATCH (p:j__JobPost)-[:j__pide]->(tecnologia:t__Technology)
      RETURN p.rdfs__label[0] AS titulo, collect(t.skos__prefLabel[0]) AS pide LIMIT 1`,
     {},
     { routing: neo4j.routing.READ },

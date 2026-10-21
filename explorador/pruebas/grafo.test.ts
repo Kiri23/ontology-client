@@ -37,13 +37,13 @@ const conocidas = () => ({
 
 describe("prefijos", () => {
   it("compacta con prefijo y deja entera la IRI que no tiene", () => {
-    expect(compacto(K + "Action")).toBe("k:Action");
+    expect(compacto(K + "Action")).toBe("ontologia:Action");
     expect(compacto(CHECKOUT)).toBe(`<${CHECKOUT}>`);
   });
   it("un nombre corto que se lee", () => {
     expect(nombreCorto(CHECKOUT)).toBe("actions/checkout");
     expect(nombreCorto("https://github.com/Kiri23/TermuxConfig#.github/actions/pm-actividad")).toBe("pm-actividad");
-    expect(nombreCorto("https://kiri23.dev/repos/workflow/JobSearch.kiri-pm")).toBe("JobSearch.kiri-pm");
+    expect(nombreCorto("https://kiri231.com/repos/workflow/JobSearch.kiri-pm")).toBe("JobSearch.kiri-pm");
   });
 });
 
@@ -52,12 +52,12 @@ describe("modelo", () => {
     expect(store.size).toBe(1279);
     expect(modelo.nodos.size).toBe(235);
     expect(conteoPorClase(modelo).map(({ clase, n }) => `${compacto(clase)} ${n}`)).toEqual([
-      "j:JobPost 131",
-      "k:Uso 43",
-      "k:Workflow 21",
+      "ontologia:JobPost 131",
+      "ontologia:Uso 43",
+      "ontologia:Workflow 21",
       "doap:Project 15",
-      "t:Technology 15",
-      "k:Action 10",
+      "ontologia:Technology 15",
+      "ontologia:Action 10",
     ]);
     expect(modelo.aristas.some((a) => a.predicado.endsWith("#type"))).toBe(false);
   });
@@ -71,15 +71,15 @@ describe("modelo", () => {
     expect([repos.length, jobs.length, resto.length]).toEqual([89, 74, 72]);
     const clases = (isla: string[]) => new Set(isla.map((i) => compacto(modelo.nodos.get(i)!.clase)));
     expect(resto.every((isla) => isla.length === 1)).toBe(true);
-    expect(clases(jobs)).toEqual(new Set(["j:JobPost", "t:Technology"]));
-    expect(clases(repos)).toEqual(new Set(["k:Uso", "k:Workflow", "doap:Project", "k:Action"]));
+    expect(clases(jobs)).toEqual(new Set(["ontologia:JobPost", "ontologia:Technology"]));
+    expect(clases(repos)).toEqual(new Set(["ontologia:Uso", "ontologia:Workflow", "doap:Project", "ontologia:Action"]));
   });
 });
 
 describe("stepper", () => {
   it("las relaciones de una acción, agrupadas y en las dos direcciones", () => {
     const r = relacionesDe(modelo, CHECKOUT).map((x) => `${x.direccion} ${compacto(x.predicado)} ${x.vecinos.length}`);
-    expect(r).toEqual(["sale k:alojadaEn 1", "entra k:accion 14", "entra k:ejecutaEnCI 6"]);
+    expect(r).toEqual(["sale ontologia:alojadaEn 1", "entra ontologia:accion 14", "entra ontologia:ejecutaEnCI 6"]);
   });
   it("cada salto agrega sus vecinos, y los saltos van y vuelven por la URL", () => {
     const saltos: Salto[] = [{ desde: CHECKOUT, predicado: K + "ejecutaEnCI", direccion: "entra" }];
@@ -168,30 +168,37 @@ describe("validador", () => {
     expect(rechazo("INSERT DATA { <urn:a> <urn:b> <urn:c> }")).toMatch(/cambia datos/);
     expect(rechazo("LOAD <http://x>")).toMatch(/cambia datos/);
     expect(rechazo("DESCRIBE <urn:x>")).toMatch(/^DESCRIBE no se corre/);
-    expect(rechazo(`${K_}SELECT * WHERE { SERVICE <http://x> { ?s k:accion ?o } }`)).toMatch(/^SERVICE/);
-    expect(rechazo(`${K_}SELECT * FROM <urn:g> WHERE { ?s k:accion ?o }`)).toMatch(/^FROM/);
+    expect(rechazo(`${K_}SELECT * WHERE { SERVICE <http://x> { ?s ontologia:accion ?o } }`)).toMatch(/^SERVICE/);
+    expect(rechazo(`${K_}SELECT * FROM <urn:g> WHERE { ?s ontologia:accion ?o }`)).toMatch(/^FROM/);
   });
   it("una clase o una propiedad que no existen, con la parecida", () => {
-    expect(rechazo(`${K_}SELECT ?a WHERE { ?a a k:Accion }`)).toBe(
-      "La clase k:Accion no existe en el grafo; parecida: k:Action.",
+    expect(rechazo(`${K_}SELECT ?a WHERE { ?a a ontologia:Accion }`)).toBe(
+      "La clase ontologia:Accion no existe en el grafo; parecida: ontologia:Action.",
     );
-    expect(rechazo(`PREFIX j: <${PREFIJOS.j}>\nSELECT ?s WHERE { ?s j:salario ?x }`)).toMatch(
-      /^La propiedad j:salario no existe en el grafo/,
+    expect(rechazo(`PREFIX j: <${PREFIJOS.j}>\nSELECT ?s WHERE { ?s ontologia:salario ?x }`)).toMatch(
+      /^La propiedad ontologia:salario no existe en el grafo/,
     );
-    expect(rechazo(`${K_}SELECT ?s WHERE { ?s k:tieneWorkflow/k:tieneUzo ?u }`)).toBe(
-      "La propiedad k:tieneUzo no existe en el grafo; parecida: k:tieneUso.",
+    expect(rechazo(`${K_}SELECT ?s WHERE { ?s ontologia:tieneWorkflow/k:tieneUzo ?u }`)).toBe(
+      "La propiedad ontologia:tieneUzo no existe en el grafo; parecida: ontologia:tieneUso.",
     );
   });
   it("lo que no parsea, y el prefijo sin declarar con la línea que falta", () => {
     expect(rechazo("SELEC nada")).toMatch(/^No se entiende la consulta/);
-    expect(rechazo("SELECT ?a WHERE { ?a a k:Action }")).toBe(
+    expect(rechazo("SELECT ?a WHERE { ?a a ontologia:Action }")).toBe(
       `Falta declarar el prefijo k:. Agregá arriba: PREFIX k: <${K}>`,
     );
   });
   it("una propiedad inventada dentro de un path con |, ^, + o * también cae (los link del álgebra)", () => {
-    for (const camino of ["(k:accion|k:inventada)", "^k:inventada", "k:inventada+", "k:inventada*"]) {
-      expect(rechazo(`${K_}SELECT * WHERE { ?s ${camino} ?o . ?s a k:Uso }`), camino).toMatch(
-        /^La propiedad k:inventada no existe en el grafo/,
+    for (
+      const camino of [
+        "(ontologia:accion|ontologia:inventada)",
+        "^ontologia:inventada",
+        "ontologia:inventada+",
+        "ontologia:inventada*",
+      ]
+    ) {
+      expect(rechazo(`${K_}SELECT * WHERE { ?s ${camino} ?o . ?s a ontologia:Uso }`), camino).toMatch(
+        /^La propiedad ontologia:inventada no existe en el grafo/,
       );
     }
   });
@@ -201,15 +208,19 @@ describe("validador", () => {
         "(cada resultado de uno con cada resultado del otro) y congelan la pestaña. Unilos por una variable en común.",
     );
     expect(rechazo("SELECT * WHERE { ?a ?b ?c . ?d ?e ?f } LIMIT 1000000")).toMatch(/^Los patrones .* cartesiano/);
-    expect(rechazo(`${K_}SELECT * WHERE { ?a a k:Action . ?u a k:Uso }`)).toMatch(/cartesiano/);
+    expect(rechazo(`${K_}SELECT * WHERE { ?a a ontologia:Action . ?u a ontologia:Uso }`)).toMatch(/cartesiano/);
     expect(rechazo("SELECT ?p WHERE { ?s ?p ?o }")).toMatch(/^\?s \?p \?o solo, sin otro patrón que lo ancle/);
   });
   it("lo barato pasa: patrones unidos por variables, y un ?s ?p ?o anclado por otro patrón", () => {
-    expect(validar(`${K_}SELECT * WHERE { ?u a k:Uso ; k:accion ?a . ?a a k:Action }`, conocidas()).ok).toBe(true);
-    expect(validar(`${K_}SELECT * WHERE { ?s ?p ?o . ?s a k:Action }`, conocidas()).ok).toBe(true);
+    expect(
+      validar(`${K_}SELECT * WHERE { ?u a ontologia:Uso ; ontologia:accion ?a . ?a a ontologia:Action }`, conocidas())
+        .ok,
+    ).toBe(true);
+    expect(validar(`${K_}SELECT * WHERE { ?s ?p ?o . ?s a ontologia:Action }`, conocidas()).ok).toBe(true);
   });
   it("la plantilla de un CONSTRUCT puede inventar predicados; el WHERE no", () => {
-    expect(validar(`${K_}CONSTRUCT { ?a k:inventado ?b } WHERE { ?a k:accion ?b }`, conocidas()).ok).toBe(true);
+    expect(validar(`${K_}CONSTRUCT { ?a ontologia:inventado ?b } WHERE { ?a ontologia:accion ?b }`, conocidas()).ok)
+      .toBe(true);
   });
 });
 

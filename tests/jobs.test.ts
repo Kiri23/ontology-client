@@ -43,7 +43,7 @@ Deno.test("el chequeo de forma muerde: un campo que falta o con otro formato no 
   const { titulo: _, ...sinTitulo } = puesto;
   marca([sinTitulo], /^#\/0 required: .*"titulo"/);
   marca(
-    [{ ...puesto, pide: [{ link: "https://kiri23.dev/tech#X", sinonimos: [] }] }],
+    [{ ...puesto, pide: [{ link: "https://kiri231.com/tecnologia/X", sinonimos: [] }] }],
     /^#\/0\/pide\/0 required: .*"nombre"/,
   );
   marca([{ ...puesto, fecha: "ayer" }], /^#\/0\/fecha format: /);

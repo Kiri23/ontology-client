@@ -82,7 +82,7 @@ export function motivosDeCosto(algebra: unknown): string[] {
     } else if (grupo.length === 1 && variables(grupo[0]).length >= 3 && grupo[0].type !== "path") {
       motivos.push(
         `${escrito(grupo[0])} solo, sin otro patrón que lo ancle, recorre el grafo entero. Anclalo con una clase, ` +
-          "una propiedad o una IRI (por ejemplo, ?s a k:Action).",
+          "una propiedad o una IRI (por ejemplo, ?s a ontologia:Action).",
       );
     }
   }

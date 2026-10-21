@@ -1,10 +1,11 @@
-// Los prefijos del grafo y cómo se escribe una IRI para leerla: `k:Action` si tiene prefijo, `<…>` si no, y un nombre
+// Los prefijos del grafo y cómo se escribe una IRI para leerla: `ontologia:Action` si tiene prefijo, `<…>` si no, y un nombre
 // corto para el lienzo (`actions/checkout`). Sin React ni motor: lo usan el lienzo, el validador y las consultas.
 
 export const PREFIJOS: Record<string, string> = {
-  k: "https://kiri23.dev/catalogo#",
-  j: "https://kiri23.dev/jobs#",
-  t: "https://kiri23.dev/tech#",
+  ontologia: "https://kiri231.com/ontologia#",
+  proyecto: "https://kiri231.com/proyecto/",
+  tecnologia: "https://kiri231.com/tecnologia/",
+  jobs: "https://kiri231.com/jobs/",
   doap: "http://usefulinc.com/ns/doap#",
   rdf: "http://www.w3.org/1999/02/22-rdf-syntax-ns#",
   rdfs: "http://www.w3.org/2000/01/rdf-schema#",
@@ -19,7 +20,7 @@ export const RDF_TYPE = PREFIJOS.rdf + "type";
 // Lo que va después del prefijo tiene que ser un nombre local válido en SPARQL; si no, la IRI va entera.
 const LOCAL = /^[A-Za-z_][\w-]*$/;
 
-/** `https://kiri23.dev/catalogo#Action` → `k:Action`; sin prefijo conocido, `<https://…>`. */
+/** `https://kiri231.com/ontologia#Action` → `ontologia:Action`; sin prefijo conocido, `<https://…>`. */
 export function compacto(iri: string): string {
   for (const [prefijo, base] of Object.entries(PREFIJOS)) {
     if (iri.startsWith(base) && LOCAL.test(iri.slice(base.length))) return `${prefijo}:${iri.slice(base.length)}`;
@@ -48,7 +49,7 @@ export function declaraciones(texto: string): string {
     .join("");
 }
 
-/** Lo inverso de {@link compacto}: `k:Action` → la IRI entera; `<…>` sin los signos; otra cosa, tal cual. */
+/** Lo inverso de {@link compacto}: `ontologia:Action` → la IRI entera; `<…>` sin los signos; otra cosa, tal cual. */
 export function expandir(texto: string): string {
   const entre = /^<(.*)>$/.exec(texto);
   if (entre) return entre[1];

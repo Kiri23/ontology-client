@@ -3,9 +3,9 @@
 import { sparql } from "../../../mod.ts";
 import { type Clase, historia, opcional } from "./tipos.ts";
 
-const EJEMPLO = `PREFIX k: <https://kiri23.dev/catalogo#>
+const EJEMPLO = `PREFIX k: <https://kiri231.com/ontologia#>
 SELECT ?accion (COUNT(?uso) AS ?usos) WHERE {
-  ?uso a k:Uso ; k:accion ?accion .
+  ?uso a ontologia:Uso ; ontologia:accion ?accion .
 }
 GROUP BY ?accion
 ORDER BY DESC(?usos)

@@ -3,7 +3,7 @@
 import { validarVocabulario } from "../../../mod.ts";
 import { type Clase, historia } from "./tipos.ts";
 
-const VOCABULARIO = `@prefix mi:   <https://kiri23.dev/vocabulario/mi#> .
+const VOCABULARIO = `@prefix mi:   <https://kiri231.com/vocabulario/mi#> .
 @prefix skos: <http://www.w3.org/2004/02/skos/core#> .
 
 mi:vocabulario a skos:ConceptScheme ;

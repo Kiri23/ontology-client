@@ -3,17 +3,17 @@
 import { validarProyecto } from "../../../mod.ts";
 import { type Clase, historia } from "./tipos.ts";
 
-const FICHA = `@prefix k: <https://kiri23.dev/catalogo#> .
+const FICHA = `@prefix k: <https://kiri231.com/ontologia#> .
 @prefix doap: <http://usefulinc.com/ns/doap#> .
 
-k:mi-proyecto a k:Proyecto ;
+ontologia:mi-proyecto a ontologia:Proyecto ;
     doap:shortdesc "Una línea que dice qué es." .
 `;
 
 export const PROYECTOS: Clase = {
   id: "proyectos",
   nombre: "proyectos",
-  representa: "k:Proyecto",
+  representa: "ontologia:Proyecto",
   historias: [
     historia({
       id: "validarProyecto",

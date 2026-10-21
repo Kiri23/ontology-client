@@ -87,7 +87,7 @@
     "/jobs": {
       "get": {
         "operationId": "jobs_get",
-        "summary": "Los puestos como JobPost[]: cada uno con la forma de j:JobPostShape, el schema JobPost del contrato.",
+        "summary": "Los puestos como JobPost[]: cada uno con la forma de ontologia:JobPostShape, el schema JobPost del contrato.",
         "description": "GET /jobs. Filtra por tecnologia como consultas/jobs.rq (prefLabel o altLabel, sin mayúsculas) y por\nfuente contra el campo fuente del puesto (igual, sin mayúsculas: remotive, hn). El orden es el del\n.rq: lo más nuevo primero. Para traer puestos nuevos, POST /jobs (las dos fuentes).",
         "parameters": [
           {
@@ -184,7 +184,7 @@
       "post": {
         "operationId": "jobs_descartar",
         "summary": "Descarta un puesto: no me interesa, y digo por qué.",
-        "description": "La acción https://kiri23.dev/jobs#Descartar (dash:ModifyAction): la declara domain/, la corre core/acciones.py.",
+        "description": "La acción https://kiri231.com/jobs/Descartar (dash:ModifyAction): la declara domain/, la corre core/acciones.py.",
         "requestBody": {
           "required": true,
           "content": {
@@ -255,7 +255,7 @@
       "post": {
         "operationId": "jobs_marcar_aplicado",
         "summary": "Marca que apliqué a un puesto. Uno descartado también se puede marcar.",
-        "description": "La acción https://kiri23.dev/jobs#MarcarAplicado (dash:ModifyAction): la declara domain/, la corre core/acciones.py.",
+        "description": "La acción https://kiri231.com/jobs/MarcarAplicado (dash:ModifyAction): la declara domain/, la corre core/acciones.py.",
         "requestBody": {
           "required": true,
           "content": {

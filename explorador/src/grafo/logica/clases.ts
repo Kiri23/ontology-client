@@ -34,7 +34,7 @@ export const ESTILOS_CLASE: EstiloClase[] = [
     isla: JOBS,
   },
   {
-    iri: "https://kiri23.dev/tech#Technology",
+    iri: "https://kiri231.com/ontologia#Technology",
     nombre: "Technology",
     forma: "diamond",
     tono: "tecnologia",

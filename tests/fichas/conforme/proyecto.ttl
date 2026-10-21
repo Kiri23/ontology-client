@@ -1,6 +1,6 @@
-@prefix k: <https://kiri23.dev/catalogo#> .
+@prefix ontologia: <https://kiri231.com/ontologia#> .
 @prefix doap: <http://usefulinc.com/ns/doap#> .
 
 # Ficha de prueba para el servidor falso (tests/servidor-falso.ts): conforma.
-k:ficha-de-prueba a k:Proyecto ;
+ontologia:ficha-de-prueba a ontologia:Proyecto ;
     doap:shortdesc "Ficha de prueba del cliente." .

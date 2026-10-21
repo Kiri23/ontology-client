@@ -64,7 +64,7 @@ export function validarProyecto(turtle: string, opciones: OpcionesValidar): Prom
 
 /**
  * Valida un vocabulary.ttl contra el servidor (POST /vocabularios): las reglas de todo vocabulario SKOS más sus
- * regex (k:patron, k:importa). Mismo token y mismo {@link Resultado} que {@link validarProyecto}. Nunca tira.
+ * regex (ontologia:patron, ontologia:importa). Mismo token y mismo {@link Resultado} que {@link validarProyecto}. Nunca tira.
  */
 export function validarVocabulario(turtle: string, opciones: OpcionesValidar): Promise<Resultado> {
   return validar("/vocabularios", turtle, opciones);

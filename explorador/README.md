@@ -71,9 +71,9 @@ WASM that runs in the tab. It is drawn with Cytoscape 3.34.3 and the fcose layou
 If that chunk does not arrive (an old tab after a deploy), `SiFalla.tsx` says so and offers to reload. The whole graph
 is laid out once, with a fixed seed (`disposicion.ts`): the islands stay in the same place in every view and on reload.
 
-- **Mapa** (Map, `#/grafo/mapa?clase=k:Action`): the instances as nodes (235; literals are attributes, `rdf:type` is the
-  color and the shape, the schema is not drawn). The legend counts per class and highlights one. You can see two islands
-  that never touch, the job posts and the repos, plus the loose nodes.
+- **Mapa** (Map, `#/grafo/mapa?clase=ontologia:Action`): the instances as nodes (235; literals are attributes,
+  `rdf:type` is the color and the shape, the schema is not drawn). The legend counts per class and highlights one. You
+  can see two islands that never touch, the job posts and the repos, plus the loose nodes.
 - **Indagar** (Explore, `#/grafo/nodo?iri=…&saltos=…&foco=…`; the sidebar goes back to the last one opened): a node's
   card with its relationships grouped by predicate, in both directions. Tapping a relationship adds those neighbors to
   the canvas without moving the ones already there. The path's SPARQL (a CONSTRUCT) is built on its own, with Copiar
@@ -94,10 +94,10 @@ successor of sparqljs, which is deprecated) and looks at the algebra. It rejects
 prefix says which line is missing), what changes data (INSERT, DELETE, LOAD…), what is not SELECT, ASK or CONSTRUCT,
 `SERVICE` and `FROM`, and what is expensive (`costo.ts`: patterns with no variables in common, which are a cartesian
 product, and a bare `?s ?p ?o`), and the classes (objects of `rdf:type`) and properties that the graph does not have,
-with the closest one: "La clase k:Accion no existe en el grafo; parecida: k:Action." (the class k:Accion does not exist
-in the graph; closest: k:Action). The known ones come from the Store (used, and declared in the schema). A CONSTRUCT
-template can invent predicates; the WHERE cannot. What the AI proposes (Explore with AI, below) goes through here before
-it runs.
+with the closest one: "La clase ontologia:Accion no existe en el grafo; parecida: ontologia:Action." (the class
+ontologia:Accion does not exist in the graph; closest: ontologia:Action). The known ones come from the Store (used, and
+declared in the schema). A CONSTRUCT template can invent predicates; the WHERE cannot. What the AI proposes (Explore
+with AI, below) goes through here before it runs.
 
 **The CSP** adds `script-src 'self' 'wasm-unsafe-eval'`: without it the browser does not compile oxigraph's WASM
 (`WebAssembly.instantiateStreaming` falls under `default-src 'self'`). `'wasm-unsafe-eval'` only enables WebAssembly,
