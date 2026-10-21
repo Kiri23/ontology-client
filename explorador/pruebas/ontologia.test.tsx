@@ -3,7 +3,7 @@
 import { cleanup, render, screen, within } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
 import { App } from "../src/App.tsx";
-import { buscarTermino, esFragmentoDeIri, local, type Ontologia, resumen } from "../src/ontologia/logica/arbol.ts";
+import { buscarTermino, fragmentoDeIri, local, type Ontologia, resumen } from "../src/ontologia/logica/arbol.ts";
 import VistaOntologia from "../src/ontologia/VistaOntologia.tsx";
 import { fetchFalso, json } from "./falso.ts";
 
@@ -135,13 +135,15 @@ describe("logica/arbol", () => {
     );
   });
 
-  it("un fragmento de IRI es un hash sin barra con forma de nombre", () => {
-    expect(esFragmentoDeIri("porque")).toBe(true);
-    expect(esFragmentoDeIri("JobPost")).toBe(true);
-    expect(esFragmentoDeIri("")).toBe(false);
-    expect(esFragmentoDeIri("grafo/mapa")).toBe(false);
-    expect(esFragmentoDeIri("cliente.GET/jobs")).toBe(false);
-    expect(esFragmentoDeIri("jobs.get")).toBe(false);
+  it("un fragmento de IRI es un hash sin barra con forma de nombre, sin el punto de la frase", () => {
+    expect(fragmentoDeIri("porque")).toBe("porque");
+    expect(fragmentoDeIri("JobPost")).toBe("JobPost");
+    expect(fragmentoDeIri("porque.")).toBe("porque");
+    expect(fragmentoDeIri("porque),")).toBe("porque");
+    expect(fragmentoDeIri("")).toBe("");
+    expect(fragmentoDeIri("grafo/mapa")).toBe("");
+    expect(fragmentoDeIri("cliente.GET/jobs")).toBe("");
+    expect(fragmentoDeIri("jobs.get")).toBe("");
   });
 });
 
@@ -252,7 +254,7 @@ describe("App", () => {
   });
 
   it("#porque (el fragmento de un IRI) es la Ontología en ese término, y el hash queda limpio", async () => {
-    history.replaceState(null, "", "/explorador/#porque");
+    history.replaceState(null, "", "/explorador/#porque."); // el punto: pegado desde una frase
     const { fetch } = fetchFalso(() => json(ONTOLOGIA));
     render(<App url={URL_BASE} fetch={fetch} />);
     await screen.findByText("porque es una propiedad de JobPost.", { exact: false });

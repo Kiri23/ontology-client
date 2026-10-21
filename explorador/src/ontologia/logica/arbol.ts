@@ -14,8 +14,12 @@ export const PREFIJO_ONTOLOGIA = "ontologia";
 
 export const esRutaDeOntologia = (id: string) => id === PREFIJO_ONTOLOGIA;
 
-/** Un hash sin barra que no es ninguna historia (`#porque`): el fragmento de un IRI de la ontología. */
-export const esFragmentoDeIri = (id: string) => id !== "" && !id.includes("/") && /^[A-Za-z]\w*$/.test(id);
+/** Un hash sin barra con forma de nombre (`#porque`): el fragmento de un IRI de la ontología. Un IRI pegado desde
+ * una frase suele traer el punto o la coma de la frase (`#porque.`): se quitan, no son parte del nombre. */
+export function fragmentoDeIri(id: string): string {
+  const limpio = id.replace(/[.,;:!?)]+$/, "");
+  return limpio !== "" && !limpio.includes("/") && /^[A-Za-z]\w*$/.test(limpio) ? limpio : "";
+}
 
 export const terminoDe = ({ valores }: Ruta) => valores.termino ?? "";
 
