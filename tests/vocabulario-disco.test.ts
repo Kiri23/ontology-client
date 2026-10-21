@@ -14,10 +14,12 @@ import { enlacesAlVocabulario, leerProsa } from "../scripts/vocabulario/mencione
 // de cada temporal liste el índice del repo de verdad. Se borran antes de lanzar cualquier git.
 for (const v of ["GIT_DIR", "GIT_INDEX_FILE", "GIT_WORK_TREE"]) Deno.env.delete(v);
 
-const TTL = `@prefix v: <https://kiri23.dev/vocabulario#> .
+const TTL = `@prefix v: <https://kiri23.dev/vocabulario/ontology-client#> .
 @prefix skos: <http://www.w3.org/2004/02/skos/core#> .
-v:rdf a skos:Concept ; skos:prefLabel "RDF"@en ; skos:definition "A data model."@en .
-v:turtle a skos:Concept ; skos:prefLabel "Turtle"@en ; skos:definition "A syntax for RDF."@en ; skos:related v:rdf .
+v:vocabulario a skos:ConceptScheme ; skos:prefLabel "V"@en .
+v:rdf a skos:Concept ; skos:inScheme v:vocabulario ; skos:prefLabel "RDF"@en ; skos:definition "A data model."@en .
+v:turtle a skos:Concept ; skos:inScheme v:vocabulario ; skos:prefLabel "Turtle"@en ; skos:definition "A syntax for RDF."@en ;
+  skos:related v:rdf .
 `;
 
 Deno.test("escribir: escribe lo esperado y borra lo que sobra", async () => {

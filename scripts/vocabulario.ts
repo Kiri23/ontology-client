@@ -21,7 +21,7 @@ import { parseArgs } from "@std/cli/parse-args";
 // @ts-types="@types/n3"
 import { type Quad, Store } from "n3";
 import { conceptos as conceptosDe, triples } from "./vocabulario/leer.ts";
-import { validar, validarEnlaces } from "./vocabulario/validar.ts";
+import { validar, validarEnlaces, validarEsquema } from "./vocabulario/validar.ts";
 import { enlacesAlVocabulario, leerProsa, triplesDeMenciones } from "./vocabulario/menciones.ts";
 import { renderizar } from "./vocabulario/renderizar.ts";
 import { comparar, escribir, leerDirectorio } from "./vocabulario/archivos.ts";
@@ -80,7 +80,7 @@ async function main(): Promise<number> {
     return 1;
   }
   const conceptos = conceptosDe(quads);
-  const errores = validar(conceptos);
+  const errores = [...validarEsquema(quads), ...validar(conceptos)];
   if (errores.length) {
     console.error(`docs/vocabulary.ttl rompe ${errores.length} regla(s):\n${errores.map((e) => `  ${e}`).join("\n")}`);
     return 1;
