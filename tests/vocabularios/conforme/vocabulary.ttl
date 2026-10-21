@@ -1,0 +1,12 @@
+@prefix prueba: <https://kiri23.dev/vocabulario/prueba#> .
+@prefix skos:   <http://www.w3.org/2004/02/skos/core#> .
+
+# Vocabulario de prueba para el servidor falso (tests/servidor-falso.ts): conforma.
+prueba:vocabulario a skos:ConceptScheme ;
+    skos:prefLabel "Prueba"@es ;
+    skos:definition "Un vocabulario de mentira para probar la action."@es .
+
+prueba:termino a skos:Concept ;
+    skos:inScheme prueba:vocabulario ;
+    skos:prefLabel "Término"@es ;
+    skos:definition "Un término con todo lo que pide domain/vocabulario-reglas.ttl."@es .

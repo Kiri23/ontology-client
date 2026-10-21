@@ -133,7 +133,8 @@ The dev server sends API calls to the live server, so anything you run from it b
 | `deno task neo4j:cargar`             | Rebuilds the Neo4j copy from the live graph (needs `NEO4J_URL` and `NEO4J_PASSWORD`)   |
 | `bash docs/media/escenas/generar.sh` | Re-renders the README animation with [ManimGX](https://manimgx.academa.ai/) and ffmpeg |
 
-The CLI and the GitHub Action check Turtle files against the graph's rules:
+The CLI and the GitHub Action check Turtle files (project files, and vocabularies with `--vocabulario` or the
+`vocabularios` input; the Action finds both by name when no input is given) against the graph's rules:
 
 ```sh
 deno run --allow-net --allow-read --allow-env jsr:@kiri23/ontology-client@0.1.2/cli <files>

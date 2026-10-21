@@ -2,6 +2,26 @@
 // para cambiarlo, `deno task contrato` (o editá el contrato en el servidor) y `deno task generar`.
 
 export interface paths {
+    "/ai/sparql": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Los mensajes de la AI del explorador a Gemma 4 (Google AI Studio); devuelve su texto
+         * @description El body son los mensajes que arma el explorador (armarMensajes): el system, si está, va uno solo y primero, y la conversación empieza y termina con un mensaje de user. El servidor no arma el prompt ni valida la consulta.
+         */
+        post: operations["ai_sparql"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/jobs": {
         parameters: {
             query?: never;
@@ -123,9 +143,11 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * Valida fichas proyecto.ttl contra domain/proyecto-reglas.ttl. Responde {"conforma": bool, "reporte": str}.
-         * @description POST /proyectos con la ficha en el body (text/turtle), nunca una ruta, y con token. No conformar es un
+         * Valida proyecto.ttl contra domain/proyecto-reglas.ttl. Responde {"conforma": bool, "reporte": str}.
+         * @description POST /proyectos con el proyecto.ttl en el body (text/turtle), nunca una ruta, y con token. No conformar es un
          *     resultado: 200 igual. El motor y las reglas se quedan en el servidor: sale sólo el reporte.
+         *
+         *     Dos modos, una función cada uno: validar() y contra_el_codigo(). correr() solo elige.
          */
         post: operations["proyectos"];
         delete?: never;
@@ -172,6 +194,28 @@ export interface paths {
         get: operations["reporte_dependencias"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/vocabularios": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Valida vocabulary.ttl contra domain/vocabulario-reglas.ttl. Responde {"conforma": bool, "reporte": str}.
+         * @description POST /vocabularios con el vocabulary.ttl en el body (text/turtle), nunca una ruta, y con el mismo token que
+         *     POST /proyectos. No conformar es un resultado: 200 igual. El motor y las reglas se quedan en el servidor: sale sólo
+         *     el reporte.
+         */
+        post: operations["vocabularios"];
         delete?: never;
         options?: never;
         head?: never;
@@ -252,6 +296,101 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+    ai_sparql: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    mensajes: {
+                        /** @enum {unknown} */
+                        role: "system" | "user" | "assistant";
+                        content: string;
+                    }[];
+                };
+            };
+        };
+        responses: {
+            /** @description el texto del modelo, tal cual: la consulta la extrae y la valida el cliente */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        texto: string;
+                    };
+                };
+            };
+            /** @description el body no es {mensajes} con la forma de armarMensajes */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description el body no llegó entero a tiempo */
+            408: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description falta Content-Length (el body no puede ir chunked) */
+            411: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description el body pasa el tope de la vista */
+            413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description el body no viene como application/json */
+            415: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description más de 5 pedidos por minuto desde la misma IP (una IPv6 cuenta por su /64), o más de 10 por minuto a Google entre todos (ver Retry-After) */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Google AI Studio no contestó en 30 s, contestó un error o no devolvió texto, después de los reintentos (Retry-After si es un 5xx de Google, el timeout o un error de conexión); o el servidor está sin key de Google AI Studio (falla cerrado, sin Retry-After) */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
     jobs_get: {
         parameters: {
             query?: {
@@ -594,7 +733,7 @@ export interface operations {
             path?: never;
             cookie?: never;
         };
-        /** @description fichas proyecto.ttl a validar (CLI sin archivos: proyectos/*\/proyecto.ttl) */
+        /** @description proyecto.ttl a validar (CLI sin archivos: los de las raíces o proyectos/) */
         requestBody: {
             content: {
                 "text/turtle": string;
@@ -608,7 +747,7 @@ export interface operations {
                 };
                 content: {
                     "application/json": {
-                        /** @description true si todas las fichas pasan las reglas */
+                        /** @description true si todos los proyecto.ttl pasan las reglas */
                         conforma: boolean;
                         /** @description el reporte de SHACL, con los errores de carga primero */
                         reporte: string;
@@ -734,6 +873,99 @@ export interface operations {
             };
             /** @description el comando no pudo hacer su trabajo (parámetros, datos) */
             400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    vocabularios: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description vocabulary.ttl a validar (CLI sin archivos: los de las raíces) */
+        requestBody: {
+            content: {
+                "text/turtle": string;
+            };
+        };
+        responses: {
+            /** @description la respuesta del comando */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @description true si todos los vocabulary.ttl pasan las reglas */
+                        conforma: boolean;
+                        /** @description el reporte de SHACL, con los regex rotos y los vocabularios repetidos primero */
+                        reporte: string;
+                    };
+                };
+            };
+            /** @description el comando no pudo hacer su trabajo (parámetros, datos) */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description falta el token o no es el correcto */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description el body no llegó entero a tiempo */
+            408: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description falta Content-Length (el body no puede ir chunked) */
+            411: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description el body pasa el tope de la vista */
+            413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description el body no viene como text/turtle */
+            415: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description el servidor no tiene token configurado: falla cerrado */
+            503: {
                 headers: {
                     [name: string]: unknown;
                 };

@@ -21,6 +21,7 @@ explorador/
     tipos.ts         Historia, Control, Clase
     jobs.ts          jobs.get, jobs.descartar, jobs.marcarAplicado
     proyectos.ts     validarProyecto
+    vocabularios.ts  validarVocabulario
     sparql.ts        sparql.consultar
     motor.ts         configurar (with motorHttp, the only one that runs in the browser) and motorHttp.jobs.get
     cliente.ts       crearCliente: one story for each GET in contrato/openapi.json
@@ -46,7 +47,7 @@ what the module exports (namespaces included: `jobs.get`, `validarProyecto`…) 
 story's `fn`. It also fails if a story points to something mod.ts does not export, if its `funcion` is not the name of
 its `fn`, if two have the same id, if one that writes does not ask for a token, and if a story makes a request that is
 not GET without `escribe: true` (or the other way around): it runs them all with a fake fetch and looks at the methods.
-The only named exception is `validarProyecto`, which sends the project file by POST but stores nothing.
+The only named exceptions are `validarProyecto` and `validarVocabulario`, which send the file by POST but store nothing.
 
 1. In `src/historias/`, in its class's file (or a new one, added to `CLASES` in `index.ts`), add `historia({ ... })`:
    `id` (goes in the URL), `fn` (the mod.ts function, the reference), `funcion` (its name), `nombre`, `llamada`,

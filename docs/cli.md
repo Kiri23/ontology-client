@@ -1,14 +1,19 @@
 # CLI
 
-The CLI validates project files (`proyecto.ttl`, written in [Turtle](vocabulary/turtle.md)) against the server's
-[SHACL shapes](vocabulary/shacl-shape.md). It is the same code the [GitHub Action](action.md) runs.
+The CLI validates project files (`proyecto.ttl`, written in [Turtle](vocabulary/turtle.md)) and vocabularies
+(`vocabulary.ttl`) against the server's [SHACL shapes](vocabulary/shacl-shape.md). It is the same code the
+[GitHub Action](action.md) runs.
 
 ```sh
 export ONTOLOGY_PROYECTOS_TOKEN=...
 deno run --allow-net --allow-read --allow-env jsr:@kiri23/ontology-client@0.1.2/cli proyectos/*/proyecto.ttl
 deno run --allow-net --allow-read --allow-env cli.ts --url http://localhost:8899 proyecto.ttl   # from the repo
+deno run --allow-net --allow-read --allow-env cli.ts --vocabulario modal/vocabulary.ttl proyecto.ttl
 ```
 
+- A bare file is a `proyecto.ttl` and goes to `POST /proyectos`; `--vocabulario <file>` (repeatable) is a
+  `vocabulary.ttl` and goes to `POST /vocabularios`. It is a flag and not the file name because the server tells what a
+  `.ttl` is by its content, not by its name. Projects run first, then vocabularies.
 - URL: `--url`, or `ONTOLOGY_URL`, or `https://ontology.kiri231.com` (an empty value counts as not given). If it is
   `http://` to a host that is not local, it warns: the token travels in clear text.
 - Token: only `ONTOLOGY_PROYECTOS_TOKEN` (as a flag it would end up in the shell history and the process list).

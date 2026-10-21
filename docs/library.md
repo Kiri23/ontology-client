@@ -9,6 +9,9 @@ To read from Neo4j instead of HTTP, see [engines.md](engines.md).
 
 ## Validate a project file: `validarProyecto`
 
+`validarVocabulario(turtle, opciones)` is the same call for a `vocabulary.ttl`: it posts to `/vocabularios` with the
+same token and returns the same `Resultado`.
+
 ```ts
 import { validarProyecto } from "jsr:@kiri23/ontology-client@0.1.2";
 

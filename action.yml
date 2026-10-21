@@ -1,7 +1,8 @@
-name: Validar fichas proyecto.ttl
+name: Validar proyecto.ttl y vocabulary.ttl
 description: >
-  Valida las fichas proyecto.ttl del repo contra el servidor de ontologyLearning (POST /proyectos) y
-  anota en el PR las que no conforman. El motor y las reglas son privados: viaja la ficha, vuelve el reporte.
+  Valida los proyecto.ttl (POST /proyectos) y los vocabulary.ttl (POST /vocabularios) del repo contra el
+  servidor de ontologyLearning, y anota en el PR los que no conforman. El motor y las reglas son privados:
+  viaja el archivo, vuelve el reporte.
 author: Kiri23
 branding:
   icon: check-circle
@@ -10,9 +11,16 @@ branding:
 inputs:
   archivos:
     description: >
-      Fichas a validar: rutas o globs separados por espacios o saltos de línea. Vacío: los archivos
-      llamados exactamente proyecto.ttl que git tiene en el repo (necesita actions/checkout antes); si no
-      hay ninguno, sale 0 con un aviso.
+      Fichas (proyecto.ttl) a validar contra POST /proyectos: rutas o globs separados por espacios o saltos
+      de línea. Con este input o con `vocabularios`, se valida exactamente lo que dicen. Con los dos vacíos,
+      los archivos llamados exactamente proyecto.ttl y vocabulary.ttl que git tiene en el repo (necesita
+      actions/checkout antes); si no hay ninguno, sale 0 con un aviso.
+    required: false
+    default: ""
+  vocabularios:
+    description: >
+      Vocabularios (vocabulary.ttl) a validar contra POST /vocabularios: rutas o globs, como `archivos`.
+      Mismo token. Vacío junto con `archivos`: los vocabulary.ttl del repo; vacío con `archivos` dado: ninguno.
     required: false
     default: ""
   url:
@@ -20,7 +28,7 @@ inputs:
     required: false
     default: https://ontology.kiri231.com
   token:
-    description: El token del servidor (secreto ONTOLOGY_PROYECTOS_TOKEN). Sin token, el paso falla.
+    description: El token del servidor (secreto ONTOLOGY_PROYECTOS_TOKEN), el mismo para las dos puertas. Sin token, el paso falla.
     required: true
   timeout:
     description: Segundos de espera por ficha antes de dar el servidor por caído (exit 2).
@@ -35,39 +43,53 @@ runs:
       with:
         deno-version: v2.9.5
 
-    - name: Validar fichas
+    - name: Validar fichas y vocabularios
       shell: bash
       env:
         # Los inputs van por env y nunca interpolados en el script: así no se puede inyectar shell.
         ARCHIVOS: ${{ inputs.archivos }}
+        VOCABULARIOS: ${{ inputs.vocabularios }}
         ONTOLOGY_URL: ${{ inputs.url }}
         ONTOLOGY_PROYECTOS_TOKEN: ${{ inputs.token }}
         ONTOLOGY_TIMEOUT: ${{ inputs.timeout }}
       run: |
         set -euo pipefail
-        if [ -n "$ARCHIVOS" ]; then
-          # Sin comillas a propósito: separa por espacios y expande globs (** incluido). Un glob que no
-          # encuentra nada queda literal y el CLI falla al leerlo: mejor eso que validar cero fichas.
+        fichas=()
+        vocabularios=()
+        if [ -n "$ARCHIVOS" ] || [ -n "$VOCABULARIOS" ]; then
+          # Con un input, se valida exactamente lo que dice: no se busca nada más. Sin comillas a propósito:
+          # separa por espacios y expande globs (** incluido). Un glob que no encuentra nada queda literal y
+          # el CLI falla al leerlo: mejor eso que validar cero archivos. Cada vocabulario va con su
+          # --vocabulario: el CLI lo manda a POST /vocabularios.
           shopt -s globstar
           fichas=($ARCHIVOS)
+          for v in $VOCABULARIOS; do vocabularios+=(--vocabulario "$v"); done
         else
+          # Sin inputs: los proyecto.ttl y vocabulary.ttl del repo, y el nombre del archivo dice la puerta.
           # Si git falla (sin actions/checkout no hay repo; "dubious ownership" en un container), fallar:
           # tragarse el error daría verde sin validar nada. -z: rutas crudas, sin las comillas y \303\261
-          # de core.quotePath. :(glob): * no cruza / y el nombre tiene que ser proyecto.ttl exacto, no
-          # otroproyecto.ttl.
+          # de core.quotePath. :(glob): * no cruza / y el nombre tiene que ser exacto, no otroproyecto.ttl
+          # ni mi-vocabulary.ttl.
           lista=$(mktemp)
-          if ! git ls-files -z -- ':(glob)proyecto.ttl' ':(glob)**/proyecto.ttl' >"$lista"; then
-            echo "::error title=No pude listar las fichas::git ls-files falló en $PWD. ¿Falta actions/checkout antes de esta action? (o pasá las rutas en el input archivos)"
+          if ! git ls-files -z -- ':(glob)proyecto.ttl' ':(glob)**/proyecto.ttl' \
+                                 ':(glob)vocabulary.ttl' ':(glob)**/vocabulary.ttl' >"$lista"; then
+            echo "::error title=No pude listar los archivos::git ls-files falló en $PWD. ¿Falta actions/checkout antes de esta action? (o pasá las rutas en los inputs archivos y vocabularios)"
             exit 2
           fi
-          mapfile -d '' -t fichas <"$lista"
+          mapfile -d '' -t encontrados <"$lista"
           rm -f "$lista"
+          for f in "${encontrados[@]}"; do
+            case "${f##*/}" in
+              proyecto.ttl) fichas+=("$f") ;;
+              vocabulary.ttl) vocabularios+=(--vocabulario "$f") ;;
+            esac
+          done
         fi
-        if [ "${#fichas[@]}" -eq 0 ]; then
-          echo "::notice title=Sin fichas::No hay archivos proyecto.ttl en el repo: nada que validar."
+        if [ "${#fichas[@]}" -eq 0 ] && [ "${#vocabularios[@]}" -eq 0 ]; then
+          echo "::notice title=Nada que validar::No hay proyecto.ttl ni vocabulary.ttl en el repo."
           exit 0
         fi
         # --config: el deno.json de la action, no el del repo que la usa (si tiene uno).
         deno run --allow-net --allow-read --allow-env=ONTOLOGY_URL,ONTOLOGY_PROYECTOS_TOKEN,ONTOLOGY_TIMEOUT,GITHUB_ACTIONS \
           --config "$GITHUB_ACTION_PATH/deno.json" --frozen \
-          "$GITHUB_ACTION_PATH/cli.ts" "${fichas[@]}"
+          "$GITHUB_ACTION_PATH/cli.ts" "${vocabularios[@]}" "${fichas[@]}"

@@ -63,10 +63,11 @@ Deno.test("explorador: una historia que escribe pide token", () => {
   assertEquals(sinToken, [], "una historia con escribe: true necesita token: la página no la deja correr sin él");
 });
 
-// validarProyecto manda la ficha por POST /proyectos, pero el servidor solo la valida contra las reglas y responde el
-// reporte: no guarda nada (es POST porque la ficha va en el body). Es la única historia que hace un pedido que no es
-// GET sin escribir. Cualquier otra que no haga GET escribe, y tiene que decirlo.
-const NO_GET_QUE_NO_ESCRIBE = new Set(["validarProyecto"]);
+// validarProyecto manda la ficha por POST /proyectos, y validarVocabulario el vocabulary.ttl por POST /vocabularios, pero
+// el servidor solo los valida contra las reglas y responde el reporte: no guarda nada (es POST porque el archivo va en
+// el body). Son las dos historias que hacen un pedido que no es GET sin escribir. Cualquier otra que no haga GET
+// escribe, y tiene que decirlo.
+const NO_GET_QUE_NO_ESCRIBE = new Set(["validarProyecto", "validarVocabulario"]);
 
 // Lo mínimo que cada endpoint devuelve para que el SDK no tire antes de tiempo.
 function responder(pedido: Request): Response {
