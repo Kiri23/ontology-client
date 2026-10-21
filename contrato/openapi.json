@@ -6,6 +6,84 @@
   },
   "servers": [{ "url": "https://ontology.kiri231.com" }],
   "paths": {
+    "/ai/sparql": {
+      "post": {
+        "operationId": "ai_sparql",
+        "summary": "Los mensajes de la AI del explorador a Gemma 4 (Google AI Studio); devuelve su texto",
+        "description": "El body son los mensajes que arma el explorador (armarMensajes): el system, si está, va uno solo y primero, y la conversación empieza y termina con un mensaje de user. El servidor no arma el prompt ni valida la consulta.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "mensajes": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "role": { "enum": ["system", "user", "assistant"] },
+                        "content": { "type": "string", "pattern": "\\S" }
+                      },
+                      "required": ["role", "content"],
+                      "additionalProperties": false
+                    },
+                    "minItems": 1
+                  }
+                },
+                "required": ["mensajes"],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "el texto del modelo, tal cual: la consulta la extrae y la valida el cliente",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": { "texto": { "type": "string" } },
+                  "required": ["texto"],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "el body no es {mensajes} con la forma de armarMensajes",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } }
+          },
+          "408": {
+            "description": "el body no llegó entero a tiempo",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } }
+          },
+          "411": {
+            "description": "falta Content-Length (el body no puede ir chunked)",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } }
+          },
+          "413": {
+            "description": "el body pasa el tope de la vista",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } }
+          },
+          "415": {
+            "description": "el body no viene como application/json",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } }
+          },
+          "429": {
+            "description": "más de 5 pedidos por minuto desde la misma IP (una IPv6 cuenta por su /64), o más de 10 por minuto a Google entre todos (ver Retry-After)",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } }
+          },
+          "503": {
+            "description": "Google AI Studio no contestó en 30 s, contestó un error o no devolvió texto, después de los reintentos (Retry-After si es un 5xx de Google, el timeout o un error de conexión); o el servidor está sin key de Google AI Studio (falla cerrado, sin Retry-After)",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } }
+          }
+        },
+        "security": []
+      }
+    },
     "/jobs": {
       "get": {
         "operationId": "jobs_get",
@@ -280,11 +358,11 @@
     "/proyectos": {
       "post": {
         "operationId": "proyectos",
-        "summary": "Valida fichas proyecto.ttl contra domain/proyecto-reglas.ttl. Responde {\"conforma\": bool, \"reporte\": str}.",
-        "description": "POST /proyectos con la ficha en el body (text/turtle), nunca una ruta, y con token. No conformar es un\nresultado: 200 igual. El motor y las reglas se quedan en el servidor: sale sólo el reporte.",
+        "summary": "Valida proyecto.ttl contra domain/proyecto-reglas.ttl. Responde {\"conforma\": bool, \"reporte\": str}.",
+        "description": "POST /proyectos con el proyecto.ttl en el body (text/turtle), nunca una ruta, y con token. No conformar es un\nresultado: 200 igual. El motor y las reglas se quedan en el servidor: sale sólo el reporte.\n\nDos modos, una función cada uno: validar() y contra_el_codigo(). correr() solo elige.",
         "requestBody": {
           "required": true,
-          "description": "fichas proyecto.ttl a validar (CLI sin archivos: proyectos/*/proyecto.ttl)",
+          "description": "proyecto.ttl a validar (CLI sin archivos: los de las raíces o proyectos/)",
           "content": { "text/turtle": { "schema": { "type": "string" } } }
         },
         "responses": {
@@ -295,7 +373,7 @@
                 "schema": {
                   "type": "object",
                   "properties": {
-                    "conforma": { "type": "boolean", "description": "true si todas las fichas pasan las reglas" },
+                    "conforma": { "type": "boolean", "description": "true si todos los proyecto.ttl pasan las reglas" },
                     "reporte": {
                       "type": "string",
                       "description": "el reporte de SHACL, con los errores de carga primero"
@@ -402,6 +480,70 @@
           }
         },
         "security": []
+      }
+    },
+    "/vocabularios": {
+      "post": {
+        "operationId": "vocabularios",
+        "summary": "Valida vocabulary.ttl contra domain/vocabulario-reglas.ttl. Responde {\"conforma\": bool, \"reporte\": str}.",
+        "description": "POST /vocabularios con el vocabulary.ttl en el body (text/turtle), nunca una ruta, y con el mismo token que\nPOST /proyectos. No conformar es un resultado: 200 igual. El motor y las reglas se quedan en el servidor: sale sólo\nel reporte.",
+        "requestBody": {
+          "required": true,
+          "description": "vocabulary.ttl a validar (CLI sin archivos: los de las raíces)",
+          "content": { "text/turtle": { "schema": { "type": "string" } } }
+        },
+        "responses": {
+          "200": {
+            "description": "la respuesta del comando",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "conforma": {
+                      "type": "boolean",
+                      "description": "true si todos los vocabulary.ttl pasan las reglas"
+                    },
+                    "reporte": {
+                      "type": "string",
+                      "description": "el reporte de SHACL, con los regex rotos y los vocabularios repetidos primero"
+                    }
+                  },
+                  "required": ["conforma", "reporte"]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "el comando no pudo hacer su trabajo (parámetros, datos)",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } }
+          },
+          "408": {
+            "description": "el body no llegó entero a tiempo",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } }
+          },
+          "411": {
+            "description": "falta Content-Length (el body no puede ir chunked)",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } }
+          },
+          "413": {
+            "description": "el body pasa el tope de la vista",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } }
+          },
+          "415": {
+            "description": "el body no viene como text/turtle",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } }
+          },
+          "401": {
+            "description": "falta el token o no es el correcto",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } }
+          },
+          "503": {
+            "description": "el servidor no tiene token configurado: falla cerrado",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } }
+          }
+        },
+        "security": [{ "bearer": [] }]
       }
     }
   },
