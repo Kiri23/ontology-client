@@ -41,6 +41,8 @@ export interface Concepto {
   broader: string[];
   related: string[];
   seeAlso: Objeto[];
+  // Los skos:inScheme: el esquema del archivo, uno por término (lo exige validarEsquema).
+  inScheme: string[];
 }
 
 // El local name de un IRI: lo que sigue al último # o /.
@@ -91,6 +93,7 @@ function sujetos(quads: Quad[]): Concepto[] {
       broader: [],
       related: [],
       seeAlso: [],
+      inScheme: [],
     };
     if (!terminos.has(sujeto.value)) terminos.set(sujeto.value, nuevo);
     return terminos.get(sujeto.value)!;
@@ -126,6 +129,9 @@ function sujetos(quads: Quad[]): Concepto[] {
         break;
       case RDFS_SEE_ALSO:
         c.seeAlso.push({ valor: q.object.value, tipo: q.object.termType });
+        break;
+      case `${SKOS}inScheme`:
+        c.inScheme.push(q.object.value);
         break;
     }
   }

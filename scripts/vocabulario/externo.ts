@@ -16,7 +16,7 @@
 // @ts-types="@types/n3"
 import { type Quad, Store } from "n3";
 import { conceptos as conceptosDe, esquemas, prefijos as prefijosDe, slugDe, triples } from "./leer.ts";
-import { validar } from "./validar.ts";
+import { validar, validarEsquema } from "./validar.ts";
 import { type Idioma, renderizar, TEXTOS } from "./renderizar.ts";
 import { comparar, escribir, leerDirectorio } from "./archivos.ts";
 
@@ -70,7 +70,7 @@ export function renderizarExterno(vocabulario: Turtle, fuente: string, contexto:
   const namespace = iri.slice(0, iri.length - slugDe(iri).length);
   const terminos = conceptosDe(quads);
   const otros = deContexto.flatMap((q) => conceptosDe(q).filter((c) => c.esConcepto && !c.enBlanco));
-  const errores = validar(terminos, { namespace, idioma, contexto: otros });
+  const errores = [...validarEsquema(quads), ...validar(terminos, { namespace, idioma, contexto: otros })];
   if (errores.length) return { errores: errores.map((e) => `${vocabulario.ruta}: ${e}`) };
 
   const prefijos = new Map([...contexto, vocabulario].flatMap((x) => [...prefijosDe(x.texto)]));

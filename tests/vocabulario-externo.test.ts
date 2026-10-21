@@ -176,8 +176,10 @@ Deno.test("externo: un vocabulario en @en sale con los títulos en inglés", () 
 @prefix ambiente: <https://kiri23.dev/ambiente#> .
 @prefix skos: <http://www.w3.org/2004/02/skos/core#> .
 x:vocabulario a skos:ConceptScheme ; skos:prefLabel "X"@en .
-x:box a skos:Concept ; skos:prefLabel "Box"@en ; skos:definition "A box."@en ; skos:broader ambiente:entorno-aislado .
-x:jail a skos:Concept ; skos:prefLabel "Jail"@en ; skos:definition "A jail."@en ; skos:broader ambiente:entorno-aislado .
+x:box a skos:Concept ; skos:inScheme x:vocabulario ; skos:prefLabel "Box"@en ; skos:definition "A box."@en ;
+  skos:broader ambiente:entorno-aislado .
+x:jail a skos:Concept ; skos:inScheme x:vocabulario ; skos:prefLabel "Jail"@en ; skos:definition "A jail."@en ;
+  skos:broader ambiente:entorno-aislado .
 `,
   };
   const p = paginas(en, [AMBIENTE]);
@@ -217,7 +219,8 @@ Deno.test("externo: el idioma y el namespace salen del archivo; un término en o
   ]);
   const fuera = {
     ...MODAL,
-    texto: MODAL.texto + '<https://otro.dev/x#y> a skos:Concept ; skos:prefLabel "Y"@es ; skos:definition "D."@es .\n',
+    texto: MODAL.texto +
+      '<https://otro.dev/x#y> a skos:Concept ; skos:inScheme modal:vocabulario ; skos:prefLabel "Y"@es ; skos:definition "D."@es .\n',
   };
   assertEquals(errores(fuera), [
     "modal/vocabulary.ttl: https://otro.dev/x#y: un término tiene que estar en el namespace " +

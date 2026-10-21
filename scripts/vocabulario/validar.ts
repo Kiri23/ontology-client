@@ -11,6 +11,10 @@
 //   - skos:broader no tiene ciclos, y related no une dos términos que broader ya une (SKOS S27: son disjuntas);
 //   - rdfs:seeAlso es un IRI http(s), no un literal.
 //
+// `validarEsquema` suma lo que pide la shape del servidor (ontologyLearning, domain/vocabulario-reglas.ttl, la que
+// corre POST /vocabularios): el archivo declara exactamente un skos:ConceptScheme y cada término es skos:inScheme
+// de ese esquema. Va aparte porque mira los quads enteros, no la lista de términos.
+//
 // Las `Reglas` por defecto son las de docs/vocabulary.ttl: namespace v:, @en y sin vocabularios de contexto. Un
 // vocabulario externo (scripts/vocabulario/externo.ts) pasa su namespace, su idioma y los términos de los TTL de
 // contexto, a los que sus broader y related pueden apuntar sin que esos términos se validen acá.
@@ -18,8 +22,10 @@
 // `validarEnlaces` suma la regla de la prosa: un link a docs/vocabulary/<slug>.md tiene que nombrar un término que
 // exista. La prosa no puede citar algo que no está en el TTL.
 
+// @ts-types="@types/n3"
+import type { Quad } from "n3";
 import type { Concepto, Literal } from "./leer.ts";
-import { slugDe } from "./leer.ts";
+import { conceptos, esquemas, slugDe } from "./leer.ts";
 import type { Enlace } from "./menciones.ts";
 
 export const NAMESPACE = "https://kiri23.dev/vocabulario#";
@@ -138,6 +144,28 @@ export function validar(terminos: Concepto[], reglas: Reglas = REGLAS_DEL_REPO):
     }
   }
   return [...errores, ...ciclos(porIri)];
+}
+
+// El esquema del archivo y la pertenencia de cada término: lo que POST /vocabularios exige además de `validar`.
+export function validarEsquema(quads: Quad[]): string[] {
+  const esquema = esquemas(quads).filter((e) => !e.enBlanco);
+  if (esquema.length !== 1) {
+    const cuales = esquema.map((e) => e.iri).join(", ");
+    return [
+      `el vocabulario tiene ${esquema.length} skos:ConceptScheme${cuales ? ` (${cuales})` : ""}; ` +
+      "tiene que declarar exactamente uno, y cada término ser skos:inScheme de ese",
+    ];
+  }
+  const { iri } = esquema[0];
+  const errores: string[] = [];
+  for (const c of conceptos(quads).filter((c) => c.esConcepto && !c.enBlanco)) {
+    if (c.inScheme.length !== 1) {
+      errores.push(`${c.slug}: tiene ${c.inScheme.length} skos:inScheme; tiene que tener exactamente uno, <${iri}>`);
+    } else if (c.inScheme[0] !== iri) {
+      errores.push(`${c.slug}: skos:inScheme <${c.inScheme[0]}> no es el esquema del archivo, <${iri}>`);
+    }
+  }
+  return errores;
 }
 
 // Un error por link de la prosa a una página que el TTL no genera, con archivo, línea y link.

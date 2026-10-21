@@ -7,7 +7,7 @@ import { assert, assertEquals, assertStringIncludes } from "@std/assert";
 // @ts-types="@types/n3"
 import { Store } from "n3";
 import { leer, triples } from "../scripts/vocabulario/leer.ts";
-import { validar, validarEnlaces } from "../scripts/vocabulario/validar.ts";
+import { validar, validarEnlaces, validarEsquema } from "../scripts/vocabulario/validar.ts";
 import { enlacesAlVocabulario, esProsa, triplesDeMenciones } from "../scripts/vocabulario/menciones.ts";
 import { renderizar } from "../scripts/vocabulario/renderizar.ts";
 import { comparar } from "../scripts/vocabulario/archivos.ts";
@@ -33,9 +33,38 @@ function renderizarCon(ttl: string, prosa = new Map<string, string>()): Map<stri
   return renderizar(leer(ttl), new Store([...quads, ...triplesDeMenciones(enlacesAlVocabulario(prosa))]));
 }
 
-Deno.test("validar: el vocabulario commiteado no rompe ninguna regla", async () => {
+Deno.test("validar: el vocabulario commiteado no rompe ninguna regla, ni la del esquema", async () => {
   const ttl = await Deno.readTextFile(new URL("../docs/vocabulary.ttl", import.meta.url));
   assertEquals(validar(leer(ttl)), []);
+  assertEquals(validarEsquema(triples(ttl)), []);
+});
+
+const ESQUEMA = 'v:vocabulario a skos:ConceptScheme ; skos:prefLabel "V"@en .\n';
+
+Deno.test("validarEsquema: un esquema y cada término skos:inScheme de ese pasa", () => {
+  const ttl = PREFIJOS + ESQUEMA + concepto("rdf", "skos:inScheme v:vocabulario ;") +
+    concepto("turtle", "skos:inScheme v:vocabulario ;");
+  assertEquals(validarEsquema(triples(ttl)), []);
+});
+
+Deno.test("validarEsquema: sin skos:ConceptScheme, o con dos, es error", () => {
+  assertEquals(validarEsquema(triples(PREFIJOS + concepto("rdf", "skos:inScheme v:vocabulario ;"))), [
+    "el vocabulario tiene 0 skos:ConceptScheme; tiene que declarar exactamente uno, y cada término ser skos:inScheme de ese",
+  ]);
+  const dos = PREFIJOS + ESQUEMA + "v:otro a skos:ConceptScheme .\n" + concepto("rdf", "skos:inScheme v:vocabulario ;");
+  assertEquals(validarEsquema(triples(dos)), [
+    "el vocabulario tiene 2 skos:ConceptScheme (https://kiri23.dev/vocabulario#vocabulario, " +
+    "https://kiri23.dev/vocabulario#otro); tiene que declarar exactamente uno, y cada término ser skos:inScheme de ese",
+  ]);
+});
+
+Deno.test("validarEsquema: un término sin skos:inScheme, o en otro esquema, es error", () => {
+  const ttl = PREFIJOS + ESQUEMA + concepto("rdf") + concepto("turtle", "skos:inScheme v:otro ;");
+  assertEquals(validarEsquema(triples(ttl)), [
+    "rdf: tiene 0 skos:inScheme; tiene que tener exactamente uno, <https://kiri23.dev/vocabulario#vocabulario>",
+    "turtle: skos:inScheme <https://kiri23.dev/vocabulario#otro> no es el esquema del archivo, " +
+    "<https://kiri23.dev/vocabulario#vocabulario>",
+  ]);
 });
 
 Deno.test("validar: un vocabulario mínimo con broader, related y seeAlso pasa", () => {
