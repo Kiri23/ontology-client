@@ -3,10 +3,11 @@
 import { validarProyecto } from "../../../mod.ts";
 import { type Clase, historia } from "./tipos.ts";
 
-const FICHA = `@prefix k: <https://kiri231.com/ontologia#> .
+const FICHA = `@prefix ontologia: <https://kiri231.com/ontologia#> .
+@prefix proyecto: <https://kiri231.com/proyecto/> .
 @prefix doap: <http://usefulinc.com/ns/doap#> .
 
-ontologia:mi-proyecto a ontologia:Proyecto ;
+proyecto:mi-proyecto a ontologia:Proyecto ;
     doap:shortdesc "Una línea que dice qué es." .
 `;
 

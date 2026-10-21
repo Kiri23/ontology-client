@@ -25,7 +25,7 @@ const REPOS = "los repos con su CI";
 
 export const ESTILOS_CLASE: EstiloClase[] = [
   {
-    iri: PREFIJOS.j + "JobPost",
+    iri: PREFIJOS.ontologia + "JobPost",
     nombre: "JobPost",
     forma: "ellipse",
     tono: "puesto",
@@ -52,7 +52,7 @@ export const ESTILOS_CLASE: EstiloClase[] = [
     isla: REPOS,
   },
   {
-    iri: PREFIJOS.k + "Workflow",
+    iri: PREFIJOS.ontologia + "Workflow",
     nombre: "Workflow",
     forma: "hexagon",
     tono: "workflow",
@@ -60,9 +60,17 @@ export const ESTILOS_CLASE: EstiloClase[] = [
     etiqueta: false,
     isla: REPOS,
   },
-  { iri: PREFIJOS.k + "Uso", nombre: "Uso", forma: "triangle", tono: "uso", tamano: 9, etiqueta: false, isla: REPOS },
   {
-    iri: PREFIJOS.k + "Action",
+    iri: PREFIJOS.ontologia + "Uso",
+    nombre: "Uso",
+    forma: "triangle",
+    tono: "uso",
+    tamano: 9,
+    etiqueta: false,
+    isla: REPOS,
+  },
+  {
+    iri: PREFIJOS.ontologia + "Action",
     nombre: "Action",
     forma: "star",
     tono: "accion",

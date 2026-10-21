@@ -3,7 +3,7 @@
 import { sparql } from "../../../mod.ts";
 import { type Clase, historia, opcional } from "./tipos.ts";
 
-const EJEMPLO = `PREFIX k: <https://kiri231.com/ontologia#>
+const EJEMPLO = `PREFIX ontologia: <https://kiri231.com/ontologia#>
 SELECT ?accion (COUNT(?uso) AS ?usos) WHERE {
   ?uso a ontologia:Uso ; ontologia:accion ?accion .
 }

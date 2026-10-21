@@ -262,7 +262,7 @@ describe("de punta a punta contra un /ai/sparql local", () => {
     expect(mensajes[0].content).toContain('- dcterms:source: ontologia:JobPost → ?. Valores: "hn", "remotive".');
     expect(mensajes.at(-1)).toEqual({ role: "user", content: "¿Cuántos puestos vienen de HN?" });
     expect(editor()).toBe(
-      "PREFIX j: <https://kiri231.com/ontologia#>\nPREFIX dcterms: <http://purl.org/dc/terms/>\n" +
+      "PREFIX ontologia: <https://kiri231.com/ontologia#>\nPREFIX dcterms: <http://purl.org/dc/terms/>\n" +
         'SELECT (COUNT(?p) AS ?n) WHERE { ?p a ontologia:JobPost ; dcterms:source "hn" }',
     );
   });

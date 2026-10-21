@@ -47,7 +47,7 @@ beforeAll(async () => {
 });
 afterEach(cleanup);
 
-const K = "PREFIX k: <https://kiri231.com/ontologia#>\n";
+const K = "PREFIX ontologia: <https://kiri231.com/ontologia#>\n";
 
 describe("Lienzo", () => {
   it("ocupa el id de la hoja de Cytoscape con un <meta> antes de crearlo (si no, la CSP bloquea su <style>)", () => {

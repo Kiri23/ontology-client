@@ -15,7 +15,7 @@ import { leerVista } from "../src/grafo/logica/vistas.ts";
 import { leerRuta } from "../src/logica/ruta.ts";
 import { CONSULTA_CLASES, CONSULTA_PROPIEDADES, validar } from "../src/grafo/logica/validador.ts";
 
-const K = PREFIJOS.k;
+const K = PREFIJOS.ontologia;
 const CHECKOUT = "https://github.com/actions/checkout#.";
 const JOBSEARCH = "https://github.com/Kiri23/JobSearch";
 let store: Store;
@@ -163,7 +163,7 @@ describe("validador", () => {
     if (v.ok) throw new Error(`pasó: ${q}`);
     return v.motivos.join(" | ");
   };
-  const K_ = `PREFIX k: <${K}>\n`;
+  const K_ = `PREFIX ontologia: <${K}>\n`;
   it("rechaza lo que cambia datos, DESCRIBE, SERVICE y FROM, cada uno por su regla", () => {
     expect(rechazo("INSERT DATA { <urn:a> <urn:b> <urn:c> }")).toMatch(/cambia datos/);
     expect(rechazo("LOAD <http://x>")).toMatch(/cambia datos/);
@@ -175,7 +175,7 @@ describe("validador", () => {
     expect(rechazo(`${K_}SELECT ?a WHERE { ?a a ontologia:Accion }`)).toBe(
       "La clase ontologia:Accion no existe en el grafo; parecida: ontologia:Action.",
     );
-    expect(rechazo(`PREFIX j: <${PREFIJOS.j}>\nSELECT ?s WHERE { ?s ontologia:salario ?x }`)).toMatch(
+    expect(rechazo(`PREFIX ontologia: <${PREFIJOS.ontologia}>\nSELECT ?s WHERE { ?s ontologia:salario ?x }`)).toMatch(
       /^La propiedad ontologia:salario no existe en el grafo/,
     );
     expect(rechazo(`${K_}SELECT ?s WHERE { ?s ontologia:tieneWorkflow/k:tieneUzo ?u }`)).toBe(
@@ -185,7 +185,7 @@ describe("validador", () => {
   it("lo que no parsea, y el prefijo sin declarar con la línea que falta", () => {
     expect(rechazo("SELEC nada")).toMatch(/^No se entiende la consulta/);
     expect(rechazo("SELECT ?a WHERE { ?a a ontologia:Action }")).toBe(
-      `Falta declarar el prefijo k:. Agregá arriba: PREFIX k: <${K}>`,
+      `Falta declarar el prefijo ontologia:. Agregá arriba: PREFIX ontologia: <${K}>`,
     );
   });
   it("una propiedad inventada dentro de un path con |, ^, + o * también cae (los link del álgebra)", () => {

@@ -41,7 +41,7 @@ describe("esquema del prompt", () => {
     expect(texto).toContain("- ontologia:pide: ontologia:JobPost → ontologia:Technology.");
     expect(texto).toContain("- rdfs:label: ontologia:JobPost → ?.");
     expect(texto).toContain("- ontologia:JobPost (131): Un puesto publicado");
-    expect(texto).toContain("k: <https://kiri231.com/ontologia#>");
+    expect(texto).toContain("ontologia: <https://kiri231.com/ontologia#>");
     // rdf:type va como `a`, y las propiedades que solo usa el esquema (rdfs:domain, rdfs:range) no se preguntan.
     expect(texto).not.toMatch(/- rdf:type|- rdfs:domain|- rdfs:range/);
   });
@@ -68,7 +68,7 @@ describe("esquema del prompt", () => {
         }" .`,
     );
     store.load(
-      `@prefix j: <https://kiri231.com/ontologia#> . @prefix dcterms: <http://purl.org/dc/terms/> .
+      `@prefix ontologia: <https://kiri231.com/ontologia#> . @prefix dcterms: <http://purl.org/dc/terms/> .
        @prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
        ${puestos.join("\n")}
        ontologia:p0 rdfs:comment "${"una descripción larga ".repeat(3)}" .
@@ -155,9 +155,9 @@ describe("extractor", () => {
 
   it("agrega los PREFIX que faltan y no repite los que el modelo ya escribió", () => {
     const q =
-      "PREFIX k: <https://kiri231.com/ontologia#>\nSELECT ?p WHERE { ?p ontologia:tieneWorkflow ?w . ?p a doap:Project }";
+      "PREFIX ontologia: <https://kiri231.com/ontologia#>\nSELECT ?p WHERE { ?p ontologia:tieneWorkflow ?w . ?p a doap:Project }";
     const completa = completarPrefijos(q);
-    expect(completa.match(/PREFIX k:/g)).toHaveLength(1);
+    expect(completa.match(/PREFIX ontologia:/g)).toHaveLength(1);
     expect(completa.startsWith("PREFIX doap: <http://usefulinc.com/ns/doap#>\n")).toBe(true);
     expect(completarPrefijos("ASK { ?s ?p ?o }")).toBe("ASK { ?s ?p ?o }");
   });

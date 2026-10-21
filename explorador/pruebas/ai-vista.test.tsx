@@ -95,7 +95,7 @@ describe("Preguntar con AI por el servidor", () => {
     expect((screen.getByRole("button", { name: "Generando…" }) as HTMLButtonElement).disabled).toBe(true);
     const consulta = vi.spyOn(grafo.store, "query");
     await act(() => Promise.resolve(m.pedidos[0].contestar("```sparql\nASK { ?a a ontologia:Action }\n```")));
-    expect(editor()).toBe("PREFIX k: <https://kiri231.com/ontologia#>\nASK { ?a a ontologia:Action }");
+    expect(editor()).toBe("PREFIX ontologia: <https://kiri231.com/ontologia#>\nASK { ?a a ontologia:Action }");
     expect(screen.getByText(/el validador la deja correr\. Revisala y tocá Correr/)).toBeTruthy();
     expect(consulta.mock.calls.some(([q]) => q.includes("ASK { ?a a ontologia:Action }"))).toBe(false);
     consulta.mockRestore();
@@ -237,7 +237,7 @@ describe("Preguntar con AI en este dispositivo", () => {
       )
     );
     expect(editor()).toBe(
-      "PREFIX k: <https://kiri231.com/ontologia#>\nSELECT (COUNT(?a) AS ?n) WHERE { ?a a ontologia:Action }",
+      "PREFIX ontologia: <https://kiri231.com/ontologia#>\nSELECT (COUNT(?a) AS ?n) WHERE { ?a a ontologia:Action }",
     );
     expect(screen.getByText(/el validador la deja correr\. Revisala y tocá Correr/)).toBeTruthy();
     expect(consulta.mock.calls.some(([q]) => q.includes("COUNT(?a)"))).toBe(false);
