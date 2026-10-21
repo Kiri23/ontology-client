@@ -1,5 +1,8 @@
-// El explorador: la barra con las clases del SDK y el Grafo, y lo que dice el hash: una historia o una vista del Grafo.
-// La vista Grafo se carga perezosa (import()): trae el motor SPARQL en WASM, y una historia no tiene por qué pagarlo.
+// El explorador: la barra con las clases del SDK, el Grafo y la Ontología, y lo que dice el hash: una historia, una
+// vista del Grafo o la Ontología. Las dos vistas se cargan perezosas (import()): el Grafo trae el motor SPARQL en
+// WASM, y una historia no tiene por qué pagarlo.
+// Un hash sin barra que no es ninguna historia (`#porque`) es el fragmento de un IRI de la ontología
+// (https://kiri231.com/ontologia#porque redirige acá): se vuelve #/ontologia?termino=porque.
 import doc from "virtual:doc-sdk";
 import { lazy, Suspense, useEffect, useMemo, useState } from "react";
 import { Barra } from "./componentes/Barra.tsx";
@@ -9,8 +12,10 @@ import { esRutaDeGrafo, leerVista, nombreDeVista } from "./grafo/logica/vistas.t
 import { buscarHistoria, CLASES, type Historia, HISTORIAS, type Valores } from "./historias/index.ts";
 import { useRuta } from "./hooks/useRuta.ts";
 import type { Ruta } from "./logica/ruta.ts";
+import { esRutaDeOntologia, fragmentoDeIri, PREFIJO_ONTOLOGIA, terminoDe } from "./ontologia/logica/arbol.ts";
 
 const VistaGrafo = lazy(() => import("./grafo/VistaGrafo.tsx"));
+const VistaOntologia = lazy(() => import("./ontologia/VistaOntologia.tsx"));
 
 const iniciales = (h: Historia): Valores => Object.fromEntries(h.controles.map((c) => [c.nombre, c.inicial ?? ""]));
 
@@ -56,17 +61,28 @@ function VistaHistoria({ ruta, navegar, url, fetch }: {
 }
 
 export function App({ url = globalThis.location.origin, fetch }: Props) {
-  const [ruta, navegar] = useRuta();
+  const [rutaDelHash, navegar] = useRuta();
+  // `#porque`: el fragmento de un IRI. Se lee como la Ontología en ese término y el hash se reescribe limpio.
+  const fragmento = buscarHistoria(rutaDelHash.id) || esRutaDeGrafo(rutaDelHash.id) || esRutaDeOntologia(rutaDelHash.id)
+    ? ""
+    : fragmentoDeIri(rutaDelHash.id);
+  const ruta: Ruta = fragmento ? { id: PREFIJO_ONTOLOGIA, valores: { termino: fragmento } } : rutaDelHash;
+  useEffect(() => {
+    if (fragmento) navegar(ruta, "reemplazo");
+  }, [fragmento, ruta, navegar]);
   const enGrafo = esRutaDeGrafo(ruta.id);
+  const enOntologia = esRutaDeOntologia(ruta.id);
   // El último nodo indagado, para que la barra vuelva a él después de pasar por otra vista.
   const [indagar, setIndagar] = useState<Valores>();
   useEffect(() => {
     if (ruta.id === "grafo/nodo" && ruta.valores.iri) setIndagar(ruta.valores);
   }, [ruta]);
-  const historia = enGrafo ? undefined : buscarHistoria(ruta.id) ?? HISTORIAS[0];
+  const historia = enGrafo || enOntologia ? undefined : buscarHistoria(ruta.id) ?? HISTORIAS[0];
   const actual = historia?.id ?? ruta.id;
   const donde = historia
     ? { seccion: historia.clase, nombre: historia.nombre }
+    : enOntologia
+    ? { seccion: "Ontología", nombre: terminoDe(ruta) || "Por clase" }
     : { seccion: "Grafo", nombre: nombreDeVista(leerVista(ruta)) };
 
   return (
@@ -90,6 +106,14 @@ export function App({ url = globalThis.location.origin, fetch }: Props) {
             <SiFalla key={ruta.id}>
               <Suspense fallback={<p className="grafo-cargando" role="status">Abriendo la vista Grafo…</p>}>
                 <VistaGrafo ruta={ruta} navegar={navegar} url={url} fetch={fetch} />
+              </Suspense>
+            </SiFalla>
+          )
+          : enOntologia
+          ? (
+            <SiFalla key={ruta.id}>
+              <Suspense fallback={<p className="ontologia-aviso" role="status">Abriendo la Ontología…</p>}>
+                <VistaOntologia ruta={ruta} navegar={navegar} url={url} fetch={fetch} />
               </Suspense>
             </SiFalla>
           )

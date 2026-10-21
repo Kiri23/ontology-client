@@ -1,8 +1,10 @@
-// La barra lateral: las clases del SDK con sus historias, como el árbol de Storybook, y abajo el Grafo con sus vistas.
+// La barra lateral: las clases del SDK con sus historias, como el árbol de Storybook, y abajo el Grafo con sus vistas
+// y la Ontología.
 // En el teléfono se pliega en una sola fila sticky que dice dónde estás; tocarla abre el cajón.
 import { Fragment, type ReactNode, useState } from "react";
 import type { Clase, Valores } from "../historias/index.ts";
 import { ENTRADAS_GRAFO } from "../grafo/logica/vistas.ts";
+import { PREFIJO_ONTOLOGIA } from "../ontologia/logica/arbol.ts";
 import { escribirRuta } from "../logica/ruta.ts";
 import "../estilos/barra.css";
 
@@ -36,7 +38,7 @@ export function Barra({ clases, actual, donde, indagar }: Props) {
   const [abierta, setAbierta] = useState(false);
   const cerrar = () => setAbierta(false);
   return (
-    <nav className="barra" data-abierta={abierta} aria-label="Historias del SDK y vistas del grafo">
+    <nav className="barra" data-abierta={abierta} aria-label="Historias del SDK, vistas del grafo y la ontología">
       <button type="button" className="barra-plegar" aria-expanded={abierta} onClick={() => setAbierta(!abierta)}>
         <span className="barra-plegar-seccion">{donde.seccion}</span>
         <span className="barra-plegar-actual">{donde.nombre}</span>
@@ -84,6 +86,17 @@ export function Barra({ clases, actual, donde, indagar }: Props) {
                   ))}
               </Fragment>
             ))}
+          </ul>
+        </section>
+        <section className="clase clase-ontologia">
+          <h2 className="clase-titulo">
+            <span>Ontología</span>
+            <small>GET /ontologia</small>
+          </h2>
+          <ul>
+            <Entrada id={PREFIJO_ONTOLOGIA} actual={actual} cerrar={cerrar}>
+              <span className="historia-nombre">Por clase</span>
+            </Entrada>
           </ul>
         </section>
       </div>
