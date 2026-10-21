@@ -1,5 +1,5 @@
 // Las vistas del Grafo en el hash, sobre logica/ruta.ts (el mismo id + valores de las historias):
-//   #/grafo/mapa?clase=k:Action          el grafo entero; `clase` resalta una
+//   #/grafo/mapa?clase=ontologia:Action          el grafo entero; `clase` resalta una
 //   #/grafo/<prearmada>                  una consulta prearmada (logica/consultas.ts)
 //   #/grafo/consulta?sparql=…            la consulta libre
 //   #/grafo/nodo?iri=…&saltos=…&foco=…   el stepper: inicio, saltos dados (camino.ts) y el nodo de la ficha

@@ -4,7 +4,7 @@
 //
 // aPuestos reproduce lo que hace el servidor (comandos/jobs_get.py, consultas/jobs.rq y core/formas.py de
 // ontologyLearning), sin red, así se prueba con filas armadas a mano:
-//   campos      link, después los de j:JobPostShape por nombre; un campo opcional ausente no va (nada de null)
+//   campos      link, después los de ontologia:JobPostShape por nombre; un campo opcional ausente no va (nada de null)
 //   pide        ordenados por link, y los sinonimos de cada uno por texto: sorted(set(...), key=str) en formas.py
 //   fechas      el xsd:dateTime como lo escribe Python (isoformat): 2026-10-13T21:03:57+00:00, con microsegundos
 //               solo si no son cero
@@ -37,9 +37,9 @@ export const CONFIG_N10S = {
  * esté acá sí quedaría nsN: se suma acá.
  */
 export const PREFIJOS: Readonly<Record<string, string>> = {
-  j: "https://kiri23.dev/jobs#",
-  t: "https://kiri23.dev/tech#",
-  k: "https://kiri23.dev/catalogo#",
+  j: "https://kiri231.com/ontologia#",
+  t: "https://kiri231.com/tecnologia/",
+  k: "https://kiri231.com/ontologia#",
   doap: "http://usefulinc.com/ns/doap#",
   rdf: "http://www.w3.org/1999/02/22-rdf-syntax-ns#",
   rdfs: "http://www.w3.org/2000/01/rdf-schema#",
@@ -63,7 +63,7 @@ export const CONSULTA_JOBS = `
 OPTIONAL MATCH (c:${CENTINELA} {completa: true})
 WITH count(c) AS cargas
 OPTIONAL MATCH (p:j__JobPost) WHERE cargas > 0 AND p.rdfs__label IS NOT NULL
-OPTIONAL MATCH (p)-[:j__pide]->(t:Resource)
+OPTIONAL MATCH (p)-[:j__pide]->(tecnologia:Resource)
 WITH cargas, p, collect(t { .uri, .skos__prefLabel, .skos__altLabel }) AS pide
 RETURN cargas, collect(CASE WHEN p IS NULL THEN null ELSE {
   link: p.uri, titulo: p.rdfs__label, empresa: p.j__empresa, fuente: p.dct__source,

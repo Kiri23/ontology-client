@@ -47,7 +47,7 @@ beforeAll(async () => {
 });
 afterEach(cleanup);
 
-const K = "PREFIX k: <https://kiri23.dev/catalogo#>\n";
+const K = "PREFIX ontologia: <https://kiri231.com/ontologia#>\n";
 
 describe("Lienzo", () => {
   it("ocupa el id de la hoja de Cytoscape con un <meta> antes de crearlo (si no, la CSP bloquea su <style>)", () => {
@@ -60,13 +60,13 @@ describe("Lienzo", () => {
 
 describe("ConsultaLibre", () => {
   it("un link solo llena el editor; Correr pasa por el validador y muestra el rechazo", () => {
-    const sparql = `${K}SELECT ?a WHERE { ?a a k:Accion }`;
+    const sparql = `${K}SELECT ?a WHERE { ?a a ontologia:Accion }`;
     const { container } = render(<ConsultaLibre grafo={grafo} sparql={sparql} ir={vi.fn()} />);
     expect((screen.getByLabelText("SPARQL") as HTMLTextAreaElement).value).toBe(sparql);
     expect(container.querySelector(".rechazo, .resultado")).toBeNull();
     fireEvent.click(screen.getByRole("button", { name: "Correr" }));
     expect(screen.getByRole("alert").textContent).toContain(
-      "La clase k:Accion no existe en el grafo; parecida: k:Action.",
+      "La clase ontologia:Accion no existe en el grafo; parecida: ontologia:Action.",
     );
     expect(container.querySelector(".resultado")).toBeNull();
   });
@@ -87,7 +87,7 @@ describe("ConsultaLibre", () => {
   });
 
   it("una consulta válida corre en el motor y da su tabla", () => {
-    render(<ConsultaLibre grafo={grafo} sparql={`${K}SELECT ?a WHERE { ?a a k:Action }`} ir={vi.fn()} />);
+    render(<ConsultaLibre grafo={grafo} sparql={`${K}SELECT ?a WHERE { ?a a ontologia:Action }`} ir={vi.fn()} />);
     fireEvent.click(screen.getByRole("button", { name: "Correr" }));
     expect(screen.getByText(/^10 filas\./)).toBeTruthy();
   });

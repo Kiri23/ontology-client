@@ -1,8 +1,9 @@
-@prefix k: <https://kiri23.dev/catalogo#> .
+@prefix proyecto: <https://kiri231.com/proyecto/> .
+@prefix ontologia: <https://kiri231.com/ontologia#> .
 @prefix doap: <http://usefulinc.com/ns/doap#> .
 
 # Ficha de prueba para el servidor falso (tests/servidor-falso.ts): no conforma por la marca de abajo.
 # servidor-falso: no conforma
-k:ficha-rota a k:Proyecto ;
+proyecto:ficha-rota a ontologia:Proyecto ;
     doap:shortdesc "Ficha de prueba que no conforma." ;
-    k:exportaa k:Algo .
+    ontologia:exportaa ontologia:Algo .

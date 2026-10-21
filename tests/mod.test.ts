@@ -5,7 +5,8 @@ import { crearCliente, URL_PRODUCCION, validarProyecto, validarVocabulario } fro
 import { servidorMudo } from "./servidor-mudo.ts";
 import { atenderFalso, MARCA_NO_CONFORMA } from "./servidor-falso.ts";
 
-const FICHA = '@prefix k: <https://kiri23.dev/catalogo#> .\nk:x a k:Proyecto ; k:nota "con \\"comillas\\"" .\n';
+const FICHA =
+  '@prefix k: <https://kiri231.com/ontologia#> .\nk:x a ontologia:Proyecto ; ontologia:nota "con \\"comillas\\"" .\n';
 
 // Un fetch que guarda el último pedido y responde con `atender`.
 function grabador(atender: (pedido: Request) => Promise<Response>) {
@@ -30,7 +31,7 @@ Deno.test("200 conforma: manda la ficha cruda como text/turtle con el Bearer", a
 });
 
 const VOCABULARIO =
-  "@prefix skos: <http://www.w3.org/2004/02/skos/core#> .\n<https://kiri23.dev/vocabulario/p#v> a skos:ConceptScheme .\n";
+  "@prefix skos: <http://www.w3.org/2004/02/skos/core#> .\n<https://kiri231.com/vocabulario/p#v> a skos:ConceptScheme .\n";
 
 Deno.test("validarVocabulario: POST /vocabularios con el mismo Bearer y el mismo Resultado", async () => {
   const { fetch, visto } = grabador(atenderFalso("secreto"));

@@ -37,11 +37,11 @@ describe("esquema del prompt", () => {
 
   it("cada propiedad con su dominio, rango y comentario; si no declara dominio, las clases que la usan", () => {
     const texto = textoDelEsquema(esquema);
-    expect(texto).toContain("- k:accion: k:Uso → k:Action. El uso apunta a esta action.");
-    expect(texto).toContain("- j:pide: j:JobPost → t:Technology.");
-    expect(texto).toContain("- rdfs:label: j:JobPost → ?.");
-    expect(texto).toContain("- j:JobPost (131): Un puesto publicado");
-    expect(texto).toContain("k: <https://kiri23.dev/catalogo#>");
+    expect(texto).toContain("- ontologia:accion: ontologia:Uso → ontologia:Action. El uso apunta a esta action.");
+    expect(texto).toContain("- ontologia:pide: ontologia:JobPost → ontologia:Technology.");
+    expect(texto).toContain("- rdfs:label: ontologia:JobPost → ?.");
+    expect(texto).toContain("- ontologia:JobPost (131): Un puesto publicado");
+    expect(texto).toContain("ontologia: <https://kiri231.com/ontologia#>");
     // rdf:type va como `a`, y las propiedades que solo usa el esquema (rdfs:domain, rdfs:range) no se preguntan.
     expect(texto).not.toMatch(/- rdf:type|- rdfs:domain|- rdfs:range/);
   });
@@ -49,10 +49,10 @@ describe("esquema del prompt", () => {
   it("las propiedades con pocos literales llevan sus valores, tal cual van en SPARQL; las de muchos, no", () => {
     const texto = textoDelEsquema(esquema);
     // La procedencia de cada carga (<urn:kiri-jobs:hn:…> dcterms:source "kiri-jobs -j (hn)") no tiene clase: no va.
-    expect(texto).toContain('- dcterms:source: j:JobPost → ?. Valores: "hn", "remotive".');
-    expect(texto).toMatch(/- k:esPublico: [^\n]* Valores: false, true\.$/m);
-    // rdfs:label tiene 132 distintos y j:empresa 125: ninguno lleva lista.
-    expect(texto).not.toMatch(/- (rdfs:label|j:empresa): [^\n]*Valores/);
+    expect(texto).toContain('- dcterms:source: ontologia:JobPost → ?. Valores: "hn", "remotive".');
+    expect(texto).toMatch(/- ontologia:esPublico: [^\n]* Valores: false, true\.$/m);
+    // rdfs:label tiene 132 distintos y ontologia:empresa 125: ninguno lleva lista.
+    expect(texto).not.toMatch(/- (rdfs:label|ontologia:empresa): [^\n]*Valores/);
     expect(armarMensajes(esquema, "x")[0].content).toContain(
       "escribí el literal igual que ahí, con las mismas mayúsculas",
     );
@@ -62,20 +62,23 @@ describe("esquema del prompt", () => {
     const store = new Store();
     const puestos = Array.from(
       { length: 11 },
-      (_, i) => `j:p${i} a j:JobPost ; j:empresa "Empresa ${i}" ; dcterms:source "${i % 2 ? "hn" : "remotive"}" .`,
+      (_, i) =>
+        `ontologia:p${i} a ontologia:JobPost ; ontologia:empresa "Empresa ${i}" ; dcterms:source "${
+          i % 2 ? "hn" : "remotive"
+        }" .`,
     );
     store.load(
-      `@prefix j: <https://kiri23.dev/jobs#> . @prefix dcterms: <http://purl.org/dc/terms/> .
+      `@prefix ontologia: <https://kiri231.com/ontologia#> . @prefix dcterms: <http://purl.org/dc/terms/> .
        @prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
        ${puestos.join("\n")}
-       j:p0 rdfs:comment "${"una descripción larga ".repeat(3)}" .
+       ontologia:p0 rdfs:comment "${"una descripción larga ".repeat(3)}" .
        <urn:carga> dcterms:source "procedencia, sin clase" .`,
       { format: "text/turtle" },
     );
     const texto = textoDelEsquema(leerEsquema((q) => store.query(q) as ReturnType<Consultar>));
-    expect(texto).toContain('- dcterms:source: j:JobPost → ?. Valores: "hn", "remotive".');
-    expect(texto).toMatch(/- j:empresa: j:JobPost → \?\.$/m);
-    expect(texto).toMatch(/- rdfs:comment: j:JobPost → \?\.$/m);
+    expect(texto).toContain('- dcterms:source: ontologia:JobPost → ?. Valores: "hn", "remotive".');
+    expect(texto).toMatch(/- ontologia:empresa: ontologia:JobPost → \?\.$/m);
+    expect(texto).toMatch(/- rdfs:comment: ontologia:JobPost → \?\.$/m);
   });
 
   it("un literal como se escribe en SPARQL: con comillas, idioma o tipo; booleanos y enteros, sueltos", () => {
@@ -135,23 +138,26 @@ describe("plantilla de chat de Gemma 3 (la real, sin el modelo)", () => {
 
 describe("extractor", () => {
   it("saca el bloque ```sparql aunque haya texto y otros bloques alrededor", () => {
-    const texto = "Claro:\n```text\nnada\n```\n```sparql\nSELECT ?a WHERE { ?a a k:Action }\n```\nListo.";
-    expect(extraerSparql(texto)).toBe("SELECT ?a WHERE { ?a a k:Action }");
+    const texto = "Claro:\n```text\nnada\n```\n```sparql\nSELECT ?a WHERE { ?a a ontologia:Action }\n```\nListo.";
+    expect(extraerSparql(texto)).toBe("SELECT ?a WHERE { ?a a ontologia:Action }");
   });
 
   it("un bloque sin lenguaje, uno que quedó abierto (max_new_tokens) y el texto crudo", () => {
-    expect(extraerSparql("```\nASK { ?a a k:Uso }\n```")).toBe("ASK { ?a a k:Uso }");
-    expect(extraerSparql("```sparql\nSELECT ?a WHERE {\n  ?a a k:Uso")).toBe("SELECT ?a WHERE {\n  ?a a k:Uso");
-    expect(extraerSparql("La consulta es: SELECT ?x WHERE { ?x a j:JobPost }")).toBe(
-      "SELECT ?x WHERE { ?x a j:JobPost }",
+    expect(extraerSparql("```\nASK { ?a a ontologia:Uso }\n```")).toBe("ASK { ?a a ontologia:Uso }");
+    expect(extraerSparql("```sparql\nSELECT ?a WHERE {\n  ?a a ontologia:Uso")).toBe(
+      "SELECT ?a WHERE {\n  ?a a ontologia:Uso",
+    );
+    expect(extraerSparql("La consulta es: SELECT ?x WHERE { ?x a ontologia:JobPost }")).toBe(
+      "SELECT ?x WHERE { ?x a ontologia:JobPost }",
     );
     expect(extraerSparql("No sé.")).toBe("");
   });
 
   it("agrega los PREFIX que faltan y no repite los que el modelo ya escribió", () => {
-    const q = "PREFIX k: <https://kiri23.dev/catalogo#>\nSELECT ?p WHERE { ?p k:tieneWorkflow ?w . ?p a doap:Project }";
+    const q =
+      "PREFIX ontologia: <https://kiri231.com/ontologia#>\nSELECT ?p WHERE { ?p ontologia:tieneWorkflow ?w . ?p a doap:Project }";
     const completa = completarPrefijos(q);
-    expect(completa.match(/PREFIX k:/g)).toHaveLength(1);
+    expect(completa.match(/PREFIX ontologia:/g)).toHaveLength(1);
     expect(completa.startsWith("PREFIX doap: <http://usefulinc.com/ns/doap#>\n")).toBe(true);
     expect(completarPrefijos("ASK { ?s ?p ?o }")).toBe("ASK { ?s ?p ?o }");
   });

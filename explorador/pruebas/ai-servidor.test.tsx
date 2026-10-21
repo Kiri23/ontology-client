@@ -247,7 +247,8 @@ describe("de punta a punta contra un /ai/sparql local", () => {
     local.respuestas.splice(0, Infinity, {
       estado: 200,
       cuerpo: {
-        texto: 'Acá va:\n```sparql\nSELECT (COUNT(?p) AS ?n) WHERE { ?p a j:JobPost ; dcterms:source "hn" }\n```',
+        texto:
+          'Acá va:\n```sparql\nSELECT (COUNT(?p) AS ?n) WHERE { ?p a ontologia:JobPost ; dcterms:source "hn" }\n```',
       },
     });
     const antes = local.pedidos.length;
@@ -258,11 +259,11 @@ describe("de punta a punta contra un /ai/sparql local", () => {
     const pedido = local.pedidos.at(-1)!;
     expect(pedido).toMatchObject({ metodo: "POST", tipo: "application/json" });
     const mensajes = (pedido.cuerpo as { mensajes: Mensaje[] }).mensajes;
-    expect(mensajes[0].content).toContain('- dcterms:source: j:JobPost → ?. Valores: "hn", "remotive".');
+    expect(mensajes[0].content).toContain('- dcterms:source: ontologia:JobPost → ?. Valores: "hn", "remotive".');
     expect(mensajes.at(-1)).toEqual({ role: "user", content: "¿Cuántos puestos vienen de HN?" });
     expect(editor()).toBe(
-      "PREFIX j: <https://kiri23.dev/jobs#>\nPREFIX dcterms: <http://purl.org/dc/terms/>\n" +
-        'SELECT (COUNT(?p) AS ?n) WHERE { ?p a j:JobPost ; dcterms:source "hn" }',
+      "PREFIX ontologia: <https://kiri231.com/ontologia#>\nPREFIX dcterms: <http://purl.org/dc/terms/>\n" +
+        'SELECT (COUNT(?p) AS ?n) WHERE { ?p a ontologia:JobPost ; dcterms:source "hn" }',
     );
   });
 

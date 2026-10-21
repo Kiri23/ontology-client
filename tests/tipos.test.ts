@@ -16,7 +16,7 @@ Deno.test("tipos: jobs.get() devuelve JobPost[] y el editor conoce sus campos", 
     fecha: "2026-10-13T21:03:57+00:00",
     fuente: "hn",
     titulo: "Dev",
-    pide: [{ link: "https://kiri23.dev/tech#Python", nombre: "Python", sinonimos: [] }],
+    pide: [{ link: "https://kiri231.com/tecnologia/Python", nombre: "Python", sinonimos: [] }],
   };
   const fetch = () => Promise.resolve(Response.json([puesto]));
 

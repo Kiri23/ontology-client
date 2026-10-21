@@ -19,7 +19,7 @@ fewshot.json) y `.../scratchpad/validador/validar.mjs`.
 4. **Mismos pesos por CPU (Node/onnxruntime-node en la VM, 2 vCPU):** carga 16.5 s, 7.1 tok/s de decode, 40 tokens de
    entrada → 6.6 s; con few-shot (~2 140 tokens) 90–103 s por consulta (el prefill por CPU manda).
 5. **Calidad:** zero-shot 0/1 válida (inventó `FROM <clase>` y `WHERE {}`); few-shot 1/1 válida y correcta hasta ahora
-   (COUNT de k:Action → 10), las otras dos se estaban generando en la VM al cerrar (comando en 2b). El validador
+   (COUNT de ontologia:Action → 10), las otras dos se estaban generando en la VM al cerrar (comando en 2b). El validador
    (`sparqljs` + IRIs del endpoint) está hecho y probado.
 6. **CSP:** `connect-src 'self' https://huggingface.co https://*.hf.co` (en el PR #11 se acotó a
    `https://huggingface.co/onnx-community/gemma-4-E2B-it-ONNX/`), `script-src 'self' 'wasm-unsafe-eval' blob:`,
@@ -131,7 +131,7 @@ Para medir calidad y velocidad con los mismos pesos sin WebGPU: contenedor `node
   entrada, 39 de salida, primer token 1.09 s, total 6.56 s, **7.13 tok/s**. Salida:
   ```
   SELECT (COUNT(?action) AS?count)
-  FROM <https://kiri23.dev/catalogo#Action>
+  FROM <https://kiri231.com/ontologia#Action>
   WHERE {
   }
   ```
@@ -199,8 +199,8 @@ frame-ancestors 'none'`,
 - **Validador** (`scratchpad/validador/validar.mjs`, `sparqljs` 3.7.4): parsea, exige `type: query` y `SELECT|ASK`,
   rechaza `SERVICE` y `FROM`, recorre el AST (incluidos `items` de los paths) y compara predicados y objetos de
   `rdf:type` con `SELECT DISTINCT ?p` / `SELECT DISTINCT ?c` del endpoint real; lo que pasa se corre contra `/sparql` y
-  se cuentan filas. Batería: 4 casos → `1/4` (pasa el COUNT correcto; caen `k:salario`, `INSERT DATA`, `k:Empresa`),
-  cada uno por su regla.
+  se cuentan filas. Batería: 4 casos → `1/4` (pasa el COUNT correcto; caen `ontologia:salario`, `INSERT DATA`,
+  `ontologia:Empresa`), cada uno por su regla.
 - **Preguntas** (`fewshot.json`), con sus respuestas de referencia corridas a mano contra `/sparql`:
   1. "¿Cuántas acciones hay en el grafo?" → 10.
   2. "¿Qué proyectos públicos tienen al menos un workflow? Dame el proyecto y cuántos workflows tiene." → 1 fila
@@ -211,7 +211,7 @@ frame-ancestors 'none'`,
   en el grafo?" (`fewshot-parcial.json`): 2 138 tokens de entrada, 155 de salida, primer token a los 56.0 s (prefill),
   3.95 tok/s de decode, 95.3 s total. Salida (recortada):
   `SELECT (COUNT(DISTINCT ?accion) AS
-  ?total_acciones) WHERE { ?accion a k:Action . }` →
+  ?total_acciones) WHERE { ?accion a ontologia:Action . }` →
   `parsea=true valida=true filas=1`, y el valor es 10. Repitió los 6 PREFIX e inventó uno que no usa
   (`rdfs: <http://www.w3.org/2000/11/rdf-schema#>`, el año mal): inofensivo porque no lo usa, pero muestra que los IRIs
   son lo que hay que vigilar. Los tamaños de salida (155 y 200 tokens, el segundo cortado por `max_new_tokens`) sugieren

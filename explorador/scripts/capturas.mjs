@@ -19,9 +19,9 @@ const ORIGEN = "https://ontology.kiri231.com";
 const HOST = process.env.CHROMIUM_BOX_HOST ?? "chromium-box.exe.xyz";
 const LINK = "https://news.ycombinator.com/item?id=50063001";
 const CHECKOUT = "https://github.com/actions/checkout#.";
-// Una consulta con una clase que no existe (k:Accion): el validador la rechaza y propone k:Action.
-const CON_ERROR = `PREFIX k: <https://kiri23.dev/catalogo#>
-SELECT ?accion WHERE { ?accion a k:Accion }`;
+// Una consulta con una clase que no existe (ontologia:Accion): el validador la rechaza y propone ontologia:Action.
+const CON_ERROR = `PREFIX k: <https://kiri231.com/ontologia#>
+SELECT ?accion WHERE { ?accion a ontologia:Accion }`;
 // El lienzo terminó su layout (Lienzo.tsx pone data-listo) y Cytoscape ya dibujó su canvas.
 const LIENZO = '.lienzo[data-listo="true"] canvas';
 
@@ -58,7 +58,7 @@ const CAPTURAS = [
     nombre: "grafo-nodo",
     hash: `#/grafo/nodo?${new URLSearchParams({
       iri: CHECKOUT,
-      saltos: `${CHECKOUT} < https://kiri23.dev/catalogo#ejecutaEnCI`,
+      saltos: `${CHECKOUT} < https://kiri231.com/ontologia#ejecutaEnCI`,
     })}`,
     esperar: LIENZO,
   },
@@ -74,7 +74,9 @@ const CAPTURAS = [
     preguntar: "¿Cuántos puestos vienen de HN?",
     ai: {
       status: 200,
-      body: { texto: '```sparql\nSELECT (COUNT(?p) AS ?n) WHERE { ?p a j:JobPost ; dcterms:source "hn" }\n```' },
+      body: {
+        texto: '```sparql\nSELECT (COUNT(?p) AS ?n) WHERE { ?p a ontologia:JobPost ; dcterms:source "hn" }\n```',
+      },
     },
     esperar: ".ai-veredicto",
   },

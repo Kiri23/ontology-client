@@ -35,7 +35,7 @@ describe("historias", () => {
 
   it("validarProyecto no tira: un 401 vuelve como resultado", async () => {
     const { fetch } = fetchFalso(() => json({ error: "falta el token o no es el correcto" }, 401));
-    const r = await buscarHistoria("validarProyecto")!.correr({ turtle: "@prefix k: <x#> ." }, {
+    const r = await buscarHistoria("validarProyecto")!.correr({ turtle: "@prefix ontologia: <x#> ." }, {
       url: URL_BASE,
       fetch,
     });

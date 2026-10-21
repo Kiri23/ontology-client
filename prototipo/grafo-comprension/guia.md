@@ -223,7 +223,7 @@ ORDER BY tipo, comportamiento
 **(a) ¿`motor.ts` debe conocer `JobPost`?**
 
 ```cypher
-MATCH (j:Archivo {ruta: 'jobs.ts'})-[s:SIRVE_A]->(m:Archivo)-[:TIENE_ROL]->(rm:Rol {nombre: 'Motor'})
+MATCH (ontologia:Archivo {ruta: 'jobs.ts'})-[s:SIRVE_A]->(m:Archivo)-[:TIENE_ROL]->(rm:Rol {nombre: 'Motor'})
 MATCH (j)-[:TIENE_ROL]->(rj:Rol)
 OPTIONAL MATCH (m)-[vuelta:SIRVE_A]->(j)
 RETURN j.ruta + ' (' + rj.nombre + ')' AS sirve, m.ruta + ' (' + rm.nombre + ')' AS a, s.ancla AS firma,

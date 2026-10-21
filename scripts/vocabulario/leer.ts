@@ -55,7 +55,7 @@ export function triples(ttl: string): Quad[] {
   return new Parser().parse(ttl);
 }
 
-// Los @prefix del TTL como namespace → prefijo ("https://kiri23.dev/ambiente#" → "ambiente"). Lanza como `triples`.
+// Los @prefix del TTL como namespace → prefijo ("https://kiri231.com/ambiente#" → "ambiente"). Lanza como `triples`.
 export function prefijos(ttl: string): Map<string, string> {
   const vistos = new Map<string, string>();
   new Parser().parse(ttl, null, (prefijo, iri) => {

@@ -1,5 +1,5 @@
-// Las relaciones de un nodo, agrupadas por predicado y dirección, para la ficha del stepper: "k:tieneWorkflow → 2",
-// "← k:accion 14". Tocar una agrega esos vecinos al lienzo.
+// Las relaciones de un nodo, agrupadas por predicado y dirección, para la ficha del stepper: "ontologia:tieneWorkflow → 2",
+// "← ontologia:accion 14". Tocar una agrega esos vecinos al lienzo.
 import type { Arista, Modelo } from "./modelo.ts";
 
 export type Direccion = "sale" | "entra";

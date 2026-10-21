@@ -4,7 +4,9 @@
     "empresa": "Typify.dev (https://typify.dev)",
     "fecha": "2026-10-13T21:03:57+00:00",
     "fuente": "hn",
-    "pide": [{ "link": "https://kiri23.dev/tech#MCP", "nombre": "MCP", "sinonimos": ["Model Context Protocol"] }],
+    "pide": [
+      { "link": "https://kiri231.com/tecnologia/MCP", "nombre": "MCP", "sinonimos": ["Model Context Protocol"] }
+    ],
     "titulo": "AI Application Engineer + Product Engineer | San Francisco (hybrid / remote available) | VISA | $80-120K USD (Negotiable) | galen@typify.dev"
   },
   {
@@ -13,11 +15,11 @@
     "fecha": "2026-10-13T21:03:57+00:00",
     "fuente": "remotive",
     "pide": [
-      { "link": "https://kiri23.dev/tech#CSharp", "nombre": "C#", "sinonimos": [".NET", "dotnet"] },
-      { "link": "https://kiri23.dev/tech#NodeJs", "nombre": "Node.js", "sinonimos": ["Node", "NodeJS"] },
-      { "link": "https://kiri23.dev/tech#Python", "nombre": "Python", "sinonimos": [] },
-      { "link": "https://kiri23.dev/tech#React", "nombre": "React", "sinonimos": ["React Native", "ReactJS"] },
-      { "link": "https://kiri23.dev/tech#TypeScript", "nombre": "TypeScript", "sinonimos": ["TS"] }
+      { "link": "https://kiri231.com/tecnologia/CSharp", "nombre": "C#", "sinonimos": [".NET", "dotnet"] },
+      { "link": "https://kiri231.com/tecnologia/NodeJs", "nombre": "Node.js", "sinonimos": ["Node", "NodeJS"] },
+      { "link": "https://kiri231.com/tecnologia/Python", "nombre": "Python", "sinonimos": [] },
+      { "link": "https://kiri231.com/tecnologia/React", "nombre": "React", "sinonimos": ["React Native", "ReactJS"] },
+      { "link": "https://kiri231.com/tecnologia/TypeScript", "nombre": "TypeScript", "sinonimos": ["TS"] }
     ],
     "titulo": "Senior .NET Full-stack Developer"
   },

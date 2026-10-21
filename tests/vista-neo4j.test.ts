@@ -111,7 +111,10 @@ Deno.test("aPuestos: lo que no calza con JobPost tira PuestoQueNoCalza, como el 
     [{ fecha: null }, "no tiene fecha"],
     [{ fuente: [] }, "no tiene fuente"],
     [{ empresa: ["a", "b"] }, "tiene 2 empresa"],
-    [{ pide: [{ uri: "https://kiri23.dev/tech#X", skos__prefLabel: null, skos__altLabel: null }] }, "no tiene nombre"],
+    [
+      { pide: [{ uri: "https://kiri231.com/tecnologia/X", skos__prefLabel: null, skos__altLabel: null }] },
+      "no tiene nombre",
+    ],
     [{ fecha: ["ayer"] }, "no es un xsd:dateTime"],
   ];
   for (const [cambio, mensaje] of casos) {

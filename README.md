@@ -104,9 +104,9 @@ deno task hooks   # optional: runs the CI checks before every commit
 The graph has 1279 facts (triples).
 
 Domain classes, by number of instances (top 6 of 6):
-    131  JobPost     https://kiri23.dev/jobs#JobPost
-     43  Uso         https://kiri23.dev/catalogo#Uso
-     21  Workflow    https://kiri23.dev/catalogo#Workflow
+    131  JobPost     https://kiri231.com/ontologia#JobPost
+     43  Uso         https://kiri231.com/ontologia#Uso
+     21  Workflow    https://kiri231.com/ontologia#Workflow
 …
 ```
 

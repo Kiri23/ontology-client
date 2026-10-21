@@ -22,7 +22,7 @@ export function frasesDeIslas(grafo: Grafo): string {
     (sueltos ? ` Otros ${sueltos} nodos están sueltos, sin ninguna relación.` : "");
 }
 
-/** `clase` viene de la URL compacta (`k:Action`). */
+/** `clase` viene de la URL compacta (`ontologia:Action`). */
 export function Mapa({ grafo, clase: enUrl, ir }: { grafo: Grafo; clase: string; ir: Ir }) {
   const { modelo } = grafo;
   const clase = enUrl ? expandir(enUrl) : "";

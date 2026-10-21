@@ -147,9 +147,9 @@ server ──GET /openapi.json──▶ contrato/openapi.json ──openapi-type
             deno task contrato                         deno task generar
 ```
 
-A type is born on the server as a SHACL shape and reaches your editor without anyone writing it: `j:JobPostShape` (TTL)
-→ the `JobPost` schema in `contrato/openapi.json` → `components["schemas"]["JobPost"]` in `generado/api.ts` → `JobPost`
-in `jobs.ts`.
+A type is born on the server as a SHACL shape and reaches your editor without anyone writing it:
+`ontologia:JobPostShape` (TTL) → the `JobPost` schema in `contrato/openapi.json` → `components["schemas"]["JobPost"]` in
+`generado/api.ts` → `JobPost` in `jobs.ts`.
 
 ```sh
 deno task contrato                  # downloads the contract (default https://ontology.kiri231.com/openapi.json)

@@ -88,8 +88,8 @@ ssh neo4j-ontology.exe.xyz 'sudo tailscale serve --bg --tcp=80 tcp://localhost:8
   sudo tailscale serve --bg --tcp=7687 tcp://localhost:7687'
 ```
 
-Tested from Termux by IP: the Query API with `MATCH (j:j__JobPost) RETURN count(j)` gives `[[131]]`, `/browser/` gives
-200, and `NEO4J_URL=bolt://100.123.48.55:7687 deno task neo4j:hola` (and `neo4j://`) brings the 35 job posts with
+Tested from Termux by IP: the Query API with `MATCH (ontologia:j__JobPost) RETURN count(j)` gives `[[131]]`, `/browser/`
+gives 200, and `NEO4J_URL=bolt://100.123.48.55:7687 deno task neo4j:hola` (and `neo4j://`) brings the 35 job posts with
 python. The IP changes if the VM is recreated: `tailscale ip -4` on the VM.
 
 ## Loading it (and refreshing it)
@@ -147,7 +147,7 @@ S=https://ontology.kiri231.com/sparql
 q() { curl -s -G "$S" --data-urlencode "query=$1" -H 'Accept: text/csv'; }
 q 'SELECT (COUNT(*) AS ?n) WHERE { ?s ?p ?o }'                                   # 1279 in the union
 q 'SELECT ?g (COUNT(*) AS ?n) WHERE { GRAPH ?g { ?s ?p ?o } } GROUP BY ?g'       # the named graphs
-q 'SELECT (COUNT(*) AS ?n) WHERE { ?s <https://kiri23.dev/jobs#descartadoEl> ?o }'   # 0: no decisions
+q 'SELECT (COUNT(*) AS ?n) WHERE { ?s <https://kiri231.com/ontologia#descartadoEl> ?o }'   # 0: no decisions
 curl -s https://ontology.kiri231.com/jobs | jq length                            # 131 job posts
 ```
 
@@ -169,15 +169,15 @@ q "SELECT (COUNT(DISTINCT ?o) AS ?n) WHERE { $P FILTER(isIRI(?o) && ?p != rdf:ty
      FILTER NOT EXISTS { ?o a ?c2 } }"                                                # 0 edges to something without a class
 ```
 
-| Goes in (instances)                          | Stays out                                                                                |
-| -------------------------------------------- | ---------------------------------------------------------------------------------------- |
-| `j:JobPost` 131, `k:Uso` 43, `k:Workflow` 21 | the schema from domain/: `rdfs:Class`, `rdf:Property`, their `rdfs:comment`              |
-| `t:Technology` 15, `doap:Project` 15         | the shapes (`sh:NodeShape`) and their blank nodes: they came from domain/'s `.ttl` files |
-| `k:Action` 10                                | the named graph nodes `urn:kiri-*`: untyped, the graph's metadata                        |
+| Goes in (instances)                                                  | Stays out                                                                                |
+| -------------------------------------------------------------------- | ---------------------------------------------------------------------------------------- |
+| `ontologia:JobPost` 131, `ontologia:Uso` 43, `ontologia:Workflow` 21 | the schema from domain/: `rdfs:Class`, `rdf:Property`, their `rdfs:comment`              |
+| `ontologia:Technology` 15, `doap:Project` 15                         | the shapes (`sh:NodeShape`) and their blank nodes: they came from domain/'s `.ttl` files |
+| `ontologia:Action` 10                                                | the named graph nodes `urn:kiri-*`: untyped, the graph's metadata                        |
 
-The 15 `t:Technology` come from production's default graph: `domain/tecnologias.ttl` is A_MANO on the server. Since
-everything comes from the same source that GET /jobs reads, the view can no longer have data the server does not see (it
-used to load domain/'s 14 `.ttl` files, more than the server's 6 A_MANO).
+The 15 `ontologia:Technology` come from production's default graph: `domain/tecnologias.ttl` is A_MANO on the server.
+Since everything comes from the same source that GET /jobs reads, the view can no longer have data the server does not
+see (it used to load domain/'s 14 `.ttl` files, more than the server's 6 A_MANO).
 
 ## Named graphs: flattened into the union
 
@@ -186,8 +186,9 @@ graphs (`urn:kiri-acciones:…`) and show up just the same. The view does the sa
 
 - n10s does import quads: `n10s.experimental.quadrdf.import.fetch` (TriG and N-Quads) stores the graph name as a
   `graphUri` property and creates **one node per (uri, graph)** (`RDFQuadDirectStatementLoader.java`, tag 2025.06.1). A
-  `t:Python` that lives in domain/ and is asked for from the hn graph would be two nodes, and reading through the union
-  would mean joining them by uri in every query. Besides, `/sparql` does not return TriG: `CONSTRUCT` gives triples.
+  `tecnologia:Python` that lives in domain/ and is asked for from the hn graph would be two nodes, and reading through
+  the union would mean joining them by uri in every query. Besides, `/sparql` does not return TriG: `CONSTRUCT` gives
+  triples.
 - **What is lost:** which graph each triple belongs to, and each graph's metadata (`dct:source "kiri-jobs -j (hn)"`,
   `prov:generatedAtTime`, `rdfs:comment`): the graph's URI has no `rdf:type`, so `PATRON_DATOS` leaves it out. It is not
   needed: each job post carries its own source (`dct__source: ["hn"]`) and its date.
@@ -201,7 +202,7 @@ graphs (`urn:kiri-acciones:…`) and show up just the same. The view does the sa
 
 | Option                | Value     | What it does                                                                                                                                                            |
 | --------------------- | --------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `handleVocabUris`     | `SHORTEN` | `rdfs:label` → property `rdfs__label`, `j:JobPost` → label `j__JobPost`                                                                                                 |
+| `handleVocabUris`     | `SHORTEN` | `rdfs:label` → property `rdfs__label`, `ontologia:JobPost` → label `j__JobPost`                                                                                         |
 | `handleMultival`      | `ARRAY`   | **every** literal is a list: `skos:altLabel` → `skos__altLabel: ["Node","NodeJS"]`, and no value overwrites another (with the default, `OVERWRITE`, the last one stays) |
 | `handleRDFTypes`      | `LABELS`  | `rdf:type` → node label (classes are not separate nodes)                                                                                                                |
 | `keepLangTag`         | `false`   | no `@es`; today there are no lang tags in the data                                                                                                                      |
@@ -247,9 +248,9 @@ ORDER BY t.uri LIMIT 3
 
 ```
 ["Resource","j__JobPost"] ["Senior .NET Full-stack Developer"] ["Lemon.io"] ["remotive"] "2026-10-13T21:03:57Z"
-  j__pide  https://kiri23.dev/tech#CSharp  ["Resource","t__Technology"]  ["C#"]       ["dotnet",".NET"]
-  j__pide  https://kiri23.dev/tech#NodeJs  ["Resource","t__Technology"]  ["Node.js"]  ["Node","NodeJS"]
-  j__pide  https://kiri23.dev/tech#Python  ["Resource","t__Technology"]  ["Python"]   null
+  j__pide  https://kiri231.com/tecnologia/CSharp  ["Resource","t__Technology"]  ["C#"]       ["dotnet",".NET"]
+  j__pide  https://kiri231.com/tecnologia/NodeJs  ["Resource","t__Technology"]  ["Node.js"]  ["Node","NodeJS"]
+  j__pide  https://kiri231.com/tecnologia/Python  ["Resource","t__Technology"]  ["Python"]   null
 ```
 
 `skos__altLabel` comes unordered (`["dotnet",".NET"]`) and `null` when there is none: the engine sorts it and returns

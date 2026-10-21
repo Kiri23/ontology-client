@@ -2,7 +2,7 @@
 // y `jobs.get()`, `jobs.descartar()`, `jobs.marcarAplicado()`. Un módulo por clase, no por endpoint: lo que
 // el SDK sepa hacer con los puestos vive acá.
 //
-// El tipo no se escribe a mano. La cadena es: j:JobPostShape (SHACL, en el servidor) → el schema JobPost
+// El tipo no se escribe a mano. La cadena es: ontologia:JobPostShape (SHACL, en el servidor) → el schema JobPost
 // de contrato/openapi.json → components["schemas"]["JobPost"] en generado/api.ts → JobPost acá.
 //
 // Las acciones (descartar, marcarAplicado) son los action types del servidor: cada una es un
@@ -17,7 +17,7 @@ import type { components, operations } from "./generado/api.ts";
 import { type Forma, pedir, URL_PRODUCCION } from "./cliente.ts";
 import { motorActual } from "./motor.ts";
 
-/** Un puesto de trabajo, con la forma de j:JobPostShape: el schema JobPost del contrato. */
+/** Un puesto de trabajo, con la forma de ontologia:JobPostShape: el schema JobPost del contrato. */
 export type JobPost = components["schemas"]["JobPost"];
 
 /** Una tecnología que un puesto pide: el schema Technology del contrato. */

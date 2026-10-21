@@ -12,7 +12,7 @@ import { enlacesAlVocabulario, esProsa, triplesDeMenciones } from "../scripts/vo
 import { renderizar } from "../scripts/vocabulario/renderizar.ts";
 import { comparar } from "../scripts/vocabulario/archivos.ts";
 
-const PREFIJOS = `@prefix v: <https://kiri23.dev/vocabulario/ontology-client#> .
+const PREFIJOS = `@prefix v: <https://kiri231.com/vocabulario/ontology-client#> .
 @prefix skos: <http://www.w3.org/2004/02/skos/core#> .
 @prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
 `;
@@ -53,17 +53,17 @@ Deno.test("validarEsquema: sin skos:ConceptScheme, o con dos, es error", () => {
   ]);
   const dos = PREFIJOS + ESQUEMA + "v:otro a skos:ConceptScheme .\n" + concepto("rdf", "skos:inScheme v:vocabulario ;");
   assertEquals(validarEsquema(triples(dos)), [
-    "el vocabulario tiene 2 skos:ConceptScheme (https://kiri23.dev/vocabulario/ontology-client#vocabulario, " +
-    "https://kiri23.dev/vocabulario/ontology-client#otro); tiene que declarar exactamente uno, y cada término ser skos:inScheme de ese",
+    "el vocabulario tiene 2 skos:ConceptScheme (https://kiri231.com/vocabulario/ontology-client#vocabulario, " +
+    "https://kiri231.com/vocabulario/ontology-client#otro); tiene que declarar exactamente uno, y cada término ser skos:inScheme de ese",
   ]);
 });
 
 Deno.test("validarEsquema: un término sin skos:inScheme, o en otro esquema, es error", () => {
   const ttl = PREFIJOS + ESQUEMA + concepto("rdf") + concepto("turtle", "skos:inScheme v:otro ;");
   assertEquals(validarEsquema(triples(ttl)), [
-    "rdf: tiene 0 skos:inScheme; tiene que tener exactamente uno, <https://kiri23.dev/vocabulario/ontology-client#vocabulario>",
-    "turtle: skos:inScheme <https://kiri23.dev/vocabulario/ontology-client#otro> no es el esquema del archivo, " +
-    "<https://kiri23.dev/vocabulario/ontology-client#vocabulario>",
+    "rdf: tiene 0 skos:inScheme; tiene que tener exactamente uno, <https://kiri231.com/vocabulario/ontology-client#vocabulario>",
+    "turtle: skos:inScheme <https://kiri231.com/vocabulario/ontology-client#otro> no es el esquema del archivo, " +
+    "<https://kiri231.com/vocabulario/ontology-client#vocabulario>",
   ]);
 });
 
@@ -90,7 +90,7 @@ Deno.test("validar: un skos:ConceptScheme no es un término ni lleva página", (
 
 Deno.test("validar: rechaza un concepto que es nodo en blanco", () => {
   assertEquals(errores(concepto("rdf") + `[] a skos:Concept ; skos:prefLabel "Anon"@en ; skos:definition "D."@en .`), [
-    'nodo en blanco "Anon": un término necesita un IRI https://kiri23.dev/vocabulario/ontology-client#<local name>',
+    'nodo en blanco "Anon": un término necesita un IRI https://kiri231.com/vocabulario/ontology-client#<local name>',
   ]);
 });
 
@@ -129,8 +129,8 @@ Deno.test("validar: rechaza dos prefLabel en @en", () => {
 
 Deno.test("validar: rechaza broader y related a un término inexistente", () => {
   assertEquals(errores(concepto("turtle", "skos:broader v:sintaxis ; skos:related v:rdf ;")), [
-    "turtle: skos:broader apunta a https://kiri23.dev/vocabulario/ontology-client#sintaxis, que no es un skos:Concept del vocabulario",
-    "turtle: skos:related apunta a https://kiri23.dev/vocabulario/ontology-client#rdf, que no es un skos:Concept del vocabulario",
+    "turtle: skos:broader apunta a https://kiri231.com/vocabulario/ontology-client#sintaxis, que no es un skos:Concept del vocabulario",
+    "turtle: skos:related apunta a https://kiri231.com/vocabulario/ontology-client#rdf, que no es un skos:Concept del vocabulario",
   ]);
 });
 
@@ -157,11 +157,11 @@ Deno.test("validar: rechaza un local name que no sirve de archivo y un IRI fuera
   const ttl = concepto("Mal_Nombre") + concepto("readme") +
     `<https://otro.dev/x#rdf> a skos:Concept ; skos:prefLabel "R"@en ; skos:definition "D."@en .\n`;
   assertEquals(errores(ttl), [
-    'https://kiri23.dev/vocabulario/ontology-client#Mal_Nombre: el local name "Mal_Nombre" tiene que ser minúsculas, dígitos y ' +
+    'https://kiri231.com/vocabulario/ontology-client#Mal_Nombre: el local name "Mal_Nombre" tiene que ser minúsculas, dígitos y ' +
     'guiones, y no "readme"',
-    'https://kiri23.dev/vocabulario/ontology-client#readme: el local name "readme" tiene que ser minúsculas, dígitos y guiones, y ' +
+    'https://kiri231.com/vocabulario/ontology-client#readme: el local name "readme" tiene que ser minúsculas, dígitos y guiones, y ' +
     'no "readme"',
-    "https://otro.dev/x#rdf: un término tiene que estar en el namespace https://kiri23.dev/vocabulario/ontology-client#",
+    "https://otro.dev/x#rdf: un término tiene que estar en el namespace https://kiri231.com/vocabulario/ontology-client#",
   ]);
 });
 

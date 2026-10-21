@@ -307,8 +307,8 @@ Es determinista y en TypeScript, con `sparqljs` 3.7.4
 
 - `INSERT DATA` y `LOAD` → `type: "update"`.
 - `SERVICE` → patrón `type: "service"`.
-- `?x a j:JobPost` → predicado `rdf:type` como `NamedNode`.
-- Un camino como `j:pide/…*` → predicado `type: "path"` con `items`.
+- `?x a ontologia:JobPost` → predicado `rdf:type` como `NamedNode`.
+- Un camino como `ontologia:pide/…*` → predicado `type: "path"` con `items`.
 
 **Rechaza:**
 
@@ -355,8 +355,8 @@ Es determinista y en TypeScript, con `sparqljs` 3.7.4
 **Cómo se prueba (la batería del validador):**
 
 - Tienen que pasar: los 4 `.rq` de `consultas/`.
-- Tienen que caer, cada uno por su regla: `INSERT DATA`, `LOAD`, `SERVICE`, `FROM <x>`, un `j:salario` inventado, una
-  clase `j:Empresa` inventada, `LIMIT 10000`, dos patrones desconexos y `?s ?p ?o` sin anclar.
+- Tienen que caer, cada uno por su regla: `INSERT DATA`, `LOAD`, `SERVICE`, `FROM <x>`, un `ontologia:salario`
+  inventado, una clase `ontologia:Empresa` inventada, `LIMIT 10000`, dos patrones desconexos y `?s ?p ?o` sin anclar.
 - Cada mutante cae por la regla que le toca, con el patrón del skill `mutation-battery`.
 
 ## Plan por niveles

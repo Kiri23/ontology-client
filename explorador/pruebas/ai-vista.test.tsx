@@ -94,10 +94,10 @@ describe("Preguntar con AI por el servidor", () => {
     expect(screen.getByRole("status").textContent).toContain("Preguntando a la AI");
     expect((screen.getByRole("button", { name: "Generando…" }) as HTMLButtonElement).disabled).toBe(true);
     const consulta = vi.spyOn(grafo.store, "query");
-    await act(() => Promise.resolve(m.pedidos[0].contestar("```sparql\nASK { ?a a k:Action }\n```")));
-    expect(editor()).toBe("PREFIX k: <https://kiri23.dev/catalogo#>\nASK { ?a a k:Action }");
+    await act(() => Promise.resolve(m.pedidos[0].contestar("```sparql\nASK { ?a a ontologia:Action }\n```")));
+    expect(editor()).toBe("PREFIX ontologia: <https://kiri231.com/ontologia#>\nASK { ?a a ontologia:Action }");
     expect(screen.getByText(/el validador la deja correr\. Revisala y tocá Correr/)).toBeTruthy();
-    expect(consulta.mock.calls.some(([q]) => q.includes("ASK { ?a a k:Action }"))).toBe(false);
+    expect(consulta.mock.calls.some(([q]) => q.includes("ASK { ?a a ontologia:Action }"))).toBe(false);
     consulta.mockRestore();
   });
 
@@ -138,8 +138,10 @@ describe("Preguntar con AI por el servidor", () => {
 
   it("una consulta rechazada por el validador queda en el editor con el motivo", async () => {
     const m = preguntarAlServidor("¿Qué acciones hay?");
-    await act(() => Promise.resolve(m.pedidos[0].contestar("```sparql\nSELECT ?a WHERE { ?a a k:Accion }\n```")));
-    expect(screen.getByRole("alert").textContent).toContain("La clase k:Accion no existe en el grafo");
+    await act(() =>
+      Promise.resolve(m.pedidos[0].contestar("```sparql\nSELECT ?a WHERE { ?a a ontologia:Accion }\n```"))
+    );
+    expect(screen.getByRole("alert").textContent).toContain("La clase ontologia:Accion no existe en el grafo");
   });
 
   it("salir mientras pregunta corta el pedido: la respuesta que llega después no escribe", async () => {
@@ -147,7 +149,7 @@ describe("Preguntar con AI por el servidor", () => {
     const llamadas = m.ir.mock.calls.length;
     m.unmount();
     expect(m.pedidos[0].senal.aborted).toBe(true);
-    await act(() => Promise.resolve(m.pedidos[0].contestar("```sparql\nASK { ?a a k:Action }\n```")));
+    await act(() => Promise.resolve(m.pedidos[0].contestar("```sparql\nASK { ?a a ontologia:Action }\n```")));
     expect(m.ir.mock.calls.length).toBe(llamadas);
     expect(m.ai.servidor()).toEqual({ fase: "libre" });
   });
@@ -228,10 +230,15 @@ describe("Preguntar con AI en este dispositivo", () => {
     expect(screen.getByLabelText("Lo que va escribiendo la AI").textContent).toContain("SELECT");
     await act(() =>
       Promise.resolve(
-        m.emitir({ tipo: "generado", texto: "```sparql\nSELECT (COUNT(?a) AS ?n) WHERE { ?a a k:Action }\n```" }),
+        m.emitir({
+          tipo: "generado",
+          texto: "```sparql\nSELECT (COUNT(?a) AS ?n) WHERE { ?a a ontologia:Action }\n```",
+        }),
       )
     );
-    expect(editor()).toBe("PREFIX k: <https://kiri23.dev/catalogo#>\nSELECT (COUNT(?a) AS ?n) WHERE { ?a a k:Action }");
+    expect(editor()).toBe(
+      "PREFIX ontologia: <https://kiri231.com/ontologia#>\nSELECT (COUNT(?a) AS ?n) WHERE { ?a a ontologia:Action }",
+    );
     expect(screen.getByText(/el validador la deja correr\. Revisala y tocá Correr/)).toBeTruthy();
     expect(consulta.mock.calls.some(([q]) => q.includes("COUNT(?a)"))).toBe(false);
     expect(m.container.querySelector(".resultado")).toBeNull();
@@ -244,12 +251,14 @@ describe("Preguntar con AI en este dispositivo", () => {
     const m = preguntar("¿Qué acciones hay?");
     const consulta = vi.spyOn(grafo.store, "query");
     await act(() =>
-      Promise.resolve(m.emitir({ tipo: "generado", texto: "```sparql\nSELECT ?a WHERE { ?a a k:Accion }\n```" }))
+      Promise.resolve(
+        m.emitir({ tipo: "generado", texto: "```sparql\nSELECT ?a WHERE { ?a a ontologia:Accion }\n```" }),
+      )
     );
-    expect(editor()).toContain("SELECT ?a WHERE { ?a a k:Accion }");
+    expect(editor()).toContain("SELECT ?a WHERE { ?a a ontologia:Accion }");
     const alerta = screen.getByRole("alert").textContent;
     expect(alerta).toContain("La propuso la AI: quedó en el editor para que la corrijas.");
-    expect(alerta).toContain("La clase k:Accion no existe en el grafo; parecida: k:Action.");
+    expect(alerta).toContain("La clase ontologia:Accion no existe en el grafo; parecida: ontologia:Action.");
     expect(consulta).not.toHaveBeenCalled();
     consulta.mockRestore();
   });
@@ -296,7 +305,9 @@ describe("Preguntar con AI en este dispositivo", () => {
     const llamadas = m.ir.mock.calls.length;
     m.unmount();
     expect(m.estado.terminado).toBe(true);
-    await act(() => Promise.resolve(m.emitir({ tipo: "generado", texto: "```sparql\nASK { ?a a k:Action }\n```" })));
+    await act(() =>
+      Promise.resolve(m.emitir({ tipo: "generado", texto: "```sparql\nASK { ?a a ontologia:Action }\n```" }))
+    );
     expect(m.ir.mock.calls.length).toBe(llamadas);
   });
 
@@ -333,7 +344,9 @@ describe("Preguntar con AI en este dispositivo", () => {
 
   it("editar la consulta propuesta borra el veredicto de la AI", async () => {
     const m = preguntar("¿Cuántas acciones hay?");
-    await act(() => Promise.resolve(m.emitir({ tipo: "generado", texto: "```sparql\nASK { ?a a k:Action }\n```" })));
+    await act(() =>
+      Promise.resolve(m.emitir({ tipo: "generado", texto: "```sparql\nASK { ?a a ontologia:Action }\n```" }))
+    );
     expect(screen.getByText(/el validador la deja correr/)).toBeTruthy();
     fireEvent.change(screen.getByLabelText("SPARQL"), { target: { value: editor() + " " } });
     expect(screen.queryByText(/el validador la deja correr/)).toBeNull();
@@ -342,7 +355,9 @@ describe("Preguntar con AI en este dispositivo", () => {
   it("editar una propuesta rechazada borra el 'la propuso la AI'", async () => {
     const m = preguntar("¿Qué acciones hay?");
     await act(() =>
-      Promise.resolve(m.emitir({ tipo: "generado", texto: "```sparql\nSELECT ?a WHERE { ?a a k:Accion }\n```" }))
+      Promise.resolve(
+        m.emitir({ tipo: "generado", texto: "```sparql\nSELECT ?a WHERE { ?a a ontologia:Accion }\n```" }),
+      )
     );
     expect(screen.getByText(/La propuso la AI/)).toBeTruthy();
     fireEvent.change(screen.getByLabelText("SPARQL"), { target: { value: editor().replace("Accion", "Action") } });

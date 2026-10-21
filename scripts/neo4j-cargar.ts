@@ -31,8 +31,8 @@ const ESQUEMA = [
 ];
 
 /**
- * Los datos: cada triple cuyo sujeto es instancia de una clase que no es de esquema. Hoy entran j:JobPost,
- * t:Technology, doap:Project, k:Uso, k:Workflow y k:Action. Quedan afuera el esquema y las shapes (con sus blank
+ * Los datos: cada triple cuyo sujeto es instancia de una clase que no es de esquema. Hoy entran ontologia:JobPost,
+ * ontologia:Technology, doap:Project, ontologia:Uso, ontologia:Workflow y ontologia:Action. Quedan afuera el esquema y las shapes (con sus blank
  * nodes) y los nodos de named graph (urn:kiri-*, sin tipo: el puesto ya lleva su fuente y su fecha).
  */
 export const PATRON_DATOS = `?s a ?c . FILTER(?c NOT IN (${ESQUEMA.join(", ")})) ?s ?p ?o`;

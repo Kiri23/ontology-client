@@ -1,4 +1,4 @@
-@prefix prueba: <https://kiri23.dev/vocabulario/prueba#> .
+@prefix prueba: <https://kiri231.com/vocabulario/prueba#> .
 @prefix skos:   <http://www.w3.org/2004/02/skos/core#> .
 
 # Vocabulario de prueba para el servidor falso (tests/servidor-falso.ts): no conforma por la marca de abajo.
