@@ -316,6 +316,149 @@
         "security": [{ "bearer": [] }]
       }
     },
+    "/ontologia": {
+      "get": {
+        "operationId": "ontologia",
+        "summary": "La ontología por clase, para quien la consume sin leer domain/: un árbol por clase con sus propiedades (rango y",
+        "description": "comentario), su shape y sus acciones, más \"sin-clase\" con lo que no cuelga de ninguna. Sale del grafo de domain/*.ttl\n(core/ontologia.py): agregar una propiedad con su rdfs:domain la hace aparecer sola.\n\nGET /ontologia devuelve todas las clases; con ?clase=JobPost, una sola.\nCLI: `main.py cli ontologia [--clase JobPost]` imprime el JSON. Con `--dot <ruta>` escribe ahí el Graphviz de lo mismo y\nel .png al lado (`just ontologia` → docs/ontologia-arboles.{dot,png}); con `--dot <ruta> --check` no escribe: exit 1\nsi el .dot quedó viejo. Exit 2 si la clase no existe o --check viene sin --dot.",
+        "parameters": [
+          {
+            "name": "clase",
+            "in": "query",
+            "description": "una sola clase, por su nombre (JobPost, Technology); sin ella, todas",
+            "required": false,
+            "schema": { "type": "string" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "la respuesta del comando",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "namespace": { "type": "string" },
+                    "clases": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "object",
+                        "properties": {
+                          "iri": { "type": "string" },
+                          "nombre": { "type": "string", "description": "corto: JobPost; doap:Project si es prestada" },
+                          "dominio": { "type": ["string", "null"] },
+                          "prestada": {
+                            "type": "boolean",
+                            "description": "true si la clase no es de la ontología (doap:Project, skos:Concept)"
+                          },
+                          "comentario": { "type": "string" },
+                          "propiedades": {
+                            "type": "object",
+                            "additionalProperties": {
+                              "type": "object",
+                              "properties": {
+                                "iri": { "type": "string" },
+                                "dominio": {
+                                  "type": ["string", "null"],
+                                  "description": "el dominio de su definición en domain/ (jobs, repos…)"
+                                },
+                                "rango": {
+                                  "type": ["string", "null"],
+                                  "description": "rdfs:range, corto: xsd:string, Technology; null si no declara"
+                                },
+                                "comentario": { "type": "string", "description": "rdfs:comment" }
+                              },
+                              "required": ["iri", "dominio", "rango", "comentario"]
+                            },
+                            "description": "las rdf:Property con rdfs:domain en esta clase"
+                          },
+                          "shapes": {
+                            "type": "array",
+                            "items": { "type": "string" },
+                            "description": "las sh:NodeShape con sh:targetClass en esta clase"
+                          },
+                          "acciones": {
+                            "type": "array",
+                            "items": { "type": "string" },
+                            "description": "las dash:resourceAction de esta clase"
+                          }
+                        },
+                        "required": [
+                          "iri",
+                          "nombre",
+                          "dominio",
+                          "prestada",
+                          "comentario",
+                          "propiedades",
+                          "shapes",
+                          "acciones"
+                        ]
+                      },
+                      "description": "un árbol por clase, por su nombre corto"
+                    },
+                    "sin-clase": {
+                      "type": "object",
+                      "properties": {
+                        "propiedades": {
+                          "type": "object",
+                          "additionalProperties": {
+                            "type": "object",
+                            "properties": {
+                              "iri": { "type": "string" },
+                              "dominio": {
+                                "type": ["string", "null"],
+                                "description": "el dominio de su definición en domain/ (jobs, repos…)"
+                              },
+                              "rango": {
+                                "type": ["string", "null"],
+                                "description": "rdfs:range, corto: xsd:string, Technology; null si no declara"
+                              },
+                              "comentario": { "type": "string", "description": "rdfs:comment" }
+                            },
+                            "required": ["iri", "dominio", "rango", "comentario"]
+                          },
+                          "description": "rdf:Property sin rdfs:domain"
+                        },
+                        "shapes": {
+                          "type": "array",
+                          "items": { "type": "string" },
+                          "description": "sh:NodeShape sin sh:targetClass"
+                        },
+                        "otros": {
+                          "type": "object",
+                          "additionalProperties": {
+                            "type": "object",
+                            "properties": {
+                              "iri": { "type": "string" },
+                              "dominio": { "type": ["string", "null"] },
+                              "tipos": {
+                                "type": "array",
+                                "items": { "type": "string" },
+                                "description": "sus rdf:type, cortos"
+                              },
+                              "comentario": { "type": "string" }
+                            },
+                            "required": ["iri", "dominio", "tipos", "comentario"]
+                          },
+                          "description": "sujetos de la ontología que no son clase, propiedad ni shape"
+                        }
+                      },
+                      "required": ["propiedades", "shapes", "otros"]
+                    }
+                  },
+                  "required": ["namespace", "clases", "sin-clase"]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "el comando no pudo hacer su trabajo (parámetros, datos)",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } }
+          }
+        },
+        "security": []
+      }
+    },
     "/preguntar": {
       "get": {
         "operationId": "preguntar",
