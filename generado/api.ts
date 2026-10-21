@@ -112,6 +112,32 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/ontologia": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * La ontología por clase, para quien la consume sin leer domain/: un árbol por clase con sus propiedades (rango y
+         * @description comentario), su shape y sus acciones, más "sin-clase" con lo que no cuelga de ninguna. Sale del grafo de domain/*.ttl
+         *     (core/ontologia.py): agregar una propiedad con su rdfs:domain la hace aparecer sola.
+         *
+         *     GET /ontologia devuelve todas las clases; con ?clase=JobPost, una sola.
+         *     CLI: `main.py cli ontologia [--clase JobPost]` imprime el JSON. Con `--dot <ruta>` escribe ahí el Graphviz de lo mismo y
+         *     el .png al lado (`just ontologia` → docs/ontologia-arboles.{dot,png}); con `--dot <ruta> --check` no escribe: exit 1
+         *     si el .dot quedó viejo. Exit 2 si la clase no existe o --check viene sin --dot.
+         */
+        get: operations["ontologia"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/preguntar": {
         parameters: {
             query?: never;
@@ -681,6 +707,94 @@ export interface operations {
             };
             /** @description el servidor no tiene token configurado (falla cerrado), o un .trig de datos/ no se puede leer */
             503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    ontologia: {
+        parameters: {
+            query?: {
+                /** @description una sola clase, por su nombre (JobPost, Technology); sin ella, todas */
+                clase?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description la respuesta del comando */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        namespace: string;
+                        /** @description un árbol por clase, por su nombre corto */
+                        clases: {
+                            [key: string]: {
+                                iri: string;
+                                /** @description corto: JobPost; doap:Project si es prestada */
+                                nombre: string;
+                                dominio: string | null;
+                                /** @description true si la clase no es de la ontología (doap:Project, skos:Concept) */
+                                prestada: boolean;
+                                comentario: string;
+                                /** @description las rdf:Property con rdfs:domain en esta clase */
+                                propiedades: {
+                                    [key: string]: {
+                                        iri: string;
+                                        /** @description el dominio de su definición en domain/ (jobs, repos…) */
+                                        dominio: string | null;
+                                        /** @description rdfs:range, corto: xsd:string, Technology; null si no declara */
+                                        rango: string | null;
+                                        /** @description rdfs:comment */
+                                        comentario: string;
+                                    };
+                                };
+                                /** @description las sh:NodeShape con sh:targetClass en esta clase */
+                                shapes: string[];
+                                /** @description las dash:resourceAction de esta clase */
+                                acciones: string[];
+                            };
+                        };
+                        "sin-clase": {
+                            /** @description rdf:Property sin rdfs:domain */
+                            propiedades: {
+                                [key: string]: {
+                                    iri: string;
+                                    /** @description el dominio de su definición en domain/ (jobs, repos…) */
+                                    dominio: string | null;
+                                    /** @description rdfs:range, corto: xsd:string, Technology; null si no declara */
+                                    rango: string | null;
+                                    /** @description rdfs:comment */
+                                    comentario: string;
+                                };
+                            };
+                            /** @description sh:NodeShape sin sh:targetClass */
+                            shapes: string[];
+                            /** @description sujetos de la ontología que no son clase, propiedad ni shape */
+                            otros: {
+                                [key: string]: {
+                                    iri: string;
+                                    dominio: string | null;
+                                    /** @description sus rdf:type, cortos */
+                                    tipos: string[];
+                                    comentario: string;
+                                };
+                            };
+                        };
+                    };
+                };
+            };
+            /** @description el comando no pudo hacer su trabajo (parámetros, datos) */
+            400: {
                 headers: {
                     [name: string]: unknown;
                 };
