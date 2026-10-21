@@ -28,7 +28,7 @@ import type { Concepto, Literal } from "./leer.ts";
 import { conceptos, esquemas, slugDe } from "./leer.ts";
 import type { Enlace } from "./menciones.ts";
 
-export const NAMESPACE = "https://kiri23.dev/vocabulario#";
+export const NAMESPACE = "https://kiri23.dev/vocabulario/ontology-client#";
 const SLUG = /^[a-z0-9]+(-[a-z0-9]+)*$/;
 
 export interface Reglas {

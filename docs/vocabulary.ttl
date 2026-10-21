@@ -1,12 +1,13 @@
 # The project vocabulary. Source of docs/vocabulary/*.md: edit this file and run `deno task vocabulario`.
 #
-# The vocabulary is a skos:ConceptScheme (v:vocabulario) and each term is a skos:Concept in the v: namespace, in that
+# The vocabulary is a skos:ConceptScheme (v:vocabulario, https://kiri23.dev/vocabulario/ontology-client#: every vocabulary
+# hangs from https://kiri23.dev/vocabulario/<name>#) and each term is a skos:Concept in the v: namespace, in that
 # scheme, with exactly one skos:prefLabel and one skos:definition in @en: the shape ontologyLearning validates with
 # POST /vocabularios (domain/vocabulario-reglas.ttl), the same one Secondbrain/Learning/modal/vocabulary.ttl follows.
 # skos:broader only when the term is a kind of the other one; any other link is skos:related.
 # Write each skos:related once: the generated pages show it on both terms. Narrower is computed from skos:broader.
 
-@prefix v: <https://kiri23.dev/vocabulario#> .
+@prefix v: <https://kiri23.dev/vocabulario/ontology-client#> .
 @prefix skos: <http://www.w3.org/2004/02/skos/core#> .
 @prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
 

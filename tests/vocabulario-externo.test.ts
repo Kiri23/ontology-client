@@ -13,7 +13,7 @@ import { renderizar } from "../scripts/vocabulario/renderizar.ts";
 
 const AMBIENTE: Turtle = {
   ruta: "ambiente.ttl",
-  texto: `@prefix ambiente: <https://kiri23.dev/ambiente#> .
+  texto: `@prefix ambiente: <https://kiri23.dev/vocabulario/ambiente#> .
 @prefix skos: <http://www.w3.org/2004/02/skos/core#> .
 ambiente:vocabulario a skos:ConceptScheme ; skos:prefLabel "Ambientes"@es .
 ambiente:entorno-aislado a skos:Concept ; skos:inScheme ambiente:vocabulario ;
@@ -26,7 +26,7 @@ ambiente:persistente a skos:Concept ; skos:inScheme ambiente:vocabulario ;
 const MODAL: Turtle = {
   ruta: "modal/vocabulary.ttl",
   texto: `@prefix modal: <https://kiri23.dev/vocabulario/modal#> .
-@prefix ambiente: <https://kiri23.dev/ambiente#> .
+@prefix ambiente: <https://kiri23.dev/vocabulario/ambiente#> .
 @prefix skos: <http://www.w3.org/2004/02/skos/core#> .
 @prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
 modal:vocabulario a skos:ConceptScheme ; skos:prefLabel "Modal"@es ;
@@ -49,7 +49,7 @@ modal:volumen a skos:Concept ; skos:inScheme modal:vocabulario ;
 const EXE: Turtle = {
   ruta: "exe/vocabulary.ttl",
   texto: `@prefix exe: <https://kiri23.dev/vocabulario/exe#> .
-@prefix ambiente: <https://kiri23.dev/ambiente#> .
+@prefix ambiente: <https://kiri23.dev/vocabulario/ambiente#> .
 @prefix skos: <http://www.w3.org/2004/02/skos/core#> .
 exe:vocabulario a skos:ConceptScheme ; skos:prefLabel "exe.dev"@es .
 exe:vm a skos:Concept ; skos:inScheme exe:vocabulario ;
@@ -122,14 +122,14 @@ Deno.test("externo: el broader a otro vocabulario se nombra con el label del con
 Deno.test("externo: el prefijo sale del contexto o del vocabulario; sin ninguno, el término dice su namespace", () => {
   const sinPrefijo = (t: Turtle) => ({
     ...t,
-    texto: t.texto.replace("@prefix ambiente: <https://kiri23.dev/ambiente#> .\n", "")
-      .replaceAll(/ambiente:([a-z-]+)/g, "<https://kiri23.dev/ambiente#$1>"),
+    texto: t.texto.replace("@prefix ambiente: <https://kiri23.dev/vocabulario/ambiente#> .\n", "")
+      .replaceAll(/ambiente:([a-z-]+)/g, "<https://kiri23.dev/vocabulario/ambiente#$1>"),
   });
   assertStringIncludes(paginas(sinPrefijo(MODAL), [AMBIENTE]).get("volumen.md")!, "- Persistente (ambiente:)\n");
   assertStringIncludes(paginas(MODAL, [sinPrefijo(AMBIENTE)]).get("volumen.md")!, "- Persistente (ambiente:)\n");
   assertStringIncludes(
     paginas(sinPrefijo(MODAL), [sinPrefijo(AMBIENTE)]).get("volumen.md")!,
-    "- Persistente (<https://kiri23.dev/ambiente#>)\n",
+    "- Persistente (<https://kiri23.dev/vocabulario/ambiente#>)\n",
   );
 });
 
@@ -173,7 +173,7 @@ Deno.test("externo: un vocabulario en @en sale con los títulos en inglés", () 
   const en: Turtle = {
     ruta: "x.ttl",
     texto: `@prefix x: <https://example.org/x#> .
-@prefix ambiente: <https://kiri23.dev/ambiente#> .
+@prefix ambiente: <https://kiri23.dev/vocabulario/ambiente#> .
 @prefix skos: <http://www.w3.org/2004/02/skos/core#> .
 x:vocabulario a skos:ConceptScheme ; skos:prefLabel "X"@en .
 x:box a skos:Concept ; skos:inScheme x:vocabulario ; skos:prefLabel "Box"@en ; skos:definition "A box."@en ;
@@ -197,16 +197,16 @@ x:jail a skos:Concept ; skos:inScheme x:vocabulario ; skos:prefLabel "Jail"@en ;
 
 Deno.test("externo: un broader a un término que no está en ningún contexto es error, con el archivo", () => {
   assertEquals(errores(MODAL, []), [
-    "modal/vocabulary.ttl: sandbox: skos:broader apunta a https://kiri23.dev/ambiente#entorno-aislado, que no es " +
+    "modal/vocabulary.ttl: sandbox: skos:broader apunta a https://kiri23.dev/vocabulario/ambiente#entorno-aislado, que no es " +
     "un skos:Concept del vocabulario",
-    "modal/vocabulary.ttl: funcion: skos:broader apunta a https://kiri23.dev/ambiente#entorno-aislado, que no es " +
+    "modal/vocabulary.ttl: funcion: skos:broader apunta a https://kiri23.dev/vocabulario/ambiente#entorno-aislado, que no es " +
     "un skos:Concept del vocabulario",
-    "modal/vocabulary.ttl: volumen: skos:broader apunta a https://kiri23.dev/ambiente#persistente, que no es un " +
+    "modal/vocabulary.ttl: volumen: skos:broader apunta a https://kiri23.dev/vocabulario/ambiente#persistente, que no es un " +
     "skos:Concept del vocabulario",
   ]);
   const sinPersistente = { ...AMBIENTE, texto: AMBIENTE.texto.split("ambiente:persistente")[0] };
   assertEquals(errores(MODAL, [sinPersistente]), [
-    "modal/vocabulary.ttl: volumen: skos:broader apunta a https://kiri23.dev/ambiente#persistente, que no es un " +
+    "modal/vocabulary.ttl: volumen: skos:broader apunta a https://kiri23.dev/vocabulario/ambiente#persistente, que no es un " +
     "skos:Concept del vocabulario",
   ]);
 });
@@ -274,7 +274,7 @@ Deno.test("externo: el link del índice al TTL codifica espacios y paréntesis",
 });
 
 Deno.test("renderizar: en el modo del repo no salen Ejemplos ni Analogous aunque el TTL los dé", () => {
-  const ttl = `@prefix v: <https://kiri23.dev/vocabulario#> .
+  const ttl = `@prefix v: <https://kiri23.dev/vocabulario/ontology-client#> .
 @prefix skos: <http://www.w3.org/2004/02/skos/core#> .
 v:padre a skos:Concept ; skos:prefLabel "Padre"@en ; skos:definition "P."@en .
 v:a a skos:Concept ; skos:prefLabel "A"@en ; skos:definition "A."@en ; skos:broader v:padre ; skos:example "Ej."@en .
