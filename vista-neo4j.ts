@@ -12,7 +12,7 @@
 //   tecnologia  prefLabel o altLabel de algo que pide, sin mayúsculas (LCASE en jobs.rq), antes de armar el puesto
 //   empresa     un nodo (schema:Organization), no texto: { link, nombre, url? }, con su rdfs:label y su schema:url
 //   fuente      también un nodo (schema:WebSite), y el filtro compara su link con https://kiri231.com/fuente/<slug>,
-//               el slug del filtro sin mayúsculas (fuente_de y slug en core/jobs.py; casefold allá, toLowerCase acá).
+//               el slug del filtro sin mayúsculas (fuente_de y slug en core/jobs.py; casefold allá, toLowerCase y ß→ss acá).
 //               Un filtro sin letras ni dígitos no da ningún puesto: allá su slug es sin-nombre-<sha1>, que ninguna
 //               fuente de kiri-jobs (hn, remotive, desconocida) tiene
 //   forma       un puesto con dos titulos, sin fecha, una tecnología sin nombre o una empresa que es texto (datos
@@ -136,7 +136,8 @@ export class PuestoQueNoCalza extends Error {
  */
 export function aPuestos(filas: readonly Fila[], filtros: FiltrosJobs = {}): JobPost[] {
   const tecnologia = filtros.tecnologia?.toLowerCase();
-  const fuente = filtros.fuente ? FUENTE + slug(filtros.fuente.toLowerCase()) : undefined;
+  // casefold() de Python también lleva ß a ss; toLowerCase no (lleva ẞ a ß).
+  const fuente = filtros.fuente ? FUENTE + slug(filtros.fuente.toLowerCase().replace(/ß/g, "ss")) : undefined;
   return filas
     .filter((f) => !tecnologia || pide(f, tecnologia))
     .map((f) => ({ puesto: puesto(f), instante: instante(uno(f, "fecha", f.fecha)) }))

@@ -111,6 +111,9 @@ Deno.test("aPuestos: tecnologia por prefLabel o sinónimo, sin mayúsculas; fuen
   assertEquals(links({ fuente: "h" }), []);
   assertEquals(links({ fuente: "Hacker News" }), []); // compara con el link (…/fuente/hn), no con el nombre
   assertEquals(links({ fuente: "?" }), []);
+  // Python: "Straße".casefold() es "strasse", y fuente_de da …/fuente/strasse.
+  const strasse = { ...fila(FIXTURE[0]), fuente: [nodo({ link: "https://kiri231.com/fuente/strasse", nombre: "S" })] };
+  assertEquals(aPuestos([strasse], { fuente: "STRAẞE" }).map((p) => p.link), [FIXTURE[0].link]);
   assertEquals(links({ tecnologia: "ts", fuente: "remotive" }), [FIXTURE[1].link]);
   assertEquals(links({ tecnologia: "", fuente: "" }), ORDENADO.map((p) => p.link));
 });
