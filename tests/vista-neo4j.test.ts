@@ -5,7 +5,7 @@
 import { assert, assertEquals, assertThrows } from "@std/assert";
 import neo4j from "neo4j-driver";
 import type { JobPost } from "../mod.ts";
-import { aPuestos, type Fila, porCodePoint, PuestoQueNoCalza, texto } from "../vista-neo4j.ts";
+import { aPuestos, type Fila, porCodePoint, PREFIJOS, PuestoQueNoCalza, texto } from "../vista-neo4j.ts";
 import { problemas } from "./esquema.ts";
 
 const FIXTURE: JobPost[] = JSON.parse(await Deno.readTextFile(new URL("./datos/jobs.json", import.meta.url)));
@@ -135,4 +135,9 @@ Deno.test("aPuestos: tecnologia filtra antes de armar el puesto, como jobs.rq: u
   assertThrows(() => aPuestos([malo, fila(FIXTURE[1])], { tecnologia: "mcp" }), PuestoQueNoCalza, "tiene 2 titulo");
   // fuente filtra después, como jobs_get.py: el puesto malo tira aunque sea de otra fuente.
   assertThrows(() => aPuestos([malo, fila(FIXTURE[1])], { fuente: "remotive" }), PuestoQueNoCalza, "tiene 2 titulo");
+});
+
+Deno.test("PREFIJOS: un prefijo por namespace (n10s.nsprefixes.add no acepta un segundo para el mismo)", () => {
+  const repetidos = Object.entries(PREFIJOS).filter(([p, ns], _, todos) => todos.some(([q, m]) => q !== p && m === ns));
+  assertEquals(repetidos, []);
 });

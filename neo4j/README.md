@@ -10,8 +10,9 @@ production /sparql ──CONSTRUCT (data only)──n10s.rdf.import.fetch──�
 ```
 
 **Data only, no schema.** Neo4j does not reason: it infers nothing from `rdfs:Class`, `rdf:Property` or the shapes. Each
-record already carries its class as a label (`j__JobPost`), and the schema lives in the RDF, where it is actually used
-([SHACL shapes](../docs/vocabulary/shacl-shape.md), the [contract](../docs/vocabulary/openapi-contract.md)).
+record already carries its class as a label (`ontologia__JobPost`), and the schema lives in the RDF, where it is
+actually used ([SHACL shapes](../docs/vocabulary/shacl-shape.md), the
+[contract](../docs/vocabulary/openapi-contract.md)).
 
 ## Versions
 
@@ -44,7 +45,7 @@ With the tunnel open:
 
 - **See it:** `http://localhost:7474/browser/` is the Neo4j Browser that comes with the image. Connect to
   `bolt://localhost:7687` with user `neo4j` and the password from Doppler (`ontology/dev`, `NEO4J_PASSWORD`). A first
-  Cypher query: `MATCH (p:j__JobPost)-[r:j__pide]->(t) RETURN p, r, t LIMIT 25`.
+  Cypher query: `MATCH (p:ontologia__JobPost)-[r:ontologia__pide]->(t) RETURN p, r, t LIMIT 25`.
 - **Talk to it from code:** `doppler run -p ontology -c dev -- deno task neo4j:hola` runs `ejemplos/hola-neo4j.ts`: it
   connects, counts nodes per class in Cypher, shows one job post with what it asks for, and then runs
   `jobs.get({ tecnologia: "python" })` through the SDK with the Neo4j engine. More in
@@ -88,9 +89,10 @@ ssh neo4j-ontology.exe.xyz 'sudo tailscale serve --bg --tcp=80 tcp://localhost:8
   sudo tailscale serve --bg --tcp=7687 tcp://localhost:7687'
 ```
 
-Tested from Termux by IP: the Query API with `MATCH (ontologia:j__JobPost) RETURN count(j)` gives `[[131]]`, `/browser/`
-gives 200, and `NEO4J_URL=bolt://100.123.48.55:7687 deno task neo4j:hola` (and `neo4j://`) brings the 35 job posts with
-python. The IP changes if the VM is recreated: `tailscale ip -4` on the VM.
+Tested from Termux by IP (2026-10-15, labels from before the rename): the Query API with
+`MATCH (j:j__JobPost) RETURN count(j)` gives `[[131]]`, `/browser/` gives 200, and
+`NEO4J_URL=bolt://100.123.48.55:7687 deno task neo4j:hola` (and `neo4j://`) brings the 35 job posts with python. The IP
+changes if the VM is recreated: `tailscale ip -4` on the VM.
 
 ## Loading it (and refreshing it)
 
@@ -202,7 +204,7 @@ graphs (`urn:kiri-acciones:…`) and show up just the same. The view does the sa
 
 | Option                | Value     | What it does                                                                                                                                                            |
 | --------------------- | --------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `handleVocabUris`     | `SHORTEN` | `rdfs:label` → property `rdfs__label`, `ontologia:JobPost` → label `j__JobPost`                                                                                         |
+| `handleVocabUris`     | `SHORTEN` | `rdfs:label` → property `rdfs__label`, `ontologia:JobPost` → label `ontologia__JobPost`                                                                                 |
 | `handleMultival`      | `ARRAY`   | **every** literal is a list: `skos:altLabel` → `skos__altLabel: ["Node","NodeJS"]`, and no value overwrites another (with the default, `OVERWRITE`, the last one stays) |
 | `handleRDFTypes`      | `LABELS`  | `rdf:type` → node label (classes are not separate nodes)                                                                                                                |
 | `keepLangTag`         | `false`   | no `@es`; today there are no lang tags in the data                                                                                                                      |
@@ -214,17 +216,23 @@ has one today brings two tomorrow, and the engine checks cardinality like the `J
 like the 503).
 
 - **IRIs:** each resource is a `:Resource` node with `uri`; the `n10s_unique_uri` constraint makes it unique.
-- **Prefixes:** `PREFIJOS` (`j`, `t`, `k`, `doap`, `rdf`, `rdfs`, `skos`, `dct`, `prov`), registered before the fetch.
-  `CALL n10s.nsprefixes.list()` gives those 9 and no `nsN`. A new namespace in the data that is not there would end up
-  `ns0__`: add it to `PREFIJOS`.
-- **Literals:** node properties, in lists. `xsd:string` → text; `xsd:boolean` → boolean (`k__esPublico`); `xsd:dateTime`
-  → Neo4j `DateTime` with its offset. The engine writes it back as Python's `isoformat()` (`2026-10-13T21:03:57+00:00`,
-  microseconds only if they are not zero), which is what the server returns: Cypher's `toString()` would give
-  `2026-10-13T21:03:57Z`. A lexical value written by hand with `Z` would come out `+00:00`: today Python writes every
-  date.
-- **Relationships:** a triple whose object is an IRI is an edge with the shortened predicate: `j__pide` 168, `k__accion`
-  43, `k__tieneUso` 43, `k__ejecutaEnCI` 31, `k__tieneWorkflow` 21, `k__alojadaEn` 10.
+- **Prefixes:** `PREFIJOS` (`ontologia`, `schema`, `doap`, `rdf`, `rdfs`, `skos`, `dct`, `prov`), registered before the
+  fetch: one per namespace of a class or a predicate, and only one, because `n10s.nsprefixes.add` refuses a second
+  prefix for the same namespace. A new namespace in the data that is not there would end up `ns0__`: add it to
+  `PREFIJOS`. Instance namespaces (`tecnologia/`, `empresa/`, `fuente/`) need none: n10s keeps an instance's full `uri`.
+- **Literals:** node properties, in lists. `xsd:string` → text; `xsd:boolean` → boolean (`ontologia__esPublico`);
+  `xsd:dateTime` → Neo4j `DateTime` with its offset. The engine writes it back as Python's `isoformat()`
+  (`2026-10-13T21:03:57+00:00`, microseconds only if they are not zero), which is what the server returns: Cypher's
+  `toString()` would give `2026-10-13T21:03:57Z`. A lexical value written by hand with `Z` would come out `+00:00`:
+  today Python writes every date.
+- **Relationships:** a triple whose object is an IRI is an edge with the shortened predicate: `ontologia__pide`,
+  `ontologia__accion`, `ontologia__tieneUso`, `ontologia__ejecutaEnCI`, `ontologia__tieneWorkflow`,
+  `ontologia__alojadaEn`.
 - **Blank nodes and RDF lists:** there are none. They lived in the shapes, which no longer go in.
+
+The counts below were measured on the 2026-10-15 load, before ontologyLearning renamed its namespaces: `j__` was
+`kiri23.dev/jobs#`, `k__` was `kiri23.dev/catalogo#` and `t__` was `kiri23.dev/tech#`; today all three are
+`ontologia__`. They have not been measured again.
 
 Nodes per label with the graph loaded (`MATCH (n) UNWIND labels(n) AS l RETURN l, count(*) ORDER BY count(*) DESC`):
 
@@ -236,7 +244,7 @@ _Carga 1   _GraphConfig 1   _NsPrefDef 1
 238 nodes and 316 relationships. Every `:Resource` has a class (0 with a single label), and there is no `rdf__Property`,
 `rdfs__Class`, `sh__NodeShape`, `dash__*`, `bnode://` or `urn:` left.
 
-### One JobPost, as it ended up (real output of a MATCH)
+### One JobPost, as it ended up (real output of a MATCH, 2026-10-15, labels from before the rename)
 
 ```cypher
 MATCH (p:j__JobPost {uri: 'https://remotive.com/remote-jobs/software-development/senior-net-full-stack-developer-2091130'})

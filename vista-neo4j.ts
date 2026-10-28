@@ -18,7 +18,7 @@ import neo4j from "neo4j-driver";
 import type { FiltrosJobs, JobPost, Technology } from "./jobs.ts";
 
 /**
- * La config de n10s.graphconfig.init: IRIs acortadas con prefijo (j__JobPost, rdfs__label), cada literal como
+ * La config de n10s.graphconfig.init: IRIs acortadas con prefijo (ontologia__JobPost, rdfs__label), cada literal como
  * lista (handleMultival ARRAY: ningún valor se pisa, el motor chequea la cardinalidad como la forma), rdf:type
  * como label, sin lang tags. Los xsd van a tipos de Neo4j: xsd:dateTime → DateTime.
  */
@@ -32,14 +32,15 @@ export const CONFIG_N10S = {
 } as const;
 
 /**
- * Los prefijos de la vista: los que nombra CONSULTA_JOBS (j, t, rdfs, skos, dct, prov) y los del resto de los datos
- * (k, doap, rdf). Van antes de importar nada, así ningún namespace queda como nsN. Uno nuevo en los datos que no
- * esté acá sí quedaría nsN: se suma acá.
+ * Los prefijos de la vista, uno por namespace de clase o predicado de los datos: los que nombra CONSULTA_JOBS
+ * (ontologia, rdfs, skos, dct, prov) y los del resto (doap, rdf, schema). Van antes de importar nada, así ningún
+ * namespace queda como nsN. Uno nuevo en los datos que no esté acá sí quedaría nsN: se suma acá. Un namespace lleva
+ * un solo prefijo: n10s.nsprefixes.add no acepta un segundo para el mismo. Los de instancias (tecnologia/, empresa/,
+ * fuente/) no van: n10s acorta clases y predicados, y una instancia queda con su uri entera.
  */
 export const PREFIJOS: Readonly<Record<string, string>> = {
-  j: "https://kiri231.com/ontologia#",
-  t: "https://kiri231.com/tecnologia/",
-  k: "https://kiri231.com/ontologia#",
+  ontologia: "https://kiri231.com/ontologia#",
+  schema: "https://schema.org/",
   doap: "http://usefulinc.com/ns/doap#",
   rdf: "http://www.w3.org/1999/02/22-rdf-syntax-ns#",
   rdfs: "http://www.w3.org/2000/01/rdf-schema#",
@@ -62,13 +63,13 @@ export const CENTINELA = "_Carga";
 export const CONSULTA_JOBS = `
 OPTIONAL MATCH (c:${CENTINELA} {completa: true})
 WITH count(c) AS cargas
-OPTIONAL MATCH (p:j__JobPost) WHERE cargas > 0 AND p.rdfs__label IS NOT NULL
-OPTIONAL MATCH (p)-[:j__pide]->(tecnologia:Resource)
-WITH cargas, p, collect(t { .uri, .skos__prefLabel, .skos__altLabel }) AS pide
+OPTIONAL MATCH (p:ontologia__JobPost) WHERE cargas > 0 AND p.rdfs__label IS NOT NULL
+OPTIONAL MATCH (p)-[:ontologia__pide]->(tecnologia:Resource)
+WITH cargas, p, collect(tecnologia { .uri, .skos__prefLabel, .skos__altLabel }) AS pide
 RETURN cargas, collect(CASE WHEN p IS NULL THEN null ELSE {
-  link: p.uri, titulo: p.rdfs__label, empresa: p.j__empresa, fuente: p.dct__source,
-  fecha: p.prov__generatedAtTime, descartadoEl: p.j__descartadoEl, porque: p.j__porque,
-  aplicadoEl: p.j__aplicadoEl, pide: pide } END) AS filas`;
+  link: p.uri, titulo: p.rdfs__label, empresa: p.ontologia__empresa, fuente: p.dct__source,
+  fecha: p.prov__generatedAtTime, descartadoEl: p.ontologia__descartadoEl, porque: p.ontologia__porque,
+  aplicadoEl: p.ontologia__aplicadoEl, pide: pide } END) AS filas`;
 
 /** Un valor de propiedad como lo devuelve el driver con handleMultival ARRAY: una lista, o null si no está. */
 type Valores = readonly unknown[] | null | undefined;

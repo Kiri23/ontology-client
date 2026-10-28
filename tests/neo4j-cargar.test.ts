@@ -60,7 +60,7 @@ Deno.test("cargar: solo datos, contados distintos; prefijos antes del fetch; el 
   const fetch = cypher.findIndex((q) => q.includes("n10s.rdf.import.fetch"));
   assertEquals(cypher.filter((q) => q.includes("import")).length, 1); // un solo import: nada inline, nada privado
   const prefijos = parametros.slice(0, fetch).flatMap((p) => p.prefijo ? [p.prefijo] : []);
-  assertEquals(prefijos, ["j", "t", "k", "doap", "rdf", "rdfs", "skos", "dct", "prov"]);
+  assertEquals(prefijos, ["ontologia", "schema", "doap", "rdf", "rdfs", "skos", "dct", "prov"]);
   const url = new URL(String(parametros[fetch].url));
   assertStringIncludes(url.searchParams.get("query") ?? "", "CONSTRUCT { ?s ?p ?o } WHERE { ?s a ?c .");
   assertEquals(cypher.at(-1), "CREATE (:_Carga {completa: true, cuando: datetime(), triples: $triples})");
