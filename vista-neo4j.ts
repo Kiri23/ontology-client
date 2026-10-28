@@ -60,7 +60,8 @@ export const PREFIJOS: Readonly<Record<string, string>> = {
 export const CENTINELA = "_Carga";
 
 /**
- * Una sola fila: `cargas`, cuántos centinelas de carga completa hay (0: la vista está vacía o a medias), y `filas`,
+ * Una sola fila: `cargas`, cuántos centinelas de carga completa hay (0: la vista está vacía o a medias), `prefijos`, los
+ * que n10s guardó al cargarla (su nodo _NsPrefDef: {prefijo: namespace}, ver prefijosQueFaltan), y `filas`,
  * cada JobPost con título (jobs.rq pide rdfs:label) y lo que pide, con los campos como listas. Va todo en una
  * consulta para que el chequeo del centinela no cueste otro viaje.
  *
@@ -72,8 +73,10 @@ export const CENTINELA = "_Carga";
 export const CONSULTA_JOBS = `
 OPTIONAL MATCH (c:${CENTINELA} {completa: true})
 WITH count(c) AS cargas
+OPTIONAL MATCH (ns:_NsPrefDef)
+WITH cargas, properties(ns) AS prefijos
 OPTIONAL MATCH (p:ontologia__JobPost) WHERE cargas > 0 AND p.rdfs__label IS NOT NULL
-RETURN cargas, collect(CASE WHEN p IS NULL THEN null ELSE {
+RETURN cargas, prefijos, collect(CASE WHEN p IS NULL THEN null ELSE {
   link: p.uri, titulo: p.rdfs__label, fecha: p.prov__generatedAtTime, descartadoEl: p.ontologia__descartadoEl,
   porque: p.ontologia__porque, aplicadoEl: p.ontologia__aplicadoEl,
   empresa: [(p)-[:ontologia__empresa]->(e) | e { .uri, .rdfs__label, urls: [(e)-[:schema__url]->(u) | u.uri],
@@ -83,6 +86,16 @@ RETURN cargas, collect(CASE WHEN p IS NULL THEN null ELSE {
     urlTexto: f.schema__url }],
   fuenteTexto: p.dct__source,
   pide: [(p)-[:ontologia__pide]->(t) | t { .uri, .skos__prefLabel, .skos__altLabel }] } END) AS filas`;
+
+/**
+ * Los PREFIJOS que la vista no tiene, o tiene con otro namespace: `ontologia (https://kiri231.com/ontologia#)`. Los
+ * labels y las relaciones salen de los prefijos (ontologia__JobPost), así que una vista cargada con otros (la del
+ * 2026-10-15: j__JobPost, de kiri23.dev) no tiene ningún puesto con el nombre que pregunta CONSULTA_JOBS, y
+ * respondería [] callada. motorNeo4j la rechaza antes de leer filas.
+ */
+export function prefijosQueFaltan(vista: Readonly<Record<string, unknown>> | null | undefined): string[] {
+  return Object.entries(PREFIJOS).filter(([prefijo, ns]) => vista?.[prefijo] !== ns).map(([p, ns]) => `${p} (${ns})`);
+}
 
 /** Un valor de propiedad como lo devuelve el driver con handleMultival ARRAY: una lista, o null si no está. */
 type Valores = readonly unknown[] | null | undefined;

@@ -120,7 +120,13 @@ keep a triple that the source no longer has. The steps:
 6. The sentinel, only if everything got in: `CREATE (:_Carga {completa: true, cuando: datetime(), triples: $triples})`.
    `motorNeo4j` asks for it in the same query as the job posts; without it, it throws
    `la vista Neo4j no está cargada: deno task neo4j:cargar` instead of returning `[]`. A load cut in half (the source
-   goes down during the fetch, the import fails) leaves the view without a sentinel, and that shows.
+   goes down during the fetch, the import fails) leaves the view without a sentinel, and that shows. The same query
+   reads the prefixes n10s stored (`_NsPrefDef`). If one of `PREFIJOS` is missing or points elsewhere, the labels the
+   query asks for do not exist and it would return `[]` without a word, so the engine throws instead. Against
+   production's view, loaded on 2026-10-15 (read-only, 2026-10-28):
+   `ErrorServidor: neo4j jobs.get: la vista
+   Neo4j se cargó con otros prefijos (le falta ontologia (https://kiri231.com/ontologia#), schema
+   (https://schema.org/)), de antes del renombre de namespaces: corré deno task neo4j:cargar`.
 
 `PATRON_DATOS`: every triple whose subject is an instance of a class that is not a schema class.
 
@@ -232,8 +238,10 @@ like the 503).
   `https://kiri231.com/empresa/<slug>` (`schema__Organization`) and `dct:source` to `https://kiri231.com/fuente/hn`
   (`schema__WebSite`), each with its `rdfs__label` and a `schema__url` edge to its site. Two job posts from the same
   company share the node. `CONSULTA_JOBS` follows the edges and `aPuestos` rebuilds `{ link, nombre, url? }`. If the
-  view was loaded from a server from before #50, the company is still a `ontologia__empresa` property: the engine throws
-  `PuestoQueNoCalza` instead of returning job posts without a company.
+  view was loaded from a server from before #50 (after the namespace rename), the company is still a
+  `ontologia__empresa` property: the engine throws `PuestoQueNoCalza` instead of returning job posts without a company.
+  A view loaded before the rename (production's, from 2026-10-15: `j__JobPost`) has no `ontologia__JobPost` at all; the
+  prefix check (step 6 of the load) catches it first.
 - **Blank nodes and RDF lists:** there are none. They lived in the shapes, which no longer go in.
 
 The counts below were measured on the 2026-10-15 load, before ontologyLearning renamed its namespaces: `j__` was
