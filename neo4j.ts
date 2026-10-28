@@ -18,7 +18,7 @@
 import neo4j, { type Driver } from "neo4j-driver";
 import { ErrorServidor, TIMEOUT_MS } from "./cliente.ts";
 import type { Motor } from "./motor.ts";
-import { aPuestos, CONSULTA_JOBS, type Fila } from "./vista-neo4j.ts";
+import { aPuestos, CONSULTA_JOBS, type Fila, prefijosQueFaltan } from "./vista-neo4j.ts";
 
 export type { Motor } from "./motor.ts";
 
@@ -34,7 +34,7 @@ export interface OpcionesNeo4j {
  *
  * `jobs.get()` tira {@link ErrorServidor} con `status: null` si Neo4j no responde, rechaza la auth, no contesta en
  * `timeoutMs` (la espera entera, conexión y reintentos del driver incluidos), si la vista no tiene el centinela de
- * una carga completa (vacía o con una carga cortada a la mitad), o si un puesto no calza con JobPost (el servidor,
+ * una carga completa (vacía o con una carga cortada a la mitad), si se cargó con otros PREFIJOS, o si un puesto no calza con JobPost (el servidor,
  * con ese dato, daría 503). El error del driver va en `cause`.
  */
 export function motorNeo4j(driver: Driver, opciones: OpcionesNeo4j = {}): Motor {
@@ -52,13 +52,20 @@ export function motorNeo4j(driver: Driver, opciones: OpcionesNeo4j = {}): Motor 
   };
 }
 
-// Las filas de la vista, o un error si no tiene el centinela de una carga completa.
+// Las filas de la vista, o un error si no tiene el centinela de una carga completa o se cargó con otros prefijos.
 async function leer(driver: Driver, opciones: OpcionesNeo4j, timeoutMs: number): Promise<Fila[]> {
   const sesion = driver.session({ database: opciones.database, defaultAccessMode: neo4j.session.READ });
   try {
     const { records } = await sesion.executeRead((tx) => tx.run(CONSULTA_JOBS), { timeout: timeoutMs });
     if (!(Number(records[0]?.get("cargas")) > 0)) {
       throw new Error("la vista Neo4j no está cargada: deno task neo4j:cargar");
+    }
+    const faltan = prefijosQueFaltan(records[0].get("prefijos"));
+    if (faltan.length) {
+      throw new Error(
+        `la vista Neo4j se cargó con otros prefijos (le falta ${faltan.join(", ")}), de antes del renombre de ` +
+          "namespaces: corré deno task neo4j:cargar",
+      );
     }
     return records[0].get("filas") as Fila[];
   } finally {

@@ -23,7 +23,7 @@ try {
   const info = await driver.getServerInfo();
   console.log(`conectado a ${info.address} (${info.agent})\n`);
 
-  // 2. Cypher a mano: cuántos nodos hay de cada clase. Las clases RDF son labels acortados (ontologia:JobPost → j__JobPost).
+  // 2. Cypher a mano: cuántos nodos hay de cada clase. Las clases RDF son labels acortados (ontologia:JobPost → ontologia__JobPost).
   const { records: clases } = await driver.executeQuery(
     `MATCH (n) UNWIND labels(n) AS clase WITH clase, count(*) AS n WHERE clase <> 'Resource' AND NOT clase STARTS WITH '_'
      RETURN clase, n ORDER BY n DESC LIMIT 8`,
@@ -35,8 +35,8 @@ try {
 
   // 3. Un puesto con las tecnologías que pide: un triple ontologia:pide es una arista.
   const { records: [puesto] } = await driver.executeQuery(
-    `MATCH (p:j__JobPost)-[:j__pide]->(tecnologia:t__Technology)
-     RETURN p.rdfs__label[0] AS titulo, collect(t.skos__prefLabel[0]) AS pide LIMIT 1`,
+    `MATCH (p:ontologia__JobPost)-[:ontologia__pide]->(tecnologia:ontologia__Technology)
+     RETURN p.rdfs__label[0] AS titulo, collect(tecnologia.skos__prefLabel[0]) AS pide LIMIT 1`,
     {},
     { routing: neo4j.routing.READ },
   );
@@ -47,7 +47,7 @@ try {
   const python = await jobs.get({ tecnologia: "python" });
   console.log(`\njobs.get({ tecnologia: "python" }) por Neo4j: ${python.length} puestos`);
   for (const p of python.slice(0, 3)) {
-    console.log(`  ${p.fecha.slice(0, 10)}  ${p.fuente.padEnd(8)} ${p.titulo.slice(0, 60)}`);
+    console.log(`  ${p.fecha.slice(0, 10)}  ${p.fuente.nombre.padEnd(12)} ${p.titulo.slice(0, 60)}`);
   }
 } finally {
   configurar({ motor: motorHttp });

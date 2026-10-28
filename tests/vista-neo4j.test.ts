@@ -5,7 +5,16 @@
 import { assert, assertEquals, assertThrows } from "@std/assert";
 import neo4j from "neo4j-driver";
 import type { JobPost } from "../mod.ts";
-import { aPuestos, type Fila, porCodePoint, PuestoQueNoCalza, texto } from "../vista-neo4j.ts";
+import {
+  aPuestos,
+  type Fila,
+  type Nodo,
+  porCodePoint,
+  PREFIJOS,
+  PuestoQueNoCalza,
+  slug,
+  texto,
+} from "../vista-neo4j.ts";
 import { problemas } from "./esquema.ts";
 
 const FIXTURE: JobPost[] = JSON.parse(await Deno.readTextFile(new URL("./datos/jobs.json", import.meta.url)));
@@ -20,16 +29,23 @@ function fecha(iso: string) {
   return new neo4j.types.DateTime(y, mo, d, h, mi, s, ns, offset);
 }
 
+// Una empresa o una fuente como la trae CONSULTA_JOBS: el label en una lista y el sitio como arista.
+function nodo(n: { link: string; nombre: string; url?: string }): Nodo {
+  return { uri: n.link, rdfs__label: [n.nombre], urls: n.url ? [n.url] : [], urlTexto: null };
+}
+
 // Un JobPost como la fila de CONSULTA_JOBS: cada literal en una lista (handleMultival ARRAY), lo que falta en null,
-// y las tecnologías y sinónimos desordenados.
+// las aristas en listas (vacías si no hay) y las tecnologías y sinónimos desordenados.
 function fila(p: JobPost): Fila {
   const lista = (v: string | undefined) => v === undefined ? null : [v];
   const listaFecha = (v: string | undefined) => v === undefined ? null : [fecha(v)];
   return {
     link: p.link,
     titulo: [p.titulo],
-    empresa: lista(p.empresa),
-    fuente: [p.fuente],
+    empresa: p.empresa ? [nodo(p.empresa)] : [],
+    empresaTexto: null,
+    fuente: [nodo(p.fuente)],
+    fuenteTexto: null,
     fecha: [fecha(p.fecha)],
     descartadoEl: listaFecha(p.descartadoEl),
     porque: lista(p.porque),
@@ -91,7 +107,13 @@ Deno.test("aPuestos: tecnologia por prefLabel o sinónimo, sin mayúsculas; fuen
   assertEquals(links({ tecnologia: "model context protocol" }), [FIXTURE[0].link]);
   assertEquals(links({ tecnologia: "pyth" }), []);
   assertEquals(links({ fuente: "HN" }), [FIXTURE[0].link, FIXTURE[2].link]);
+  assertEquals(links({ fuente: " hn " }), [FIXTURE[0].link, FIXTURE[2].link]); // el slug, como fuente_de
   assertEquals(links({ fuente: "h" }), []);
+  assertEquals(links({ fuente: "Hacker News" }), []); // compara con el link (…/fuente/hn), no con el nombre
+  assertEquals(links({ fuente: "?" }), []);
+  // Python: "Straße".casefold() es "strasse", y fuente_de da …/fuente/strasse.
+  const strasse = { ...fila(FIXTURE[0]), fuente: [nodo({ link: "https://kiri231.com/fuente/strasse", nombre: "S" })] };
+  assertEquals(aPuestos([strasse], { fuente: "STRAẞE" }).map((p) => p.link), [FIXTURE[0].link]);
   assertEquals(links({ tecnologia: "ts", fuente: "remotive" }), [FIXTURE[1].link]);
   assertEquals(links({ tecnologia: "", fuente: "" }), ORDENADO.map((p) => p.link));
 });
@@ -110,7 +132,19 @@ Deno.test("aPuestos: lo que no calza con JobPost tira PuestoQueNoCalza, como el 
     [{ titulo: ["uno", "otro"] }, "tiene 2 titulo"],
     [{ fecha: null }, "no tiene fecha"],
     [{ fuente: [] }, "no tiene fuente"],
-    [{ empresa: ["a", "b"] }, "tiene 2 empresa"],
+    [{
+      empresa: [
+        nodo({ link: "https://kiri231.com/empresa/a", nombre: "A" }),
+        nodo({ link: "https://kiri231.com/empresa/b", nombre: "B" }),
+      ],
+    }, "tiene 2 empresa"],
+    // La vista cargada de un servidor de antes de ontologyLearning #50: n10s deja el literal como propiedad.
+    [{ empresaTexto: ["Lemon.io"] }, "su empresa es texto"],
+    [{ fuente: [], fuenteTexto: ["hn"] }, "su fuente es texto"],
+    [{ fuente: [{ ...nodo(PUESTO.fuente), rdfs__label: null }] }, "no tiene nombre (rdfs:label)"],
+    [{ fuente: [{ ...nodo(PUESTO.fuente), rdfs__label: ["Hacker News", "HN"] }] }, "tiene 2 nombre"],
+    [{ fuente: [{ ...nodo(PUESTO.fuente), urls: ["https://a.dev", "https://b.dev"] }] }, "tiene 2 url"],
+    [{ fuente: [{ ...nodo(PUESTO.fuente), urls: [], urlTexto: ["https://a.dev"] }] }, "es texto, no una IRI"],
     [
       { pide: [{ uri: "https://kiri231.com/tecnologia/X", skos__prefLabel: null, skos__altLabel: null }] },
       "no tiene nombre",
@@ -135,4 +169,18 @@ Deno.test("aPuestos: tecnologia filtra antes de armar el puesto, como jobs.rq: u
   assertThrows(() => aPuestos([malo, fila(FIXTURE[1])], { tecnologia: "mcp" }), PuestoQueNoCalza, "tiene 2 titulo");
   // fuente filtra después, como jobs_get.py: el puesto malo tira aunque sea de otra fuente.
   assertThrows(() => aPuestos([malo, fila(FIXTURE[1])], { fuente: "remotive" }), PuestoQueNoCalza, "tiene 2 titulo");
+});
+
+Deno.test("PREFIJOS: un prefijo por namespace (n10s.nsprefixes.add no acepta un segundo para el mismo)", () => {
+  const repetidos = Object.entries(PREFIJOS).filter(([p, ns], _, todos) => todos.some(([q, m]) => q !== p && m === ns));
+  assertEquals(repetidos, []);
+});
+
+Deno.test("slug(): el de core/jobs.py (los valores salen de correrlo en la rama de ontologyLearning #50)", () => {
+  assertEquals(slug("HN"), "hn");
+  assertEquals(slug(" hn "), "hn");
+  assertEquals(slug("Typify.dev"), "typify-dev");
+  assertEquals(slug("Ñandú Café"), "nandu-cafe");
+  assertEquals(slug("a".repeat(100)), "a".repeat(80));
+  assertEquals(slug("株式会社"), ""); // allá sin-nombre-a8bb7f5d22: ninguna fuente se llama así
 });

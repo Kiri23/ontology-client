@@ -1,0 +1,96 @@
+# CONSTRUCT del /sparql de ontologyLearning en la rama afirmaciones-legibles (8e86d02, #50), corrido el 2026-10-28 con
+# PATRON_DATOS de scripts/neo4j-cargar.ts y VALUES ?s: cuatro puestos (dos de HN, uno con el sitio de su empresa; dos de
+# Remotive de la misma empresa), sus empresas, sus fuentes y lo que piden. vista-neo4j.json es GET /jobs de ese mismo
+# servidor, recortado a esos cuatro. Lo usa tests/vista-neo4j-sparql.test.ts.
+@prefix dcterms: <http://purl.org/dc/terms/> .
+@prefix ns1: <https://kiri231.com/ontologia#> .
+@prefix prov: <http://www.w3.org/ns/prov#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix schema: <https://schema.org/> .
+@prefix skos: <http://www.w3.org/2004/02/skos/core#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+
+<https://news.ycombinator.com/item?id=49935083> a ns1:JobPost ;
+    rdfs:label "AI Scientist (Staff, Senior) | REMOTE (US) | Full-time | https://www.tempus.com" ;
+    dcterms:source <https://kiri231.com/fuente/hn> ;
+    prov:generatedAtTime "2026-10-28T14:20:43+00:00"^^xsd:dateTime ;
+    ns1:empresa <https://kiri231.com/empresa/tempus-ai> .
+
+<https://news.ycombinator.com/item?id=50063001> a ns1:JobPost ;
+    rdfs:label "AI Application Engineer + Product Engineer | San Francisco (hybrid / remote available) | VISA | $80-120K USD (Negotiable) | galen@typify.dev" ;
+    dcterms:source <https://kiri231.com/fuente/hn> ;
+    prov:generatedAtTime "2026-10-28T14:20:43+00:00"^^xsd:dateTime ;
+    ns1:empresa <https://kiri231.com/empresa/typify-dev> ;
+    ns1:pide <https://kiri231.com/tecnologia/MCP> .
+
+<https://remotive.com/remote-jobs/software-development/senior-back-end-engineer-2091132> a ns1:JobPost ;
+    rdfs:label "Senior back-end Engineer" ;
+    dcterms:source <https://kiri231.com/fuente/remotive> ;
+    prov:generatedAtTime "2026-10-28T14:20:43+00:00"^^xsd:dateTime ;
+    ns1:empresa <https://kiri231.com/empresa/lemon-io> ;
+    ns1:pide <https://kiri231.com/tecnologia/CSharp>,
+        <https://kiri231.com/tecnologia/NodeJs>,
+        <https://kiri231.com/tecnologia/Python>,
+        <https://kiri231.com/tecnologia/React>,
+        <https://kiri231.com/tecnologia/TypeScript> .
+
+<https://remotive.com/remote-jobs/software-development/senior-react-full-stack-developer-2091133> a ns1:JobPost ;
+    rdfs:label "Senior React Full-stack Developer" ;
+    dcterms:source <https://kiri231.com/fuente/remotive> ;
+    prov:generatedAtTime "2026-10-28T14:20:43+00:00"^^xsd:dateTime ;
+    ns1:empresa <https://kiri231.com/empresa/lemon-io> ;
+    ns1:pide <https://kiri231.com/tecnologia/AWS>,
+        <https://kiri231.com/tecnologia/CSharp>,
+        <https://kiri231.com/tecnologia/NodeJs>,
+        <https://kiri231.com/tecnologia/Python>,
+        <https://kiri231.com/tecnologia/React>,
+        <https://kiri231.com/tecnologia/TypeScript> .
+
+<https://kiri231.com/empresa/tempus-ai> a schema:Organization ;
+    rdfs:label "Tempus AI" .
+
+<https://kiri231.com/empresa/typify-dev> a schema:Organization ;
+    rdfs:label "Typify.dev" ;
+    schema:url <https://typify.dev> .
+
+<https://kiri231.com/tecnologia/AWS> a ns1:Technology ;
+    skos:altLabel "Amazon Web Services" ;
+    skos:prefLabel "AWS" .
+
+<https://kiri231.com/tecnologia/MCP> a ns1:Technology ;
+    skos:altLabel "Model Context Protocol" ;
+    skos:prefLabel "MCP" .
+
+<https://kiri231.com/empresa/lemon-io> a schema:Organization ;
+    rdfs:label "Lemon.io" .
+
+<https://kiri231.com/fuente/hn> a schema:WebSite ;
+    rdfs:label "Hacker News" ;
+    schema:url <https://news.ycombinator.com> .
+
+<https://kiri231.com/fuente/remotive> a schema:WebSite ;
+    rdfs:label "Remotive" ;
+    schema:url <https://remotive.com> .
+
+<https://kiri231.com/tecnologia/CSharp> a ns1:Technology ;
+    skos:altLabel ".NET",
+        "dotnet" ;
+    skos:prefLabel "C#" .
+
+<https://kiri231.com/tecnologia/NodeJs> a ns1:Technology ;
+    skos:altLabel "Node",
+        "NodeJS" ;
+    skos:prefLabel "Node.js" .
+
+<https://kiri231.com/tecnologia/Python> a ns1:Technology ;
+    skos:prefLabel "Python" .
+
+<https://kiri231.com/tecnologia/React> a ns1:Technology ;
+    skos:altLabel "React Native",
+        "ReactJS" ;
+    skos:prefLabel "React" .
+
+<https://kiri231.com/tecnologia/TypeScript> a ns1:Technology ;
+    skos:altLabel "TS" ;
+    skos:prefLabel "TypeScript" .
+

@@ -1,17 +1,24 @@
 // Tests de configurar({ motor }) y de motorNeo4j con un Driver falso: no tocan la red. Cada test que cambia el
 // motor lo devuelve a motorHttp en un finally: el motor es estado del módulo, y los otros tests asumen el default.
 
-import { assertEquals, assertInstanceOf, assertRejects, assertStrictEquals, assertThrows } from "@std/assert";
+import {
+  assertEquals,
+  assertInstanceOf,
+  assertRejects,
+  assertStrictEquals,
+  assertStringIncludes,
+  assertThrows,
+} from "@std/assert";
 import neo4j, { type Driver } from "neo4j-driver";
 import { configurar, ErrorServidor, type JobPost, jobs, type Motor, motorHttp } from "../mod.ts";
 import { motorNeo4j } from "../neo4j.ts";
 import { motorActual } from "../motor.ts";
-import type { Fila } from "../vista-neo4j.ts";
+import { type Fila, PREFIJOS } from "../vista-neo4j.ts";
 
 const PUESTO: JobPost = {
   link: "https://news.ycombinator.com/item?id=1",
   fecha: "2026-10-13T21:03:57+00:00",
-  fuente: "hn",
+  fuente: { link: "https://kiri231.com/fuente/hn", nombre: "Hacker News", url: "https://news.ycombinator.com" },
   pide: [],
   titulo: "Dev",
 };
@@ -31,9 +38,17 @@ function motorFalso() {
   return { motor, visto };
 }
 
-// Un Driver que responde `filas` con `cargas` centinelas (default 1: cargada), tira `error`, o no contesta nunca
-// (`colgado`), y guarda cómo le abrieron la sesión y la transacción.
-function driverFalso(respuesta: { filas?: Fila[]; cargas?: number; error?: Error; colgado?: boolean }) {
+// Un Driver que responde `filas` con `cargas` centinelas (default 1: cargada) y los `prefijos` de n10s (default
+// PREFIJOS), tira `error`, o no contesta nunca (`colgado`), y guarda cómo le abrieron la sesión y la transacción.
+function driverFalso(
+  respuesta: {
+    filas?: Fila[];
+    cargas?: number;
+    prefijos?: Record<string, string> | null;
+    error?: Error;
+    colgado?: boolean;
+  },
+) {
   const visto: { sesion?: unknown; tx?: unknown; cerrada?: boolean; cypher?: string } = {};
   const driver = {
     session: (config: unknown) => {
@@ -48,6 +63,9 @@ function driverFalso(respuesta: { filas?: Fila[]; cargas?: number; error?: Error
               if (respuesta.error) return Promise.reject(respuesta.error);
               const fila: Record<string, unknown> = {
                 cargas: neo4j.int(respuesta.cargas ?? 1),
+                prefijos: respuesta.prefijos === undefined
+                  ? { ...PREFIJOS, ns0: "https://x.dev/#" }
+                  : respuesta.prefijos,
                 filas: respuesta.filas ?? [],
               };
               return Promise.resolve({ records: [{ get: (k: string) => fila[k] }] });
@@ -67,8 +85,15 @@ function driverFalso(respuesta: { filas?: Fila[]; cargas?: number; error?: Error
 const FILA: Fila = {
   link: PUESTO.link,
   titulo: ["Dev"],
-  empresa: null,
-  fuente: ["hn"],
+  empresa: [],
+  empresaTexto: null,
+  fuente: [{
+    uri: PUESTO.fuente.link,
+    rdfs__label: [PUESTO.fuente.nombre],
+    urls: [PUESTO.fuente.url!],
+    urlTexto: null,
+  }],
+  fuenteTexto: null,
   fecha: [new neo4j.types.DateTime(2026, 10, 13, 21, 3, 57, 0, 0)],
   descartadoEl: null,
   porque: null,
@@ -161,6 +186,36 @@ Deno.test("motorNeo4j: una vista sin el centinela de carga completa (vacía o co
   assertEquals(e.status, null);
   assertEquals(e.message, "neo4j jobs.get: la vista Neo4j no está cargada: deno task neo4j:cargar");
   assertEquals(visto.cerrada, true);
+});
+
+// El _NsPrefDef de la vista de producción, cargada el 2026-10-15 (antes del renombre), leído con executeRead.
+const PREFIJOS_DEL_15 = {
+  rdfs: "http://www.w3.org/2000/01/rdf-schema#",
+  prov: "http://www.w3.org/ns/prov#",
+  t: "https://kiri23.dev/tech#",
+  dct: "http://purl.org/dc/terms/",
+  rdf: "http://www.w3.org/1999/02/22-rdf-syntax-ns#",
+  doap: "http://usefulinc.com/ns/doap#",
+  j: "https://kiri23.dev/jobs#",
+  skos: "http://www.w3.org/2004/02/skos/core#",
+  k: "https://kiri23.dev/catalogo#",
+};
+
+Deno.test("motorNeo4j: una vista cargada con otros prefijos (antes del renombre) es un error, no una lista vacía", async () => {
+  for (const prefijos of [PREFIJOS_DEL_15, null, { ...PREFIJOS, ontologia: "https://kiri23.dev/jobs#" }]) {
+    const { driver, visto } = driverFalso({ filas: [], prefijos });
+    const e = await assertRejects(() => motorNeo4j(driver).jobs.get({}, {}), ErrorServidor);
+    assertEquals(e.status, null);
+    assertStringIncludes(
+      e.message,
+      "la vista Neo4j se cargó con otros prefijos (le falta ontologia (https://kiri231.com/ontologia#)",
+    );
+    assertStringIncludes(e.message, "de antes del renombre de namespaces: corré deno task neo4j:cargar");
+    assertEquals(visto.cerrada, true);
+  }
+  // Con los de ahora (y uno de más que n10s haya sumado solo), lee.
+  const { driver } = driverFalso({ filas: [FILA] });
+  assertEquals((await motorNeo4j(driver).jobs.get({}, {})).map((p) => p.link), [PUESTO.link]);
 });
 
 Deno.test("motorNeo4j: timeoutMs acota la espera entera, aunque el driver no conteste (túnel caído)", async () => {

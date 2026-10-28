@@ -13,7 +13,7 @@ To read from Neo4j instead of HTTP, see [engines.md](engines.md).
 same token and returns the same `Resultado`.
 
 ```ts
-import { validarProyecto } from "jsr:@kiri23/ontology-client@0.1.2";
+import { validarProyecto } from "jsr:@kiri23/ontology-client@0.2.0";
 
 const ficha = await Deno.readTextFile("proyectos/mi-proyecto/proyecto.ttl");
 const r = await validarProyecto(ficha, { token: Deno.env.get("ONTOLOGY_PROYECTOS_TOKEN")! });
@@ -52,7 +52,8 @@ and two actions, `descartar` (dismiss) and `marcarAplicado` (mark as applied).
 import { type JobPost, jobs } from "jsr:@kiri23/ontology-client";
 
 const lista: JobPost[] = await jobs.get({ tecnologia: "python" }); // or { fuente: "hn" }, or nothing: all of them
-lista[0].empresa; // string | undefined
+lista[0].empresa?.nombre; // string | undefined: the company is an Organization { link, nombre, url? }
+lista[0].fuente.nombre; // "Hacker News": the source is a WebSite { link, nombre, url? }
 lista[0].pide[0].nombre; // string: each technology is a Technology { link, nombre, sinonimos }
 ```
 
@@ -122,7 +123,7 @@ view: `crearCliente()` returns its `Client<paths>` as is, with the contract's pa
 anything else `validarProyecto` did not plan for.
 
 ```ts
-import { crearCliente } from "jsr:@kiri23/ontology-client@0.1.2";
+import { crearCliente } from "jsr:@kiri23/ontology-client@0.2.0";
 
 const cliente = crearCliente({ headers: { Authorization: `Bearer ${token}` } });
 cliente.use({ onRequest: ({ request }) => console.log(request.method, request.url) });

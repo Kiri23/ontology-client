@@ -137,7 +137,7 @@ The CLI and the GitHub Action check Turtle files (project files, and vocabularie
 `vocabularios` input; the Action finds both by name when no input is given) against the graph's rules:
 
 ```sh
-deno run --allow-net --allow-read --allow-env jsr:@kiri23/ontology-client@0.1.2/cli <files>
+deno run --allow-net --allow-read --allow-env jsr:@kiri23/ontology-client@0.2.0/cli <files>
 ```
 
 ```yaml
