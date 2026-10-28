@@ -13,7 +13,7 @@ To read from Neo4j instead of HTTP, see [engines.md](engines.md).
 same token and returns the same `Resultado`.
 
 ```ts
-import { validarProyecto } from "jsr:@kiri23/ontology-client@0.1.2";
+import { validarProyecto } from "jsr:@kiri23/ontology-client@0.2.0";
 
 const ficha = await Deno.readTextFile("proyectos/mi-proyecto/proyecto.ttl");
 const r = await validarProyecto(ficha, { token: Deno.env.get("ONTOLOGY_PROYECTOS_TOKEN")! });
@@ -123,7 +123,7 @@ view: `crearCliente()` returns its `Client<paths>` as is, with the contract's pa
 anything else `validarProyecto` did not plan for.
 
 ```ts
-import { crearCliente } from "jsr:@kiri23/ontology-client@0.1.2";
+import { crearCliente } from "jsr:@kiri23/ontology-client@0.2.0";
 
 const cliente = crearCliente({ headers: { Authorization: `Bearer ${token}` } });
 cliente.use({ onRequest: ({ request }) => console.log(request.method, request.url) });
