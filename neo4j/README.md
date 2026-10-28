@@ -193,7 +193,7 @@ graphs (`urn:kiri-acciones:…`) and show up just the same. The view does the sa
   triples.
 - **What is lost:** which graph each triple belongs to, and each graph's metadata (`dct:source "kiri-jobs -j (hn)"`,
   `prov:generatedAtTime`, `rdfs:comment`): the graph's URI has no `rdf:type`, so `PATRON_DATOS` leaves it out. It is not
-  needed: each job post carries its own source (`dct__source: ["hn"]`) and its date.
+  needed: each job post carries its own source (a `dct__source` edge to `https://kiri231.com/fuente/hn`) and its date.
 - **The order does not change:** `jobs.rq` orders by the graph's `prov:generatedAtTime`; the engine, by the job post's.
   `core/jobs.py` writes both with the same `cuando`, and a job post in two runs would have two dates, which the
   `JobPost` shape rejects (503). In valid data, they are the same order.
@@ -228,6 +228,12 @@ like the 503).
 - **Relationships:** a triple whose object is an IRI is an edge with the shortened predicate: `ontologia__pide`,
   `ontologia__accion`, `ontologia__tieneUso`, `ontologia__ejecutaEnCI`, `ontologia__tieneWorkflow`,
   `ontologia__alojadaEn`.
+- **Company and source:** since ontologyLearning #50 they are nodes, not text. `ontologia:empresa` points to
+  `https://kiri231.com/empresa/<slug>` (`schema__Organization`) and `dct:source` to `https://kiri231.com/fuente/hn`
+  (`schema__WebSite`), each with its `rdfs__label` and a `schema__url` edge to its site. Two job posts from the same
+  company share the node. `CONSULTA_JOBS` follows the edges and `aPuestos` rebuilds `{ link, nombre, url? }`. If the
+  view was loaded from a server from before #50, the company is still a `ontologia__empresa` property: the engine throws
+  `PuestoQueNoCalza` instead of returning job posts without a company.
 - **Blank nodes and RDF lists:** there are none. They lived in the shapes, which no longer go in.
 
 The counts below were measured on the 2026-10-15 load, before ontologyLearning renamed its namespaces: `j__` was

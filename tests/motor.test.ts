@@ -11,7 +11,7 @@ import type { Fila } from "../vista-neo4j.ts";
 const PUESTO: JobPost = {
   link: "https://news.ycombinator.com/item?id=1",
   fecha: "2026-10-13T21:03:57+00:00",
-  fuente: "hn",
+  fuente: { link: "https://kiri231.com/fuente/hn", nombre: "Hacker News", url: "https://news.ycombinator.com" },
   pide: [],
   titulo: "Dev",
 };
@@ -67,8 +67,15 @@ function driverFalso(respuesta: { filas?: Fila[]; cargas?: number; error?: Error
 const FILA: Fila = {
   link: PUESTO.link,
   titulo: ["Dev"],
-  empresa: null,
-  fuente: ["hn"],
+  empresa: [],
+  empresaTexto: null,
+  fuente: [{
+    uri: PUESTO.fuente.link,
+    rdfs__label: [PUESTO.fuente.nombre],
+    urls: [PUESTO.fuente.url!],
+    urlTexto: null,
+  }],
+  fuenteTexto: null,
   fecha: [new neo4j.types.DateTime(2026, 10, 13, 21, 3, 57, 0, 0)],
   descartadoEl: null,
   porque: null,

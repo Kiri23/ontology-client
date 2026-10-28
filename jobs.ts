@@ -23,6 +23,12 @@ export type JobPost = components["schemas"]["JobPost"];
 /** Una tecnología que un puesto pide: el schema Technology del contrato. */
 export type Technology = components["schemas"]["Technology"];
 
+/** La empresa de un puesto, un nodo https://kiri231.com/empresa/<slug>: el schema Organization del contrato. */
+export type Organization = components["schemas"]["Organization"];
+
+/** De dónde salió un puesto, un nodo https://kiri231.com/fuente/hn: el schema WebSite del contrato. */
+export type WebSite = components["schemas"]["WebSite"];
+
 /** Los filtros de GET /jobs, del contrato: `tecnologia` (python, ts, node…) y `fuente` (remotive, hn). */
 export type FiltrosJobs = NonNullable<operations["jobs_get"]["parameters"]["query"]>;
 

@@ -18,7 +18,7 @@ import { servidorMudo } from "./servidor-mudo.ts";
 const PUESTO: JobPost = {
   link: "https://remotive.com/remote-jobs/prueba-python-1",
   fecha: "2026-10-10T00:00:00+00:00",
-  fuente: "remotive",
+  fuente: { link: "https://kiri231.com/fuente/remotive", nombre: "Remotive", url: "https://remotive.com" },
   titulo: "Backend Python",
   pide: [],
 };

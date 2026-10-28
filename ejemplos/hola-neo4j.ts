@@ -47,7 +47,7 @@ try {
   const python = await jobs.get({ tecnologia: "python" });
   console.log(`\njobs.get({ tecnologia: "python" }) por Neo4j: ${python.length} puestos`);
   for (const p of python.slice(0, 3)) {
-    console.log(`  ${p.fecha.slice(0, 10)}  ${p.fuente.padEnd(8)} ${p.titulo.slice(0, 60)}`);
+    console.log(`  ${p.fecha.slice(0, 10)}  ${p.fuente.nombre.padEnd(12)} ${p.titulo.slice(0, 60)}`);
   }
 } finally {
   configurar({ motor: motorHttp });

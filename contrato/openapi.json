@@ -88,7 +88,7 @@
       "get": {
         "operationId": "jobs_get",
         "summary": "Los puestos como JobPost[]: cada uno con la forma de ontologia:JobPostShape, el schema JobPost del contrato.",
-        "description": "GET /jobs. Filtra por tecnologia como consultas/jobs.rq (prefLabel o altLabel, sin mayúsculas) y por\nfuente contra el campo fuente del puesto (igual, sin mayúsculas: remotive, hn). El orden es el del\n.rq: lo más nuevo primero. Para traer puestos nuevos, POST /jobs (las dos fuentes).",
+        "description": "GET /jobs. Filtra por tecnologia como consultas/jobs.rq (prefLabel o altLabel, sin mayúsculas) y por\nfuente contra el link del campo fuente del puesto (https://kiri231.com/fuente/hn: remotive, hn, sin mayúsculas). El\norden es el del .rq: lo más nuevo primero. Para traer puestos nuevos, POST /jobs (las dos fuentes).",
         "parameters": [
           {
             "name": "tecnologia",
@@ -100,7 +100,7 @@
           {
             "name": "fuente",
             "in": "query",
-            "description": "de qué fuente, igual que el campo fuente: remotive o hn",
+            "description": "de qué fuente: remotive o hn, el final del link de su campo fuente",
             "required": false,
             "schema": { "type": "string" }
           }
@@ -463,7 +463,7 @@
       "get": {
         "operationId": "preguntar",
         "summary": "Corre consultas/<consulta>.rq y devuelve la respuesta en un formato (default: objetos, JSON).",
-        "description": "Los filtros llenan los parámetros del .rq (?_x requerido, ?__x opcional, como en grlc):\n/preguntar/jobs?tecnologia=python en HTTP, `preguntar jobs tecnologia=python` en la CLI.",
+        "description": "Los filtros llenan los parámetros del .rq (?_x requerido, ?__x opcional, como en grlc): /preguntar/jobs?tecnologia=python.",
         "parameters": [
           {
             "name": "consulta",
@@ -709,7 +709,7 @@
           "archivo": { "type": "string", "description": "El workflow donde está el uses:." },
           "ref": {
             "type": "string",
-            "description": "La versión que pide: rama, tag o SHA; default (por el puente del checkout) o local."
+            "description": "La versión que pide: rama, tag o SHA; default (por el puente del checkout) o local (derivado: la action vive en el repo del workflow)."
           },
           "repo": { "type": "string", "description": "El doap:name del repo que declara el uso." }
         },
@@ -744,13 +744,17 @@
             "format": "date-time",
             "description": "Cuándo lo descarté (POST /jobs/descartar)."
           },
-          "empresa": { "type": "string" },
+          "empresa": { "$ref": "#/components/schemas/Organization", "unevaluatedProperties": false },
           "fecha": {
             "type": "string",
             "format": "date-time",
             "description": "Cuándo lo trajo kiri-jobs (no cuándo se publicó)."
           },
-          "fuente": { "type": "string", "description": "De dónde salió el puesto: remotive, hn…" },
+          "fuente": {
+            "$ref": "#/components/schemas/WebSite",
+            "unevaluatedProperties": false,
+            "description": "De dónde salió el puesto: https://kiri231.com/fuente/remotive, …/hn"
+          },
           "pide": {
             "type": "array",
             "items": { "$ref": "#/components/schemas/Technology", "unevaluatedProperties": false }
@@ -759,6 +763,24 @@
           "titulo": { "type": "string" }
         },
         "required": ["link", "fecha", "fuente", "pide", "titulo"]
+      },
+      "Organization": {
+        "type": "object",
+        "properties": {
+          "link": {
+            "type": "string",
+            "format": "uri",
+            "description": "La URI del nodo: su identificador.",
+            "pattern": "^https://kiri231\\.com/empresa/[a-z0-9-]+$"
+          },
+          "nombre": { "type": "string", "description": "Como la escribe el puesto, sin el sitio pegado: Typify.dev." },
+          "url": {
+            "type": "string",
+            "format": "uri",
+            "description": "Su sitio, si el puesto lo trae: Typify.dev (https://typify.dev)."
+          }
+        },
+        "required": ["link", "nombre"]
       },
       "Technology": {
         "type": "object",
@@ -773,6 +795,20 @@
           "sinonimos": { "type": "array", "items": { "type": "string" } }
         },
         "required": ["link", "nombre", "sinonimos"]
+      },
+      "WebSite": {
+        "type": "object",
+        "properties": {
+          "link": {
+            "type": "string",
+            "format": "uri",
+            "description": "La URI del nodo: su identificador.",
+            "pattern": "^https://kiri231\\.com/fuente/[a-z0-9-]+$"
+          },
+          "nombre": { "type": "string", "description": "Hacker News, Remotive." },
+          "url": { "type": "string", "format": "uri", "description": "El sitio de donde kiri-jobs trae los puestos." }
+        },
+        "required": ["link", "nombre"]
       }
     },
     "securitySchemes": { "bearer": { "type": "http", "scheme": "bearer" } }

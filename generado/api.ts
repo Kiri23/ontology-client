@@ -32,8 +32,8 @@ export interface paths {
         /**
          * Los puestos como JobPost[]: cada uno con la forma de ontologia:JobPostShape, el schema JobPost del contrato.
          * @description GET /jobs. Filtra por tecnologia como consultas/jobs.rq (prefLabel o altLabel, sin mayúsculas) y por
-         *     fuente contra el campo fuente del puesto (igual, sin mayúsculas: remotive, hn). El orden es el del
-         *     .rq: lo más nuevo primero. Para traer puestos nuevos, POST /jobs (las dos fuentes).
+         *     fuente contra el link del campo fuente del puesto (https://kiri231.com/fuente/hn: remotive, hn, sin mayúsculas). El
+         *     orden es el del .rq: lo más nuevo primero. Para traer puestos nuevos, POST /jobs (las dos fuentes).
          */
         get: operations["jobs_get"];
         put?: never;
@@ -147,8 +147,7 @@ export interface paths {
         };
         /**
          * Corre consultas/<consulta>.rq y devuelve la respuesta en un formato (default: objetos, JSON).
-         * @description Los filtros llenan los parámetros del .rq (?_x requerido, ?__x opcional, como en grlc):
-         *     /preguntar/jobs?tecnologia=python en HTTP, `preguntar jobs tecnologia=python` en la CLI.
+         * @description Los filtros llenan los parámetros del .rq (?_x requerido, ?__x opcional, como en grlc): /preguntar/jobs?tecnologia=python.
          */
         get: operations["preguntar"];
         put?: never;
@@ -266,7 +265,7 @@ export interface components {
             accion: string;
             /** @description El workflow donde está el uses:. */
             archivo: string;
-            /** @description La versión que pide: rama, tag o SHA; default (por el puente del checkout) o local. */
+            /** @description La versión que pide: rama, tag o SHA; default (por el puente del checkout) o local (derivado: la action vive en el repo del workflow). */
             ref: string;
             /** @description El doap:name del repo que declara el uso. */
             repo: string;
@@ -291,18 +290,32 @@ export interface components {
              * @description Cuándo lo descarté (POST /jobs/descartar).
              */
             descartadoEl?: string;
-            empresa?: string;
+            empresa?: components["schemas"]["Organization"];
             /**
              * Format: date-time
              * @description Cuándo lo trajo kiri-jobs (no cuándo se publicó).
              */
             fecha: string;
-            /** @description De dónde salió el puesto: remotive, hn… */
-            fuente: string;
+            /** @description De dónde salió el puesto: https://kiri231.com/fuente/remotive, …/hn */
+            fuente: components["schemas"]["WebSite"];
             pide: components["schemas"]["Technology"][];
             /** @description Por qué lo descarté. */
             porque?: string;
             titulo: string;
+        };
+        Organization: {
+            /**
+             * Format: uri
+             * @description La URI del nodo: su identificador.
+             */
+            link: string;
+            /** @description Como la escribe el puesto, sin el sitio pegado: Typify.dev. */
+            nombre: string;
+            /**
+             * Format: uri
+             * @description Su sitio, si el puesto lo trae: Typify.dev (https://typify.dev).
+             */
+            url?: string;
         };
         Technology: {
             /**
@@ -312,6 +325,20 @@ export interface components {
             link: string;
             nombre: string;
             sinonimos: string[];
+        };
+        WebSite: {
+            /**
+             * Format: uri
+             * @description La URI del nodo: su identificador.
+             */
+            link: string;
+            /** @description Hacker News, Remotive. */
+            nombre: string;
+            /**
+             * Format: uri
+             * @description El sitio de donde kiri-jobs trae los puestos.
+             */
+            url?: string;
         };
     };
     responses: never;
@@ -422,7 +449,7 @@ export interface operations {
             query?: {
                 /** @description prefLabel o altLabel, sin mayúsculas: python, ts, node */
                 tecnologia?: string;
-                /** @description de qué fuente, igual que el campo fuente: remotive o hn */
+                /** @description de qué fuente: remotive o hn, el final del link de su campo fuente */
                 fuente?: string;
             };
             header?: never;

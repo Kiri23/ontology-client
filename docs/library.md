@@ -52,7 +52,8 @@ and two actions, `descartar` (dismiss) and `marcarAplicado` (mark as applied).
 import { type JobPost, jobs } from "jsr:@kiri23/ontology-client";
 
 const lista: JobPost[] = await jobs.get({ tecnologia: "python" }); // or { fuente: "hn" }, or nothing: all of them
-lista[0].empresa; // string | undefined
+lista[0].empresa?.nombre; // string | undefined: the company is an Organization { link, nombre, url? }
+lista[0].fuente.nombre; // "Hacker News": the source is a WebSite { link, nombre, url? }
 lista[0].pide[0].nombre; // string: each technology is a Technology { link, nombre, sinonimos }
 ```
 

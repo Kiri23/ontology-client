@@ -1,33 +1,92 @@
 [
   {
     "link": "https://news.ycombinator.com/item?id=50063001",
-    "empresa": "Typify.dev (https://typify.dev)",
+    "empresa": {
+      "link": "https://kiri231.com/empresa/typify-dev",
+      "nombre": "Typify.dev",
+      "url": "https://typify.dev"
+    },
     "fecha": "2026-10-13T21:03:57+00:00",
-    "fuente": "hn",
+    "fuente": {
+      "link": "https://kiri231.com/fuente/hn",
+      "nombre": "Hacker News",
+      "url": "https://news.ycombinator.com"
+    },
     "pide": [
-      { "link": "https://kiri231.com/tecnologia/MCP", "nombre": "MCP", "sinonimos": ["Model Context Protocol"] }
+      {
+        "link": "https://kiri231.com/tecnologia/MCP",
+        "nombre": "MCP",
+        "sinonimos": [
+          "Model Context Protocol"
+        ]
+      }
     ],
     "titulo": "AI Application Engineer + Product Engineer | San Francisco (hybrid / remote available) | VISA | $80-120K USD (Negotiable) | galen@typify.dev"
   },
   {
     "link": "https://remotive.com/remote-jobs/software-development/senior-net-full-stack-developer-2091130",
-    "empresa": "Lemon.io",
+    "empresa": {
+      "link": "https://kiri231.com/empresa/lemon-io",
+      "nombre": "Lemon.io"
+    },
     "fecha": "2026-10-13T21:03:57+00:00",
-    "fuente": "remotive",
+    "fuente": {
+      "link": "https://kiri231.com/fuente/remotive",
+      "nombre": "Remotive",
+      "url": "https://remotive.com"
+    },
     "pide": [
-      { "link": "https://kiri231.com/tecnologia/CSharp", "nombre": "C#", "sinonimos": [".NET", "dotnet"] },
-      { "link": "https://kiri231.com/tecnologia/NodeJs", "nombre": "Node.js", "sinonimos": ["Node", "NodeJS"] },
-      { "link": "https://kiri231.com/tecnologia/Python", "nombre": "Python", "sinonimos": [] },
-      { "link": "https://kiri231.com/tecnologia/React", "nombre": "React", "sinonimos": ["React Native", "ReactJS"] },
-      { "link": "https://kiri231.com/tecnologia/TypeScript", "nombre": "TypeScript", "sinonimos": ["TS"] }
+      {
+        "link": "https://kiri231.com/tecnologia/CSharp",
+        "nombre": "C#",
+        "sinonimos": [
+          ".NET",
+          "dotnet"
+        ]
+      },
+      {
+        "link": "https://kiri231.com/tecnologia/NodeJs",
+        "nombre": "Node.js",
+        "sinonimos": [
+          "Node",
+          "NodeJS"
+        ]
+      },
+      {
+        "link": "https://kiri231.com/tecnologia/Python",
+        "nombre": "Python",
+        "sinonimos": []
+      },
+      {
+        "link": "https://kiri231.com/tecnologia/React",
+        "nombre": "React",
+        "sinonimos": [
+          "React Native",
+          "ReactJS"
+        ]
+      },
+      {
+        "link": "https://kiri231.com/tecnologia/TypeScript",
+        "nombre": "TypeScript",
+        "sinonimos": [
+          "TS"
+        ]
+      }
     ],
     "titulo": "Senior .NET Full-stack Developer"
   },
   {
     "link": "https://news.ycombinator.com/item?id=49935083",
-    "empresa": "Tempus AI",
+    "empresa": {
+      "link": "https://kiri231.com/empresa/tempus-ai",
+      "nombre": "Tempus AI"
+    },
     "fecha": "2026-10-13T21:03:57+00:00",
-    "fuente": "hn",
+    "fuente": {
+      "link": "https://kiri231.com/fuente/hn",
+      "nombre": "Hacker News",
+      "url": "https://news.ycombinator.com"
+    },
     "pide": [],
     "titulo": "AI Scientist (Staff, Senior) | REMOTE (US) | Full-time | https://www.tempus.com"
   }

@@ -4,7 +4,7 @@
 // contrario: si aparece un campo que no está en el contrato, el comentario sobra y también falla.
 
 import { assertEquals } from "@std/assert";
-import { type JobPost, jobs, type operations, type Technology } from "../mod.ts";
+import { type JobPost, jobs, type operations, type Organization, type Technology, type WebSite } from "../mod.ts";
 
 // true solo si A y B son exactamente el mismo tipo (string | undefined no es string).
 type Igual<A, B> = (<T>() => T extends A ? 1 : 2) extends (<T>() => T extends B ? 1 : 2) ? true : false;
@@ -14,7 +14,7 @@ Deno.test("tipos: jobs.get() devuelve JobPost[] y el editor conoce sus campos", 
   const puesto: JobPost = {
     link: "https://news.ycombinator.com/item?id=1",
     fecha: "2026-10-13T21:03:57+00:00",
-    fuente: "hn",
+    fuente: { link: "https://kiri231.com/fuente/hn", nombre: "Hacker News", url: "https://news.ycombinator.com" },
     titulo: "Dev",
     pide: [{ link: "https://kiri231.com/tecnologia/Python", nombre: "Python", sinonimos: [] }],
   };
@@ -22,10 +22,12 @@ Deno.test("tipos: jobs.get() devuelve JobPost[] y el editor conoce sus campos", 
 
   const lista: JobPost[] = await jobs.get({ tecnologia: "python" }, { url: "http://falso", fetch });
 
-  mismoTipo<typeof lista[0]["empresa"], string | undefined>(true);
+  mismoTipo<typeof lista[0]["empresa"], Organization | undefined>(true);
+  mismoTipo<Organization, { link: string; nombre: string; url?: string }>(true);
+  mismoTipo<WebSite, { link: string; nombre: string; url?: string }>(true);
   mismoTipo<typeof lista[0]["link"], string>(true);
   mismoTipo<typeof lista[0]["fecha"], string>(true);
-  mismoTipo<typeof lista[0]["fuente"], string>(true);
+  mismoTipo<typeof lista[0]["fuente"], WebSite>(true);
   mismoTipo<typeof lista[0]["titulo"], string>(true);
   mismoTipo<typeof lista[0]["pide"], Technology[]>(true);
   mismoTipo<typeof lista[0]["pide"][0]["nombre"], string>(true);
@@ -45,7 +47,7 @@ Deno.test("tipos: las acciones devuelven el JobPost del 200 del contrato y acept
   const puesto: JobPost = {
     link: "https://remotive.com/remote-jobs/1",
     fecha: "2026-10-10T00:00:00+00:00",
-    fuente: "remotive",
+    fuente: { link: "https://kiri231.com/fuente/remotive", nombre: "Remotive", url: "https://remotive.com" },
     titulo: "Dev",
     pide: [],
   };

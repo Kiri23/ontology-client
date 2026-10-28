@@ -27,7 +27,16 @@ export * as jobs from "./jobs.ts";
 export * as sparql from "./sparql.ts";
 export type { OpcionesSparql, RespuestaSparql } from "./sparql.ts";
 export { configurar, type Motor, motorHttp } from "./motor.ts";
-export type { FiltrosJobs, JobPost, OpcionesAcciones, OpcionesJobs, ReferenciaJob, Technology } from "./jobs.ts";
+export type {
+  FiltrosJobs,
+  JobPost,
+  OpcionesAcciones,
+  OpcionesJobs,
+  Organization,
+  ReferenciaJob,
+  Technology,
+  WebSite,
+} from "./jobs.ts";
 
 /** Lo que responde POST /proyectos con 200, tal como lo declara el contrato (POST /vocabularios responde lo mismo). */
 export type Validacion = paths["/proyectos"]["post"]["responses"][200]["content"]["application/json"];
