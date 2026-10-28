@@ -55,6 +55,8 @@ Deno.test("cargar: solo datos, contados distintos; prefijos antes del fetch; el 
   assertEquals(await cargar(driver, SPARQL, pedir), 1204);
   assertStringIncludes(vistas[0], "SELECT DISTINCT ?s ?p ?o");
   assertStringIncludes(vistas[0], "FILTER(?c NOT IN (rdfs:Class, rdf:Property, owl:Class");
+  assertStringIncludes(vistas[0], "dash:ModifyAction, dash:ExploreAction))");
+  assertStringIncludes(vistas[0], "PREFIX dash: <http://datashapes.org/dash#>");
   assertEquals(cypher[0], "MATCH (c:_Carga) DELETE c");
   assertEquals(cypher[1], "MATCH (n) DETACH DELETE n");
   const fetch = cypher.findIndex((q) => q.includes("n10s.rdf.import.fetch"));

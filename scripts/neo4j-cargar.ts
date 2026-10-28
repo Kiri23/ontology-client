@@ -19,7 +19,11 @@ import neo4j, { type Driver } from "neo4j-driver";
 import { URL_PRODUCCION } from "../cliente.ts";
 import { CENTINELA, CONFIG_N10S, PREFIJOS } from "../vista-neo4j.ts";
 
-/** Las clases de esquema: lo que es instancia de una de estas no entra a la vista. */
+/**
+ * Las clases de esquema: lo que es instancia de una de estas no entra a la vista. Las dash: son las acciones de la API
+ * (domain/jobs-acciones.ttl: jobs:Descartar; domain/consultas.ttl: consultas:proyectos-que-usan): dicen qué se le
+ * puede pedir al servidor, con su sh:update y sus sh:parameter, y no son datos que se pregunten.
+ */
 const ESQUEMA = [
   "rdfs:Class",
   "rdf:Property",
@@ -28,12 +32,16 @@ const ESQUEMA = [
   "owl:DatatypeProperty",
   "sh:NodeShape",
   "sh:PropertyShape",
+  "dash:ModifyAction",
+  "dash:ExploreAction",
 ];
 
 /**
- * Los datos: cada triple cuyo sujeto es instancia de una clase que no es de esquema. Hoy entran ontologia:JobPost,
- * ontologia:Technology, doap:Project, ontologia:Uso, ontologia:Workflow y ontologia:Action. Quedan afuera el esquema y las shapes (con sus blank
- * nodes) y los nodos de named graph (urn:kiri-*, sin tipo: el puesto ya lleva su fuente y su fecha).
+ * Los datos: cada triple cuyo sujeto es instancia de una clase que no es de esquema. Hoy entran ontologia:JobPost (con
+ * su empresa, schema:Organization, y su fuente, schema:WebSite), ontologia:Technology, doap:Project, ontologia:Uso,
+ * ontologia:Workflow, ontologia:Action, ontologia:Proyecto y los skos:Concept de los vocabularios. Quedan afuera el
+ * esquema, las shapes (con sus blank nodes), las acciones de la API y los nodos de named graph (urn:kiri-*, sin tipo:
+ * el puesto ya lleva su fuente y su fecha).
  */
 export const PATRON_DATOS = `?s a ?c . FILTER(?c NOT IN (${ESQUEMA.join(", ")})) ?s ?p ?o`;
 
@@ -42,6 +50,7 @@ const PREFIJOS_SPARQL = [
   "PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>",
   "PREFIX owl: <http://www.w3.org/2002/07/owl#>",
   "PREFIX sh: <http://www.w3.org/ns/shacl#>",
+  "PREFIX dash: <http://datashapes.org/dash#>",
 ].join("\n");
 
 interface Import {
