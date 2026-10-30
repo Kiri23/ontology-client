@@ -122,6 +122,10 @@ export interface Pedido {
   out: string;
   context: string[];
   check: boolean;
+  // Cómo nombra el contexto la línea final; sin esto, la lista de --context (vocabulario:todos pasa muchos).
+  contextoEnMensaje?: string;
+  // La tarea que el mensaje de --check pide correr; sin esto, vocabulario:externo.
+  tarea?: string;
 }
 
 // Lo que corre `deno task vocabulario:externo`: 0 si está al día o se escribió, 1 si algo falla.
@@ -161,7 +165,7 @@ export async function correrExterno(p: Pedido): Promise<number> {
     const diferencias = comparar(actual, archivos, p.ttl);
     if (diferencias.length) {
       console.error(
-        `${p.out} no coincide con ${p.ttl}: corré \`deno task vocabulario:externo\` sin --check.\n${
+        `${p.out} no coincide con ${p.ttl}: corré \`deno task ${p.tarea ?? "vocabulario:externo"}\` sin --check.\n${
           diferencias.map((d) => `  ${d}`).join("\n")
         }`,
       );
@@ -177,6 +181,10 @@ export async function correrExterno(p: Pedido): Promise<number> {
     console.error(`Sin permiso: ${e.message}\n--out va en VOCABULARIO_ESCRIBIR.`);
     return 1;
   }
-  console.log(`${p.out} ← ${p.ttl} (${terminos} términos, contexto: ${p.context.join(", ") || "ninguno"})`);
+  console.log(
+    `${p.out} ← ${p.ttl} (${terminos} términos, contexto: ${
+      p.contextoEnMensaje ?? (p.context.join(", ") || "ninguno")
+    })`,
+  );
   return 0;
 }

@@ -14,6 +14,11 @@
 //                                    los broader y related que cruzan de vocabulario y suma Análogos. Las dos
 //                                    variables son los permisos de Deno: la tarea no lee ni escribe nada más.
 //
+//   deno task vocabulario:todos <carpeta>… [--raices <raices.json>] [--check]
+//                                    el modo externo para cada vocabulary.ttl bajo las carpetas (el vault), todos con
+//                                    el mismo contexto: los vocabularios de las raíces de ontologyLearning. La forma
+//                                    de regenerar las páginas del vault: un vocabulario nuevo no pide elegir --context.
+//
 // docs/vocabulary/ no se edita a mano: cambia el TTL o la prosa, se regenera, se commitean juntos. CI corre --check.
 // Leer, validar, menciones, renderizar, el disco y el modo externo viven en scripts/vocabulario/, un archivo cada uno.
 
@@ -26,6 +31,7 @@ import { enlacesAlVocabulario, leerProsa, triplesDeMenciones } from "./vocabular
 import { renderizar } from "./vocabulario/renderizar.ts";
 import { comparar, escribir, leerDirectorio } from "./vocabulario/archivos.ts";
 import { correrExterno } from "./vocabulario/externo.ts";
+import { absoluta, correrTodos } from "./vocabulario/todos.ts";
 
 const RAIZ = new URL("../", import.meta.url);
 const TTL = new URL("../docs/vocabulary.ttl", import.meta.url);
@@ -44,18 +50,48 @@ const AYUDA = `Uso:
                   y suman Análogos; se repite
       Las rutas son absolutas o relativas a la raíz del repo. Las variables son los permisos de lectura y escritura.
 
+  deno task vocabulario:todos <carpeta>… [--raices <raices.json>] [--check]
+      Cada vocabulary.ttl bajo <carpeta> (con un skos:ConceptScheme) → su carpeta vocabulary/ de al lado, como
+      vocabulario:externo. El contexto de todos es el mismo y sale de los datos: cada vocabulario (.ttl con
+      skos:ConceptScheme) bajo las raíces de raices.json, los mismos que ontologyLearning junta en grafo:vocabulario.
+      Así cada página trae los Análogos de todos los vocabularios. Ejemplo:
+        deno task vocabulario:todos ~/storage/documents/Secondbrain --check
+      --raices    el raices.json de ontologyLearning; por defecto $ONTOLOGY_RAICES o ~/Code/ontologyLearning/raices.json
+
   --check     no escribe: sale 1 si la carpeta no es lo que sale del TTL`;
 
 async function main(): Promise<number> {
   const o = parseArgs(Deno.args, {
-    boolean: ["check", "help"],
-    string: ["ttl", "out", "context"],
+    boolean: ["check", "help", "todos"],
+    string: ["ttl", "out", "context", "raices"],
     collect: ["context"],
     alias: { h: "help" },
   });
   if (o.help) {
     console.log(AYUDA);
     return 0;
+  }
+  if (o.todos) {
+    if (o.ttl !== undefined || o.out !== undefined || o.context.length) {
+      console.error("vocabulario:todos no lleva --ttl, --out ni --context: los saca de las carpetas y las raíces.");
+      return 1;
+    }
+    const carpetas = o._.map(String);
+    if (!carpetas.length) {
+      console.error("vocabulario:todos necesita al menos una carpeta: la del vault (ver --help).");
+      return 1;
+    }
+    const home = Deno.env.get("HOME") ?? "";
+    const raices = absoluta(
+      o.raices ?? Deno.env.get("ONTOLOGY_RAICES") ?? "~/Code/ontologyLearning/raices.json",
+      Deno.cwd(),
+      home,
+    );
+    return await correrTodos({ carpetas, raices, check: o.check, home });
+  }
+  if (o.raices !== undefined) {
+    console.error("--raices es de vocabulario:todos (ver --help).");
+    return 1;
   }
   if (o.ttl !== undefined || o.out !== undefined || o.context.length) {
     if (!o.ttl || !o.out) {
