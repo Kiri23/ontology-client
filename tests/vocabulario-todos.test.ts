@@ -5,7 +5,13 @@
 // tal cual, en un temporal con un espacio en el nombre.
 
 import { assert, assertEquals, assertStringIncludes } from "@std/assert";
-import { esVocabulario, leerRaices } from "../scripts/vocabulario/todos.ts";
+import {
+  buscarVocabularios,
+  CON_PUNTO_QUE_SI,
+  esVocabulario,
+  leerRaices,
+  PODAR,
+} from "../scripts/vocabulario/todos.ts";
 
 const PATRON = `@prefix patron: <https://kiri231.com/vocabulario/patron#> .
 @prefix ontologia: <https://kiri231.com/ontologia#> .
@@ -140,6 +146,9 @@ Deno.test("vocabulario:todos: sin carpeta, con una que no existe o sin vocabular
     const sinCarpeta = await todos("--raices", `${raiz}/raices.json`);
     assertEquals(sinCarpeta.code, 1);
     assertStringIncludes(sinCarpeta.stderr, "al menos una carpeta");
+    const mezclado = await todos(`${raiz}/vault`, "--raices", `${raiz}/raices.json`, "--context", `${raiz}/x.ttl`);
+    assertEquals(mezclado.code, 1);
+    assertStringIncludes(mezclado.stderr, "no lleva --ttl, --out ni --context");
     const noExiste = await todos(`${raiz}/nada`, "--raices", `${raiz}/raices.json`);
     assertEquals(noExiste.code, 1);
     assertStringIncludes(noExiste.stderr, "No existe");
@@ -153,4 +162,54 @@ Deno.test("vocabulario:todos: sin carpeta, con una que no existe o sin vocabular
   } finally {
     await Deno.remove(`${raiz}/..`, { recursive: true });
   }
+});
+
+Deno.test("buscarVocabularios: .claude sí, un symlink a un .ttl con su ruta real, una carpeta cerrada o una raíz que es archivo se avisan", async () => {
+  const dir = await Deno.realPath(await Deno.makeTempDir());
+  try {
+    await Deno.mkdir(`${dir}/r/.claude/skills/x`, { recursive: true });
+    await Deno.writeTextFile(`${dir}/r/.claude/skills/x/vocabulary.ttl`, tecnologia("skill"));
+    await Deno.mkdir(`${dir}/afuera`);
+    await Deno.writeTextFile(`${dir}/afuera/patron.ttl`, PATRON);
+    await Deno.symlink(`${dir}/afuera/patron.ttl`, `${dir}/r/link.ttl`);
+    await Deno.mkdir(`${dir}/r/cerrada`);
+    await Deno.chmod(`${dir}/r/cerrada`, 0o000);
+    await Deno.writeTextFile(`${dir}/archivo.json`, "[]");
+    const { vocabularios, avisos } = await buscarVocabularios([`${dir}/r`, `${dir}/r`, `${dir}/archivo.json`]);
+    assertEquals(vocabularios, [`${dir}/afuera/patron.ttl`, `${dir}/r/.claude/skills/x/vocabulary.ttl`]);
+    assert(avisos.some((a) => a.includes("cerrada")), avisos.join("\n"));
+    assert(avisos.some((a) => a.includes("no está en esta máquina") && a.includes("archivo.json")));
+  } finally {
+    await Deno.chmod(`${dir}/r/cerrada`, 0o755);
+    await Deno.remove(dir, { recursive: true });
+  }
+});
+
+Deno.test("leerRaices: una ruta vacía es error, como en scanner.py", async () => {
+  const dir = await Deno.makeTempDir();
+  try {
+    await Deno.writeTextFile(`${dir}/raices.json`, JSON.stringify([{ nombre: "a", ruta: " " }]));
+    let error = "";
+    await leerRaices(`${dir}/raices.json`, "/home/k").catch((e) => (error = e.message));
+    assertStringIncludes(error, "le falta nombre o ruta");
+  } finally {
+    await Deno.remove(dir, { recursive: true });
+  }
+});
+
+// Las carpetas podadas son una copia de core/scanner.py: si ontologyLearning está clonado al lado, tienen que ser
+// las mismas. En CI no está y el test no corre.
+const SCANNER = new URL("../../ontologyLearning/core/scanner.py", import.meta.url);
+const hayScanner = await Deno.stat(SCANNER).then(() => true, () => false);
+Deno.test({
+  name: "PODAR y CON_PUNTO_QUE_SI son los de core/scanner.py de ontologyLearning",
+  ignore: !hayScanner,
+  fn: async () => {
+    const py = await Deno.readTextFile(SCANNER);
+    const conjunto = (nombre: string) =>
+      [...(py.match(new RegExp(`^${nombre} = \\{([^}]*)\\}`, "m"))?.[1] ?? "").matchAll(/"([^"]+)"/g)]
+        .map((m) => m[1]).sort();
+    assertEquals([...PODAR].sort(), conjunto("PODAR"));
+    assertEquals([...CON_PUNTO_QUE_SI].sort(), conjunto("CON_PUNTO_QUE_SI"));
+  },
 });

@@ -8,12 +8,17 @@
 //
 //   - contexto: todos los *.ttl que declaran `a skos:ConceptScheme` (o `a ontologia:VocabularioCompartido`) bajo las
 //     raíces de raices.json: los mismos archivos que ontologyLearning junta en grafo:vocabulario (core/scanner.py
-//     encontrar + core/vocabularios.py los_que_son_vocabulario, con las mismas carpetas podadas);
+//     encontrar + core/vocabularios.py los_que_son_vocabulario, con las mismas carpetas podadas). Si una <carpeta>
+//     no es una raíz, sus vocabularios también entran: una página nunca se genera sin sus hermanos;
 //   - páginas: cada uno de esos que se llama vocabulary.ttl y vive bajo una <carpeta> de la línea de comandos, en la
 //     carpeta vocabulary/ de al lado. Un vocabulario nuevo es crear el archivo: la tarea lo encuentra sola.
 //
 // Cada vocabulario pasa por correrExterno, el mismo camino que `vocabulario:externo`: valida, compara, escribe y se
 // niega a pisar una carpeta con archivos ajenos.
+//
+// La tarea tiene --allow-read y --allow-write sin restringir: las carpetas llegan como argumentos y deno.json no puede
+// nombrarlas. La defensa es que la única carpeta que se escribe es la vocabulary/ al lado de cada vocabulary.ttl
+// encontrado (`correrTodos`) y el guard `ajenos` de externo.ts.
 
 import { correrExterno } from "./externo.ts";
 import { esquemas, triples } from "./leer.ts";
@@ -21,9 +26,10 @@ import { esquemas, triples } from "./leer.ts";
 const ONTOLOGIA_COMPARTIDO = "https://kiri231.com/ontologia#VocabularioCompartido";
 const RDF_TYPE = "http://www.w3.org/1999/02/22-rdf-syntax-ns#type";
 
-// Las carpetas que core/scanner.py no recorre (PODAR y CON_PUNTO_QUE_SI): si cambian allá, cambian acá.
-const PODAR = new Set(["node_modules", "SourceCode", "worktrees", "dist", "tests", "fixtures"]);
-const CON_PUNTO_QUE_SI = new Set([".claude"]);
+// Las carpetas que core/scanner.py no recorre (PODAR y CON_PUNTO_QUE_SI). tests/vocabulario-todos.test.ts las
+// compara con las de scanner.py cuando ontologyLearning está clonado al lado.
+export const PODAR = new Set(["node_modules", "SourceCode", "worktrees", "dist", "tests", "fixtures"]);
+export const CON_PUNTO_QUE_SI = new Set([".claude"]);
 const sePoda = (carpeta: string) => PODAR.has(carpeta) || (carpeta.startsWith(".") && !CON_PUNTO_QUE_SI.has(carpeta));
 
 export interface Raiz {
@@ -32,7 +38,7 @@ export interface Raiz {
 }
 
 // Una ruta con ~ y relativa a `base` → absoluta.
-function absoluta(ruta: string, base: string, home: string): string {
+export function absoluta(ruta: string, base: string, home: string): string {
   const expandida = ruta === "~" || ruta.startsWith("~/") ? home + ruta.slice(1) : ruta;
   return expandida.startsWith("/") ? expandida : `${base}/${expandida}`;
 }
@@ -41,20 +47,34 @@ function absoluta(ruta: string, base: string, home: string): string {
 export async function leerRaices(archivo: string, home: string): Promise<Raiz[]> {
   const datos = JSON.parse(await Deno.readTextFile(archivo));
   if (!Array.isArray(datos)) throw new Error(`${archivo} tiene que ser una lista de objetos, uno por repo`);
-  const base = archivo.slice(0, Math.max(archivo.lastIndexOf("/"), 0)) || ".";
+  const barra = archivo.lastIndexOf("/");
+  const base = barra < 0 ? "." : archivo.slice(0, barra) || "/";
   return datos.map((e, i) => {
-    if (typeof e?.nombre !== "string" || typeof e?.ruta !== "string") {
+    const vacio = (x: unknown) => typeof x !== "string" || !x.trim();
+    if (vacio(e?.nombre) || vacio(e?.ruta)) {
       throw new Error(`${archivo}: a la entrada ${i + 1} le falta nombre o ruta`);
     }
     return { nombre: e.nombre, ruta: absoluta(e.ruta, base, home) };
   });
 }
 
-// Todos los *.ttl bajo `carpeta` (ya resuelta), sin bajar a lo que se poda ni seguir symlinks, como os.walk.
-async function ttlBajo(carpeta: string, encontrados: Set<string>): Promise<void> {
-  for await (const e of Deno.readDir(carpeta)) {
-    if (e.isDirectory && !sePoda(e.name)) await ttlBajo(`${carpeta}/${e.name}`, encontrados);
-    else if (e.isFile && e.name.endsWith(".ttl")) encontrados.add(`${carpeta}/${e.name}`);
+// Todos los *.ttl bajo `carpeta` (ya resuelta), sin bajar a lo que se poda ni a un symlink de carpeta, como os.walk.
+// Un symlink a un .ttl entra con su ruta real (scanner.py hace .resolve()). Una carpeta que no se puede leer se avisa
+// y se saltea: os.walk la saltea en silencio, y en Termux el dueño del almacenamiento compartido cambia.
+async function ttlBajo(carpeta: string, encontrados: Set<string>, avisos: string[]): Promise<void> {
+  try {
+    for await (const e of Deno.readDir(carpeta)) {
+      const ruta = `${carpeta}/${e.name}`;
+      if (e.isDirectory && !sePoda(e.name)) await ttlBajo(ruta, encontrados, avisos);
+      else if (e.isFile && e.name.endsWith(".ttl")) encontrados.add(ruta);
+      else if (e.isSymlink && e.name.endsWith(".ttl")) {
+        const real = await Deno.realPath(ruta).catch(() => undefined);
+        if (real && (await Deno.stat(real)).isFile) encontrados.add(real);
+      }
+    }
+  } catch (e) {
+    if (!(e instanceof Deno.errors.PermissionDenied)) throw e;
+    avisos.push(`no se puede leer, no entra al contexto: ${carpeta}`);
   }
 }
 
@@ -87,10 +107,12 @@ export async function buscarVocabularios(carpetas: string[]): Promise<Hallazgo> 
       real = await Deno.realPath(c);
     } catch (e) {
       if (!(e instanceof Deno.errors.NotFound)) throw e;
+    }
+    if (!real || !(await Deno.stat(real)).isDirectory) {
       avisos.push(`no está en esta máquina: ${c}`);
       continue;
     }
-    await ttlBajo(real, encontrados);
+    await ttlBajo(real, encontrados, avisos);
   }
   const vocabularios: string[] = [];
   for (const ruta of [...encontrados].sort()) {
@@ -105,26 +127,29 @@ export interface PedidoTodos {
   carpetas: string[];
   raices: string;
   check: boolean;
+  home: string;
 }
 
 // Lo que corre `deno task vocabulario:todos`: 0 si todos están al día o se escribieron, 1 si alguno falla.
 export async function correrTodos(p: PedidoTodos): Promise<number> {
   let raices: Raiz[];
   try {
-    raices = await leerRaices(p.raices, Deno.env.get("HOME") ?? "");
+    raices = await leerRaices(p.raices, p.home);
   } catch (e) {
     console.error(`No pude leer las raíces ${p.raices}: ${e instanceof Error ? e.message : e}`);
     return 1;
   }
   const paginas: string[] = [];
   for (const c of p.carpetas) {
-    try {
-      paginas.push(await Deno.realPath(c));
-    } catch (e) {
-      if (!(e instanceof Deno.errors.NotFound)) throw e;
-      console.error(`No existe: ${c}`);
+    const real = await Deno.realPath(c).catch((e) => {
+      if (e instanceof Deno.errors.NotFound) return undefined;
+      throw e;
+    });
+    if (!real || !(await Deno.stat(real)).isDirectory) {
+      console.error(`No existe la carpeta: ${c}`);
       return 1;
     }
+    paginas.push(real);
   }
   const { vocabularios, avisos } = await buscarVocabularios([...raices.map((r) => r.ruta), ...paginas]);
   for (const a of avisos) console.error(`aviso: ${a}`);
@@ -135,7 +160,10 @@ export async function correrTodos(p: PedidoTodos): Promise<number> {
     console.error(`Ningún vocabulary.ttl con un skos:ConceptScheme bajo ${p.carpetas.join(", ")}.`);
     return 1;
   }
-  console.log(`Contexto: ${vocabularios.length} vocabularios de ${p.raices}; páginas de ${conPaginas.length}.`);
+  console.log(
+    `Contexto: ${vocabularios.length} vocabularios de las raíces de ${p.raices} y de ${p.carpetas.join(", ")}; ` +
+      `páginas de ${conPaginas.length}.`,
+  );
   let fallaron = 0;
   for (const ttl of conPaginas) {
     const codigo = await correrExterno({

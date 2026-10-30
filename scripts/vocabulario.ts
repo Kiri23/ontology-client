@@ -31,7 +31,7 @@ import { enlacesAlVocabulario, leerProsa, triplesDeMenciones } from "./vocabular
 import { renderizar } from "./vocabulario/renderizar.ts";
 import { comparar, escribir, leerDirectorio } from "./vocabulario/archivos.ts";
 import { correrExterno } from "./vocabulario/externo.ts";
-import { correrTodos } from "./vocabulario/todos.ts";
+import { absoluta, correrTodos } from "./vocabulario/todos.ts";
 
 const RAIZ = new URL("../", import.meta.url);
 const TTL = new URL("../docs/vocabulary.ttl", import.meta.url);
@@ -72,14 +72,26 @@ async function main(): Promise<number> {
     return 0;
   }
   if (o.todos) {
+    if (o.ttl !== undefined || o.out !== undefined || o.context.length) {
+      console.error("vocabulario:todos no lleva --ttl, --out ni --context: los saca de las carpetas y las raíces.");
+      return 1;
+    }
     const carpetas = o._.map(String);
     if (!carpetas.length) {
       console.error("vocabulario:todos necesita al menos una carpeta: la del vault (ver --help).");
       return 1;
     }
-    const raices = o.raices ?? Deno.env.get("ONTOLOGY_RAICES") ??
-      `${Deno.env.get("HOME")}/Code/ontologyLearning/raices.json`;
-    return await correrTodos({ carpetas, raices, check: o.check });
+    const home = Deno.env.get("HOME") ?? "";
+    const raices = absoluta(
+      o.raices ?? Deno.env.get("ONTOLOGY_RAICES") ?? "~/Code/ontologyLearning/raices.json",
+      Deno.cwd(),
+      home,
+    );
+    return await correrTodos({ carpetas, raices, check: o.check, home });
+  }
+  if (o.raices !== undefined) {
+    console.error("--raices es de vocabulario:todos (ver --help).");
+    return 1;
   }
   if (o.ttl !== undefined || o.out !== undefined || o.context.length) {
     if (!o.ttl || !o.out) {
