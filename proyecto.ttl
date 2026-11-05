@@ -1,0 +1,40 @@
+# El proyecto.ttl de ontology-client (formato y reglas: ontologyLearning domain/proyecto.ttl y
+# domain/proyecto-reglas.ttl). Dice qué tecnologías del catálogo de ontologyLearning (domain/tecnologias.ttl) usa este
+# repo, cada una con el archivo que lo muestra. Con esto ontologyLearning consultas/brecha-jobs.rq cuenta React y
+# TypeScript como conocidas: hasta esta ficha ningún proyecto del grafo las nombraba.
+# Las schema:softwareRequirements hacia un vocabulario no van a mano: las escribe el bloque generado del final, desde
+# el código (ontologyLearning `python3 main.py cli proyectos --aristas --escribir`). Acá arriba, solo el juicio.
+@prefix ontologia: <https://kiri231.com/ontologia#> .
+@prefix proyecto: <https://kiri231.com/proyecto/> .
+@prefix tecnologia: <https://kiri231.com/tecnologia/> .
+@prefix doap:   <http://usefulinc.com/ns/doap#> .
+@prefix schema: <https://schema.org/> .
+
+proyecto:ontology-client a ontologia:Proyecto ;
+    doap:shortdesc "El cliente TypeScript del grafo de ontologyLearning: toma el contrato OpenAPI que publica el servidor y lo vuelve una librería en JSR, un CLI, una GitHub Action que valida archivos contra las reglas del grafo y un explorador web que corre cada función y dibuja el grafo." ;
+    schema:codeRepository <https://github.com/Kiri23/ontology-client> ;
+    # explorador/package.json:26 pide react 19.3.0, y explorador/src/main.tsx:10 monta el explorador con createRoot.
+    schema:softwareRequirements tecnologia:React ,
+    # La librería (mod.ts, cliente.ts, cli.ts) y el explorador (explorador/src/*.tsx) están escritos en TypeScript;
+    # explorador/package.json:37 fija typescript 5.9.3 para chequear los tipos.
+        tecnologia:TypeScript ,
+    # deno.json: el paquete @kiri23/ontology-client corre con Deno y se publica en JSR; action.yml:44 fija Deno v2.9.5.
+        tecnologia:Deno ,
+    # explorador/Dockerfile:9 construye el explorador en node:24-alpine, y los scripts de explorador/package.json
+    # corren tsc, vite y vitest con node.
+        tecnologia:NodeJs ,
+    # explorador/Dockerfile: la imagen del explorador, en dos etapas.
+        tecnologia:Docker ,
+    # explorador/Dockerfile:30 sirve el explorador con caddy:2.11-alpine, configurado en explorador/Caddyfile.
+        tecnologia:Caddy ,
+    # neo4j.ts:18 importa neo4j-driver: la vista de solo lectura del grafo en Neo4j, otra entrada del paquete.
+        tecnologia:Neo4j ,
+    # sparql.ts:39 manda una consulta SPARQL al servidor, y explorador/src/grafo/motor.ts:3 corre consultas en el
+    # navegador con oxigraph.
+        tecnologia:SPARQL ,
+    # scripts/vocabulario/leer.ts lee un vocabulary.ttl en SKOS (sus skos:Concept y skos:prefLabel) y
+    # scripts/vocabulario.ts lo vuelve las páginas de docs/vocabulary/.
+        tecnologia:SKOS ,
+    # prototipo/grafo-comprension/mcp.ts: el grafo de comprensión del repo como servidor MCP por stdio
+    # (deno task grafo:mcp), con tools/list y tools/call escritos a mano.
+        tecnologia:MCP .
