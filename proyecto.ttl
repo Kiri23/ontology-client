@@ -38,3 +38,21 @@ proyecto:ontology-client a ontologia:Proyecto ;
     # prototipo/grafo-comprension/mcp.ts: el grafo de comprensión del repo como servidor MCP por stdio
     # (deno task grafo:mcp), con tools/list y tools/call escritos a mano.
         tecnologia:MCP .
+
+# --- generado por `python3 main.py cli proyectos --aristas --escribir`: no editar a mano ---
+@prefix ontologia: <https://kiri231.com/ontologia#> .
+@prefix proyecto: <https://kiri231.com/proyecto/> .
+@prefix schema: <https://schema.org/> .
+@prefix ancla.ontology-client: <https://kiri231.com/proyecto/ontology-client/ancla/> .
+@prefix vocabulario.vite: <https://kiri231.com/vocabulario/vite#> .
+
+# from: explorador/vite.config.ts:15 export default defineConfig({
+proyecto:ontology-client schema:softwareRequirements vocabulario.vite:configuracion .
+proyecto:ontology-client ontologia:ancla ancla.ontology-client:vite.configuracion .
+ancla.ontology-client:vite.configuracion ontologia:termino vocabulario.vite:configuracion ; ontologia:archivoDeCodigo "explorador/vite.config.ts" ; ontologia:linea 15 .
+
+# from: explorador/vite.config.ts:17 plugins: [react(), docSdk()],
+proyecto:ontology-client schema:softwareRequirements vocabulario.vite:plugin .
+proyecto:ontology-client ontologia:ancla ancla.ontology-client:vite.plugin .
+ancla.ontology-client:vite.plugin ontologia:termino vocabulario.vite:plugin ; ontologia:archivoDeCodigo "explorador/vite.config.ts" ; ontologia:linea 17 .
+# --- fin generado ---
