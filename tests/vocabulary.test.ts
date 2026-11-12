@@ -19,36 +19,8 @@ const PREFIJOS = `@prefix v: <${NS}> .
 @prefix dct: <http://purl.org/dc/terms/> .
 `;
 
-const TTL = `${PREFIJOS}
-v:vocabulary a skos:ConceptScheme ; skos:prefLabel "Demo"@en ; skos:definition "The terms of the demo."@en .
-
-v:harness a skos:Concept ; skos:inScheme v:vocabulary ;
-  skos:prefLabel "Harness"@en , "Arnés"@es ; skos:definition "A provider that runs an agent."@en ;
-  skos:altLabel "Runner"@en , "Corredor"@es ;
-  skos:broader v:provider ; skos:related v:run ;
-  doc:symbol "@scope/pkg#Bench.harness" .
-
-v:provider a skos:Concept ; skos:inScheme v:vocabulary ;
-  skos:prefLabel "Provider"@en , "Proveedor"@es ;
-  skos:definition "Who serves the model."@en , "Quien sirve el modelo."@es ;
-  skos:example "An HTTP endpoint."@en , "Un endpoint HTTP."@es ;
-  rdfs:seeAlso <https://example.com/providers> ;
-  skos:narrower v:endpoint ;
-  doc:symbol "@scope/pkg#Bench.provider" .
-
-v:endpoint a skos:Concept ; skos:inScheme v:vocabulary ;
-  skos:prefLabel "Endpoint"@en ; skos:definition "A provider behind a URL."@en .
-
-v:cli-harness a skos:Concept ; skos:inScheme v:vocabulary ;
-  skos:prefLabel "CLI harness"@en ; skos:definition "A harness you run from a terminal."@en ;
-  skos:broader v:harness .
-
-v:run a skos:Concept ; skos:inScheme v:vocabulary ;
-  skos:prefLabel "  Run "@en ; skos:definition "One execution."@en .
-
-doc:getting-started a doc:Page ; doc:path "tutorial/getting-started.md" ; dct:references v:provider , v:run .
-doc:reference a doc:Page ; doc:path "reference.md" ; dct:references v:provider .
-`;
+// El vocabulario de prueba, escrito a mano: tests/datos/vocabulario-demo.ttl.
+const TTL = Deno.readTextFileSync(new URL("datos/vocabulario-demo.ttl", import.meta.url));
 
 const demo = () => Vocabulary.parse(TTL);
 
