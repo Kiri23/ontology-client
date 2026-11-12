@@ -1,0 +1,359 @@
+{
+  "pr": 35,
+  "repo": "Kiri23/ontology-client",
+  "escenas": [
+    {
+      "tipo": "intro",
+      "seccion": "intro",
+      "problema": "Dos repos leen su vocabulario con código propio",
+      "texto": "Ese trabajo vive una sola vez, en el paquete",
+      "narracion": "Hoy dos repos leen su vocabulario con código propio; con este PR ese trabajo vive una sola vez, en el paquete.",
+      "huella": "3e35eac2ac49"
+    },
+    {
+      "tipo": "ya_sabes",
+      "seccion": "intro",
+      "puntos": [
+        {
+          "texto": "deno task vocabulario genera docs/vocabulary/ desde el TTL",
+          "cita": "scripts/vocabulario.ts:62",
+          "funcion": "main()"
+        },
+        {
+          "texto": "Las reglas del repo: inglés, su namespace y links en seeAlso",
+          "cita": "scripts/vocabulario/validar.ts:21",
+          "funcion": "reglasDelRepo()"
+        },
+        {
+          "texto": "Un repo le suma a su TTL predicados propios, como doc:symbol"
+        }
+      ],
+      "narracion": "Ya conocés deno task vocabulario y sus reglas; y sabés que cada repo le suma predicados propios a su TTL.",
+      "huella": "3e35eac2ac49"
+    },
+    {
+      "tipo": "funcion",
+      "seccion": "Lo que necesitás verificar",
+      "texto": "Leer un vocabulario y recorrerlo",
+      "cita": "vocabulary.ts:122",
+      "funcion": "read()",
+      "trozos": [
+        {
+          "linea": 113,
+          "codigo": "  static parse(turtle: string): Vocabulary {\n    const prefixes: Record<string, string> = {};\n    const quads = new Parser().parse(turtle, null, (prefix, namespace) => {\n      prefixes[prefix] = namespace.value;\n    });\n    return new Vocabulary(quads, prefixes);"
+        },
+        {
+          "linea": 122,
+          "codigo": "  static read(path: string): Vocabulary {\n    return Vocabulary.parse(disk().readFileSync(path, \"utf8\"));\n  }"
+        }
+      ],
+      "pasos": [
+        {
+          "lineas": [
+            122,
+            123
+          ],
+          "narracion": "read lee el archivo del disco, en Deno o en Node, y se lo pasa a parse."
+        },
+        {
+          "lineas": [
+            113,
+            114,
+            115,
+            116
+          ],
+          "narracion": "parse no toca el disco: guarda los triples y los prefijos del archivo, así corre también en un navegador."
+        }
+      ],
+      "ejemplo": {
+        "comando": "deno run --config deno.json --allow-read --allow-env=READABLE_STREAM - <<'EOF'\nimport { Vocabulary } from \"@kiri23/ontology-client/vocabulary\";\nconst vocab = Vocabulary.read(\"tests/datos/vocabulario-demo.ttl\");\nconsole.log(vocab.terms().ids());\nconsole.log(vocab.term(\"provider\").label(), \"|\", vocab.term(\"provider\").label(\"es\"));\nconsole.log(vocab.term(\"provider\").narrower().ids());\nEOF",
+        "salida": "[ \"harness\", \"provider\", \"endpoint\", \"cli-harness\", \"run\" ]\nProvider | Proveedor\n[ \"harness\", \"endpoint\" ]",
+        "narracion": "Probalo: los términos salen en el orden del archivo, el label en cada idioma y los dos hijos de provider."
+      },
+      "narracion": "Primer punto: leer un vocabulario del disco y recorrerlo.",
+      "huella": "77e7267f5f1f"
+    },
+    {
+      "tipo": "funcion",
+      "seccion": "Lo que necesitás verificar",
+      "texto": "Un predicado propio se pide por su nombre",
+      "cita": "vocabulary/terms.ts:269",
+      "funcion": "where()",
+      "trozos": [
+        {
+          "linea": 269,
+          "codigo": "  where(predicate: string): Where {\n    // Resolved here so a mistyped prefix fails even when the list is empty.\n    this.#vocabulary.iri(predicate);\n    return new Where(this, predicate);\n  }"
+        },
+        {
+          "linea": 297,
+          "codigo": "  /** The terms that have no value for the predicate. */\n  missing(): Terms {\n    return this.#terms.filter((t) => t.values(this.#predicate).length === 0);"
+        }
+      ],
+      "pasos": [
+        {
+          "lineas": [
+            269,
+            271
+          ],
+          "narracion": "where resuelve el nombre del predicado ahí mismo: un prefijo mal escrito falla aunque la lista esté vacía."
+        },
+        {
+          "lineas": [
+            297,
+            298
+          ],
+          "narracion": "missing se queda con los términos que no tienen ningún valor para ese predicado."
+        }
+      ],
+      "ejemplo": {
+        "comando": "deno run --config deno.json --allow-read --allow-env=READABLE_STREAM - <<'EOF'\nimport { Vocabulary } from \"@kiri23/ontology-client/vocabulary\";\nconst vocab = Vocabulary.read(\"tests/datos/vocabulario-demo.ttl\");\nconsole.log(vocab.term(\"provider\").values(\"doc:symbol\"));\nconsole.log(vocab.terms().where(\"doc:symbol\").missing().ids());\nconsole.log(vocab.instancesOf(\"doc:Page\").map((page) => page.values(\"doc:path\")));\nEOF",
+        "salida": "[ \"@scope/pkg#Bench.provider\" ]\n[ \"endpoint\", \"cli-harness\", \"run\" ]\n[ [ \"tutorial/getting-started.md\" ], [ \"reference.md\" ] ]",
+        "narracion": "Probalo: el símbolo de provider, los tres términos sin símbolo y la ruta de cada página."
+      },
+      "narracion": "Segundo punto: un predicado propio de un repo se pide por su nombre; la librería no lo conoce.",
+      "huella": "fd013e7c7fe5"
+    },
+    {
+      "tipo": "funcion",
+      "seccion": "Lo que necesitás verificar",
+      "texto": "Validar es un método por regla",
+      "cita": "vocabulary/check.ts:165",
+      "funcion": "problems()",
+      "trozos": [
+        {
+          "linea": 165,
+          "codigo": "  problems(): Problem[] {\n    const vocabulary = this.#vocabulary;\n    const candidates = candidatesOf(vocabulary);\n    const found: Problem[] = [];"
+        },
+        {
+          "linea": 170,
+          "codigo": "    const anyConcept = candidates.some((c) => c.types().includes(`${SKOS}Concept`));\n    if (!anyConcept) found.push({ term: \"\", rule: \"no-concepts\", message: \"the vocabulary has no skos:Concept\" });"
+        },
+        {
+          "linea": 182,
+          "codigo": "    if (!anyConcept) return found;"
+        }
+      ],
+      "pasos": [
+        {
+          "lineas": [
+            165,
+            168
+          ],
+          "narracion": "problems junta lo que parece un término y arma la lista de problemas."
+        },
+        {
+          "lineas": [
+            170,
+            171
+          ],
+          "narracion": "Cada problema lleva su regla con nombre fijo y su mensaje en inglés."
+        },
+        {
+          "lineas": [
+            182
+          ],
+          "narracion": "Sin ningún concepto corta ahí: no sigue mirando."
+        }
+      ],
+      "ejemplo": {
+        "comando": "deno run --config deno.json --allow-read --allow-env=READABLE_STREAM - <<'EOF'\nimport { Vocabulary } from \"@kiri23/ontology-client/vocabulary\";\nconst vocab = Vocabulary.read(\"tests/datos/vocabulario-demo.ttl\");\nconst problems = vocab.check().language(\"en\").oneScheme().problems();\nfor (const p of problems) console.log(p.rule, \"|\", p.message);\nEOF",
+        "salida": "language | harness: skos:prefLabel \"Arnés\" is tagged @es; it must be @en\nlanguage | provider: skos:prefLabel \"Proveedor\" is tagged @es; it must be @en\nlanguage | provider: skos:definition \"Quien sirve el modelo.\" is tagged @es; it must be @en",
+        "narracion": "Probalo: con inglés pedido, los tres textos en español del vocabulario de prueba salen con la regla language."
+      },
+      "narracion": "Tercer punto: validar es un método por regla, y cada problema trae un nombre fijo.",
+      "huella": "14c41e680584"
+    },
+    {
+      "tipo": "funcion",
+      "seccion": "Lo que necesitás verificar",
+      "texto": "Los scripts traducen por regla",
+      "cita": "scripts/vocabulario/validar.ts:63",
+      "funcion": "enEspanol()",
+      "trozos": [
+        {
+          "linea": 63,
+          "codigo": "export function enEspanol(problemas: Problem[]): string[] {"
+        },
+        {
+          "linea": 68,
+          "codigo": "  return ordenados.map((p) => TEXTOS[p.rule](p, localName(p.term)));\n}"
+        }
+      ],
+      "pasos": [
+        {
+          "lineas": [
+            63
+          ],
+          "narracion": "enEspanol recibe los problemas de la librería y devuelve renglones en español."
+        },
+        {
+          "lineas": [
+            68
+          ],
+          "narracion": "Cada regla tiene su texto: una regla nueva sin texto no compila."
+        }
+      ],
+      "ejemplo": {
+        "comando": "deno run --config deno.json --allow-read --allow-env=READABLE_STREAM - <<'EOF'\nimport { Vocabulary } from \"@kiri23/ontology-client/vocabulary\";\nimport { enEspanol } from \"./scripts/vocabulario/validar.ts\";\nconst vocab = Vocabulary.read(\"tests/datos/vocabulario-demo.ttl\");\nconsole.log(enEspanol(vocab.check().language(\"en\").problems()).join(\"\\n\"));\nEOF",
+        "salida": "harness: skos:prefLabel \"Arnés\" tiene idioma @es; se espera @en\nprovider: skos:prefLabel \"Proveedor\" tiene idioma @es; se espera @en\nprovider: skos:definition \"Quien sirve el modelo.\" tiene idioma @es; se espera @en",
+        "narracion": "Probalo: los mismos tres problemas, ahora con el texto en español de siempre."
+      },
+      "narracion": "Cuarto punto: los scripts de este repo traducen cada regla al español.",
+      "huella": "e3b1ed04b58e"
+    },
+    {
+      "tipo": "funcion",
+      "seccion": "Lo que necesitás verificar",
+      "texto": "Crear un vocabulario y sacarlo como Turtle",
+      "cita": "vocabulary.ts:283",
+      "funcion": "toTurtle()",
+      "trozos": [
+        {
+          "linea": 283,
+          "codigo": "  toTurtle(): string {\n    const quads = this.store.getQuads(null, null, null, null);\n    const writer = new Writer({ prefixes: this.#prefixesToWrite(quads) });\n    const subjects = new Map(quads.map((q) => [q.subject.value, q.subject]));"
+        },
+        {
+          "linea": 293,
+          "codigo": "    writer.end((_error: unknown, text: string) => (turtle = text));\n    return turtle;"
+        }
+      ],
+      "pasos": [
+        {
+          "lineas": [
+            283,
+            285
+          ],
+          "narracion": "toTurtle escribe con el Writer de n3: por eso se pierden los comentarios de un archivo hecho a mano."
+        },
+        {
+          "lineas": [
+            286
+          ],
+          "narracion": "Va un bloque por recurso, en el orden en que se escribieron."
+        },
+        {
+          "lineas": [
+            293,
+            294
+          ],
+          "narracion": "Y devuelve el texto: write lo guarda en un archivo."
+        }
+      ],
+      "ejemplo": {
+        "comando": "deno run --config deno.json --allow-read --allow-env=READABLE_STREAM - <<'EOF'\nimport { Vocabulary } from \"@kiri23/ontology-client/vocabulary\";\nconst nuevo = Vocabulary.create(\"https://example.com/vocabulary#\").language(\"es\");\nnuevo.add(\"provider\").label(\"Provider\").definition(\"Quien sirve el modelo.\");\nnuevo.add(\"harness\").label(\"Harness\").definition(\"Un provider que corre un agente.\").broader(\"provider\");\nconsole.log(nuevo.toTurtle());\nEOF",
+        "salida": "@prefix skos: <http://www.w3.org/2004/02/skos/core#>.\n@prefix : <https://example.com/vocabulary#>.\n\n:provider a skos:Concept;\n    skos:prefLabel \"Provider\"@es;\n    skos:definition \"Quien sirve el modelo.\"@es.\n:harness a skos:Concept;\n    skos:prefLabel \"Harness\"@es;\n    skos:definition \"Un provider que corre un agente.\"@es;\n    skos:broader :provider.\n",
+        "narracion": "Probalo: dos términos creados con el builder salen como Turtle, con su idioma y su broader."
+      },
+      "narracion": "Quinto punto: crear un vocabulario desde cero y sacarlo como Turtle.",
+      "huella": "5873101786b8"
+    },
+    {
+      "tipo": "arquitectura",
+      "seccion": "Arquitectura de carpetas",
+      "carpetas": [
+        {
+          "ruta": "vocabulary.ts",
+          "marca": "+",
+          "dice": "la entrada ./vocabulary: la clase Vocabulary"
+        },
+        {
+          "ruta": "vocabulary/",
+          "marca": "+",
+          "dice": "la librería, un archivo por pieza"
+        },
+        {
+          "ruta": "scripts/vocabulario/",
+          "marca": "~",
+          "dice": "lo propio de este repo, encima de la librería"
+        },
+        {
+          "ruta": "docs/",
+          "marca": "~",
+          "dice": "la página de la librería"
+        },
+        {
+          "ruta": "tests/",
+          "marca": "~",
+          "dice": "un test por regla y por método"
+        }
+      ],
+      "narracion": "La librería es un archivo de entrada y una carpeta; los scripts quedan encima, y leer punto ts se borra.",
+      "huella": "bc52a73e85ba"
+    },
+    {
+      "tipo": "flujo",
+      "seccion": "El flujo",
+      "nodos": [
+        {
+          "nombre": "vocabulary.ttl"
+        },
+        {
+          "nombre": "Vocabulary.read()",
+          "cita": "vocabulary.ts:122"
+        },
+        {
+          "nombre": "terms().where()",
+          "cita": "vocabulary/terms.ts:269"
+        },
+        {
+          "nombre": "check().problems()",
+          "cita": "vocabulary/check.ts:165"
+        },
+        {
+          "nombre": "enEspanol()",
+          "cita": "scripts/vocabulario/validar.ts:63"
+        },
+        {
+          "nombre": "docs/vocabulary/*.md"
+        }
+      ],
+      "narracion": "El TTL entra a la librería, que lo lee y lo revisa; cada repo arma lo suyo encima.",
+      "huella": "0403cb66972d"
+    },
+    {
+      "tipo": "antes",
+      "seccion": "Antes y después",
+      "en": "base",
+      "rama": "main",
+      "comando": "NO_COLOR=1 deno run --config deno.json --allow-read --allow-env=READABLE_STREAM - <<'EOF' 2>&1 | grep -v \"^    at \"\nimport { Vocabulary } from \"@kiri23/ontology-client/vocabulary\";\nconst vocab = Vocabulary.read(\"docs/vocabulary.ttl\");\nconsole.log(vocab.term(\"sparql\").label(), \"→ related:\", vocab.term(\"sparql\").related().ids());\nEOF",
+      "salida": "error: Unknown export './vocabulary' for '@kiri23/ontology-client'.\n  Package exports:\n * .\n * ./cli\n * ./neo4j",
+      "narracion": "Antes del PR, la entrada vocabulary no existía en el paquete.",
+      "huella": "429e8673b7b2"
+    },
+    {
+      "tipo": "uso",
+      "seccion": "Antes y después",
+      "en": "head",
+      "rama": "t3/add-vocabulary-api",
+      "comando": "NO_COLOR=1 deno run --config deno.json --allow-read --allow-env=READABLE_STREAM - <<'EOF' 2>&1 | grep -v \"^    at \"\nimport { Vocabulary } from \"@kiri23/ontology-client/vocabulary\";\nconst vocab = Vocabulary.read(\"docs/vocabulary.ttl\");\nconsole.log(vocab.term(\"sparql\").label(), \"→ related:\", vocab.term(\"sparql\").related().ids());\nEOF",
+      "salida": "SPARQL → related: [ \"knowledge-graph\", \"rdf\" ]",
+      "nota": "Tres líneas para preguntarle a cualquier vocabulario",
+      "narracion": "Ahora cualquier repo le pregunta a un vocabulario en tres líneas.",
+      "huella": "429e8673b7b2"
+    },
+    {
+      "tipo": "texto",
+      "seccion": "Supuestos",
+      "pasos": [
+        {
+          "texto": "mergear este PR publica `@kiri23/ontology-client@0.3.0` en JSR",
+          "narracion": "Mergear publica la versión cero tres cero en JSR."
+        },
+        {
+          "texto": "`vocab.scheme()` lee el esquema y `vocab.scheme(\"id\")` lo declara",
+          "narracion": "Scheme es el único nombre que lee y escribe, como en la forma aprobada."
+        },
+        {
+          "texto": "`seeAlso` como link http(s) va detrás de `.seeAlsoUrls()`",
+          "narracion": "La regla de los links en see also se pide, no va siempre."
+        },
+        {
+          "texto": "`problems()` cuenta triples, no renglones",
+          "narracion": "Y un mismo triple escrito dos veces ya no cuenta doble."
+        }
+      ],
+      "narracion": "Los supuestos que deja escritos el PR.",
+      "huella": "97dfef9afc68"
+    }
+  ]
+}
