@@ -136,8 +136,9 @@ Deno.test("ancestors y descendants: todos los pasos, y un ciclo no los cuelga", 
   assertEquals(demo().term("cli-harness").ancestors().ids(), ["harness", "provider"]);
   assertEquals(demo().term("provider").descendants().ids(), ["harness", "endpoint", "cli-harness"]);
   const ciclo = Vocabulary.parse(PREFIJOS + termino("a", "skos:broader v:b ;") + termino("b", "skos:broader v:a ;"));
-  assertEquals(ciclo.term("a").ancestors().ids(), ["a", "b"]);
-  assertEquals(ciclo.term("a").descendants().ids(), ["a", "b"]);
+  // Un término no es su propio ancestro, aunque el ciclo vuelva a él.
+  assertEquals(ciclo.term("a").ancestors().ids(), ["b"]);
+  assertEquals(ciclo.term("a").descendants().ids(), ["b"]);
 });
 
 Deno.test("relaciones: un broader a otro vocabulario no es un término de este, pero sigue en values()", () => {
@@ -605,4 +606,26 @@ Deno.test("una sola implementación: los scripts traducen los problemas de la li
     `b: tiene 0 skos:inScheme; tiene que tener exactamente uno, <${NS}uno>`,
     "a: skos:related apunta a sí mismo",
   ]);
+});
+
+Deno.test("un predicado o un tipo sin prefijo lanza: no cae callado en el namespace de los términos", () => {
+  const v = demo();
+  const provider = v.term("provider");
+  assertThrows(() => provider.values("prefLabel"), Error, '"prefLabel" is not a predicate');
+  assertThrows(() => provider.literals("prefLabel"), Error, "is not a predicate");
+  assertThrows(() => provider.referencedBy("references"), Error, "is not a predicate");
+  assertThrows(() => v.terms().where("symbol"), Error, "is not a predicate");
+  assertThrows(() => v.instancesOf("Page"), Error, "is not a predicate");
+  assertThrows(() => v.edit("provider").value("symbol", "x"), Error, "is not a predicate");
+  assertThrows(() => v.edit("provider").unset("symbol"), Error, "is not a predicate");
+  // Un id de término sí va suelto.
+  assertEquals(v.term("provider").id, "provider");
+});
+
+Deno.test("context: un ciclo que solo pasa por términos del contexto no es problema de este vocabulario", () => {
+  const otro = Vocabulary.parse(
+    `@prefix skos: <http://www.w3.org/2004/02/skos/core#> . @prefix o: <https://otro.dev/x#> .
+     o:x a skos:Concept ; skos:broader o:y . o:y a skos:Concept ; skos:broader o:x .`,
+  );
+  assertEquals(reglas(termino("a", "skos:broader <https://otro.dev/x#x> ;"), (v) => v.check().context(otro)), []);
 });

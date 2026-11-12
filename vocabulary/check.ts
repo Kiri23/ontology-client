@@ -145,8 +145,8 @@ export class Check {
   }
 
   /**
-   * The terms of other vocabularies count as existing: `skos:broader` and `skos:related` may point to them. Their
-   * own rules are not checked here. Call it once per vocabulary, or pass several.
+   * The terms of other vocabularies count as existing: `skos:broader`, `skos:narrower` and `skos:related` may point
+   * to them. Their own rules are not checked here. Call it once per vocabulary, or pass several.
    */
   context(...vocabularies: Vocabulary[]): this {
     this.#context.push(...vocabularies);
@@ -214,7 +214,9 @@ export class Check {
       found.push(...relations(c, known));
       if (this.#seeAlsoUrls) found.push(...seeAlso(c));
     }
-    return [...found, ...cycles(known)];
+    // A cycle that only goes through terms of the context is the other vocabulary's problem.
+    const own = new Set(vocabulary.terms().iris());
+    return [...found, ...cycles(known).filter((p) => p.values!.some((iri) => own.has(iri)))];
   }
 }
 

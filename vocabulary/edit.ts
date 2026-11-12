@@ -15,7 +15,8 @@ import type { SubjectNode } from "./terms.ts";
 const { namedNode, literal, quad } = DataFactory;
 
 /**
- * Writes on any resource: the concept scheme, or a resource of a type of your own.
+ * Writes on a resource that is not a term. Today only the concept scheme hands one out (`vocab.scheme(id)`); a
+ * resource of a type of your own is written on the store.
  *
  * ```ts
  * vocab.scheme("vocabulary").label("Demo").definition("The terms of the demo.");
@@ -80,7 +81,7 @@ export class ResourceEditor {
    */
   unset(predicate: string, value?: string): this {
     const { store } = this.vocabulary;
-    const written = store.getQuads(this.node, namedNode(this.vocabulary.iri(predicate)), null, null);
+    const written = store.getQuads(this.node, namedNode(this.vocabulary.predicate(predicate)), null, null);
     const gone = value === undefined ? written : written.filter((q) => this.#is(q.object, value));
     store.removeQuads(gone);
     return this;
@@ -90,14 +91,14 @@ export class ResourceEditor {
   protected set(predicate: string, text: string, language?: string): this {
     const tag = (language ?? this.vocabulary.defaultLanguage).toLowerCase();
     const { store } = this.vocabulary;
-    const before = store.getQuads(this.node, namedNode(this.vocabulary.iri(predicate)), null, null);
+    const before = store.getQuads(this.node, namedNode(this.vocabulary.predicate(predicate)), null, null);
     store.removeQuads(before.filter((q) => q.object.termType === "Literal" && q.object.language === tag));
     return this.add(predicate, literal(text, tag || undefined));
   }
 
   /** For the setters of many values: writes one more statement. */
   protected add(predicate: string, object: Quad["object"]): this {
-    this.vocabulary.store.addQuad(quad(this.node, namedNode(this.vocabulary.iri(predicate)), object));
+    this.vocabulary.store.addQuad(quad(this.node, namedNode(this.vocabulary.predicate(predicate)), object));
     return this;
   }
 

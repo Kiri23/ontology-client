@@ -15,7 +15,7 @@
  * the scheme or a page of your own) and {@link Terms} (a list you keep chaining on). The graph underneath is an n3
  * `Store` and it is yours: `vocab.store`.
  *
- * The library knows SKOS and nothing about any repo. What a repo adds (a predicate, a type, a rule, a migration) is
+ * The library knows SKOS and nothing about any repo. What a repo adds (a predicate, a type, a rule) is
  * built on top with `values()`, `where()`, `instancesOf()` and the store.
  *
  * In Deno, n3 needs `--allow-env=READABLE_STREAM`; `read` and `write` need `--allow-read` and `--allow-write`.
@@ -154,6 +154,17 @@ export class Vocabulary {
     return expand(name, this.prefixes, name.includes(":") ? undefined : this.namespace);
   }
 
+  /**
+   * The IRI of a predicate or a type: `doc:symbol` by prefix, or a whole IRI. Throws on a bare name (`"prefLabel"`):
+   * it would go in the namespace of the terms and silently match nothing.
+   */
+  predicate(name: string): string {
+    if (!name.includes(":")) {
+      throw new Error(`"${name}" is not a predicate: write it with its prefix ("skos:${name}") or as a whole IRI`);
+    }
+    return this.iri(name);
+  }
+
   // Read
 
   /** Every term, in the order of the file: each IRI that is `a skos:Concept`. */
@@ -211,7 +222,7 @@ export class Vocabulary {
    * a term.
    */
   instancesOf(type: string): Resource[] {
-    const subjects = this.store.getSubjects(namedNode(RDF_TYPE), namedNode(this.iri(type)), null);
+    const subjects = this.store.getSubjects(namedNode(RDF_TYPE), namedNode(this.predicate(type)), null);
     return inOrder(this.store, subjects as SubjectNode[]).map((node) => new Resource(this, node));
   }
 

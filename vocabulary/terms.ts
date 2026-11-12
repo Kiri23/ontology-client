@@ -119,7 +119,7 @@ export class Resource {
    */
   referencedBy(predicate: string): Resource[] {
     const { store } = this.vocabulary;
-    const subjects = store.getSubjects(namedNode(this.vocabulary.iri(predicate)), this.node, null);
+    const subjects = store.getSubjects(namedNode(this.vocabulary.predicate(predicate)), this.node, null);
     return inOrder(store, subjects as SubjectNode[]).map((s) => new Resource(this.vocabulary, s));
   }
 
@@ -129,7 +129,7 @@ export class Resource {
   }
 
   #objects(predicate: string): Quad["object"][] {
-    return this.vocabulary.store.getObjects(this.node, namedNode(this.vocabulary.iri(predicate)), null);
+    return this.vocabulary.store.getObjects(this.node, namedNode(this.vocabulary.predicate(predicate)), null);
   }
 
   #texts(predicate: string, language?: string): string[] {
@@ -173,12 +173,12 @@ export class Term extends Resource {
     return this.#terms([...this.#written("related"), ...this.#inverse("related")]);
   }
 
-  /** Every term above this one, however many steps up. A cycle does not hang it. */
+  /** Every term above this one, however many steps up, never itself. A cycle does not hang it. */
   ancestors(): Terms {
     return this.#climb((t) => t.broader());
   }
 
-  /** Every term below this one, however many steps down. A cycle does not hang it. */
+  /** Every term below this one, however many steps down, never itself. A cycle does not hang it. */
   descendants(): Terms {
     return this.#climb((t) => t.narrower());
   }
@@ -206,6 +206,8 @@ export class Term extends Resource {
       seen.set(next.iri, next.node as NamedNode);
       pending.push(...step(next));
     }
+    // In a cycle the walk comes back to where it started: a term is not its own ancestor.
+    seen.delete(this.iri);
     return this.#terms([...seen.values()]);
   }
 }
@@ -268,7 +270,7 @@ export class Terms implements Iterable<Term> {
    */
   where(predicate: string): Where {
     // Resolved here so a mistyped prefix fails even when the list is empty.
-    this.#vocabulary.iri(predicate);
+    this.#vocabulary.predicate(predicate);
     return new Where(this, predicate);
   }
 

@@ -194,3 +194,6 @@ Each file opens with how to add to it. A getter goes in `terms.ts`, named after 
 written. A setter goes in `edit.ts` and returns the editor. A rule gets a name in `Rule`, a function next to the others
 and, if not every vocabulary wants it, a method on `Check`. `tests/vocabulary.test.ts` has one test per rule and per
 method.
+
+`Vocabulary` is also the pattern for the modules that may follow it, one per kind of file of the graph (a project, a
+technology): [issue #34](https://github.com/Kiri23/ontology-client/issues/34).
