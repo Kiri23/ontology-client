@@ -71,7 +71,7 @@
         "narracion": "Probalo: los términos salen en el orden del archivo, el label en cada idioma y los dos hijos de provider."
       },
       "narracion": "Primer punto: leer un vocabulario del disco y recorrerlo.",
-      "huella": "77e7267f5f1f"
+      "huella": "20584be8cf17"
     },
     {
       "tipo": "funcion",
@@ -111,7 +111,7 @@
         "narracion": "Probalo: el símbolo de provider, los tres términos sin símbolo y la ruta de cada página."
       },
       "narracion": "Segundo punto: un predicado propio de un repo se pide por su nombre; la librería no lo conoce.",
-      "huella": "fd013e7c7fe5"
+      "huella": "65f14f104d22"
     },
     {
       "tipo": "funcion",
@@ -161,7 +161,7 @@
         "narracion": "Probalo: con inglés pedido, los tres textos en español del vocabulario de prueba salen con la regla language."
       },
       "narracion": "Tercer punto: validar es un método por regla, y cada problema trae un nombre fijo.",
-      "huella": "14c41e680584"
+      "huella": "680b7401507c"
     },
     {
       "tipo": "funcion",
@@ -199,7 +199,7 @@
         "narracion": "Probalo: los mismos tres problemas, ahora con el texto en español de siempre."
       },
       "narracion": "Cuarto punto: los scripts de este repo traducen cada regla al español.",
-      "huella": "e3b1ed04b58e"
+      "huella": "443fa073d430"
     },
     {
       "tipo": "funcion",
@@ -245,7 +245,7 @@
         "narracion": "Probalo: dos términos creados con el builder salen como Turtle, con su idioma y su broader."
       },
       "narracion": "Quinto punto: crear un vocabulario desde cero y sacarlo como Turtle.",
-      "huella": "5873101786b8"
+      "huella": "599dbdacc97d"
     },
     {
       "tipo": "arquitectura",
