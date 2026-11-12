@@ -76,6 +76,7 @@ fits.
 | CLI and Action  | One `cli.ts`; the Action is a composite action that pins its Deno version                                               |
 | Explorer        | Vite + React, with Oxigraph (SPARQL in the browser) and Cytoscape, shipped as a Docker image behind a shared Caddy edge |
 | Docs            | A [Turtle](docs/vocabulary/turtle.md) vocabulary rendered to markdown with n3, checked in CI                            |
+| Vocabularies    | A separate entry point, `./vocabulary`, that reads, queries, checks and creates SKOS vocabularies with n3               |
 
 ## Run it locally
 
@@ -86,6 +87,17 @@ import { sparql } from "jsr:@kiri23/ontology-client";
 
 const { texto } = await sparql.consultar("SELECT (COUNT(*) AS ?n) WHERE { ?s ?p ?o }");
 console.log(texto);
+```
+
+**Read a SKOS vocabulary.** The entry `./vocabulary` works on any vocabulary written in Turtle, not only this repo's
+([docs/vocabulary-api.md](docs/vocabulary-api.md)):
+
+```ts
+import { Vocabulary } from "jsr:@kiri23/ontology-client/vocabulary";
+
+const vocab = Vocabulary.read("docs/vocabulary.ttl");
+vocab.term("sparql").label(); // "SPARQL"
+vocab.check().language("en").oneScheme().problems(); // [] when every rule holds
 ```
 
 **Work on the repo.**
