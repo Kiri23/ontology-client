@@ -5,10 +5,8 @@
 // la tarea vocabulario:externo de deno.json tal cual (sin --allow-run: ni siquiera puede llamar a git).
 
 import { assert, assertEquals, assertStringIncludes } from "@std/assert";
-// @ts-types="@types/n3"
-import { Store } from "n3";
+import { Vocabulary } from "@kiri23/ontology-client/vocabulary";
 import { ajenos, relativa, renderizarExterno, type Turtle } from "../scripts/vocabulario/externo.ts";
-import { leer } from "../scripts/vocabulario/leer.ts";
 import { renderizar } from "../scripts/vocabulario/renderizar.ts";
 
 const AMBIENTE: Turtle = {
@@ -280,9 +278,9 @@ v:padre a skos:Concept ; skos:prefLabel "Padre"@en ; skos:definition "P."@en .
 v:a a skos:Concept ; skos:prefLabel "A"@en ; skos:definition "A."@en ; skos:broader v:padre ; skos:example "Ej."@en .
 v:b a skos:Concept ; skos:prefLabel "B"@en ; skos:definition "B."@en ; skos:broader v:padre .
 `;
-  const a = renderizar(leer(ttl), new Store()).get("a.md")!;
+  const a = renderizar(Vocabulary.parse(ttl)).get("a.md")!;
   assert(!a.includes("Examples") && !a.includes("Analogous"), a);
-  const pedidas = renderizar(leer(ttl), new Store(), { ejemplos: true, analogos: true }).get("a.md")!;
+  const pedidas = renderizar(Vocabulary.parse(ttl), { ejemplos: true, analogos: true }).get("a.md")!;
   assertStringIncludes(pedidas, "**Examples**\n\n- Ej.\n");
   assertStringIncludes(pedidas, "**Analogous**\n\n- [B](b.md) — same parent: [Padre](padre.md)\n");
 });

@@ -20,13 +20,12 @@
 //                                    de regenerar las páginas del vault: un vocabulario nuevo no pide elegir --context.
 //
 // docs/vocabulary/ no se edita a mano: cambia el TTL o la prosa, se regenera, se commitean juntos. CI corre --check.
-// Leer, validar, menciones, renderizar, el disco y el modo externo viven en scripts/vocabulario/, un archivo cada uno.
+// Leer y revisar el TTL es de la librería (la entrada `./vocabulary` del paquete). Las reglas de este repo, menciones,
+// renderizar, el disco y el modo externo viven en scripts/vocabulario/, un archivo cada uno.
 
 import { parseArgs } from "@std/cli/parse-args";
-// @ts-types="@types/n3"
-import { type Quad, Store } from "n3";
-import { conceptos as conceptosDe, triples } from "./vocabulario/leer.ts";
-import { validar, validarEnlaces, validarEsquema } from "./vocabulario/validar.ts";
+import { Vocabulary } from "@kiri23/ontology-client/vocabulary";
+import { enEspanol, reglasDelRepo, validarEnlaces } from "./vocabulario/validar.ts";
 import { enlacesAlVocabulario, leerProsa, triplesDeMenciones } from "./vocabulario/menciones.ts";
 import { renderizar } from "./vocabulario/renderizar.ts";
 import { comparar, escribir, leerDirectorio } from "./vocabulario/archivos.ts";
@@ -108,21 +107,20 @@ async function main(): Promise<number> {
     console.error("No existe docs/vocabulary.ttl: es la fuente de docs/vocabulary/.");
     return 1;
   }
-  let quads: Quad[];
+  let vocabulario: Vocabulary;
   try {
-    quads = triples(ttl);
+    vocabulario = Vocabulary.parse(ttl);
   } catch (e) {
     console.error(`docs/vocabulary.ttl no es Turtle válido: ${e instanceof Error ? e.message : e}`);
     return 1;
   }
-  const conceptos = conceptosDe(quads);
-  const errores = [...validarEsquema(quads), ...validar(conceptos)];
+  const errores = enEspanol(reglasDelRepo(vocabulario).oneScheme().problems());
   if (errores.length) {
     console.error(`docs/vocabulary.ttl rompe ${errores.length} regla(s):\n${errores.map((e) => `  ${e}`).join("\n")}`);
     return 1;
   }
   const enlaces = enlacesAlVocabulario(await leerProsa(RAIZ));
-  const rotos = validarEnlaces(enlaces, conceptos);
+  const rotos = validarEnlaces(enlaces, vocabulario);
   if (rotos.length) {
     console.error(
       `La prosa enlaza ${rotos.length} página(s) del vocabulario que no existen:\n${
@@ -131,7 +129,10 @@ async function main(): Promise<number> {
     );
     return 1;
   }
-  const esperado = renderizar(conceptos, new Store([...quads, ...triplesDeMenciones(enlaces)]));
+  // Las menciones entran al mismo grafo que el TTL: renderizar las lee desde cada término.
+  vocabulario.store.addQuads(triplesDeMenciones(enlaces));
+  const terminos = vocabulario.terms().size;
+  const esperado = renderizar(vocabulario);
   const actual = await leerDirectorio(DESTINO);
   if (o.check) {
     const diferencias = comparar(actual, esperado);
@@ -144,13 +145,13 @@ async function main(): Promise<number> {
       return 1;
     }
     console.log(
-      `docs/vocabulary/ está al día con el TTL y la prosa (${conceptos.length} términos, ${enlaces.length} links).`,
+      `docs/vocabulary/ está al día con el TTL y la prosa (${terminos} términos, ${enlaces.length} links).`,
     );
     return 0;
   }
   await escribir(DESTINO, actual, esperado);
   console.log(
-    `docs/vocabulary/ ← docs/vocabulary.ttl (${conceptos.length} términos) + prosa (${enlaces.length} links)`,
+    `docs/vocabulary/ ← docs/vocabulary.ttl (${terminos} términos) + prosa (${enlaces.length} links)`,
   );
   return 0;
 }

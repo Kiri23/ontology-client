@@ -1,6 +1,6 @@
-// renderizar.ts — de los conceptos (ya validados: todos skos:Concept, ninguno related a sí mismo) a los markdown de
-// un vocabulario: una página por término, <slug>.md, y README.md como índice. Devuelve nombre de archivo →
-// contenido, sin tocar el disco.
+// renderizar.ts — de un vocabulario ya validado (ningún término related a sí mismo, todo broader existe) a sus
+// markdown: una página por término, <slug>.md, y README.md como índice. Devuelve nombre de archivo → contenido, sin
+// tocar el disco. Los términos se leen con la librería (la entrada `./vocabulary` del paquete).
 //
 // Narrower lo calcula el script como inverso de skos:broader, y Related sale en las dos páginas aunque el triple
 // esté en una sola: en el TTL nadie escribe ninguno de los dos lados que faltan. Analogous son los otros términos con
@@ -12,13 +12,11 @@
 // Los títulos de las secciones van en el idioma del vocabulario (`TEXTOS`). Ejemplos y Analogous salen solo si las
 // opciones los piden (el modo externo); docs/vocabulary/ no los pide y su salida no depende de qué diga su TTL.
 //
-// Mentioned in sale del grafo (el TTL más los triples de menciones.ts): la consulta inversa `?doc dct:references
-// v:<slug>`. Nunca sale de docs/vocabulary/, que es la salida de este script. Sin triples de menciones (un
-// vocabulario externo) la sección no sale.
+// Mentioned in sale del grafo del vocabulario (el TTL más los triples de menciones.ts, que vocabulario.ts le suma):
+// la consulta inversa `?doc dct:references v:<slug>`. Nunca sale de docs/vocabulary/, que es la salida de este
+// script. Sin triples de menciones (un vocabulario externo) la sección no sale.
 
-// @ts-types="@types/n3"
-import { DataFactory, type Store } from "n3";
-import type { Concepto, Literal } from "./leer.ts";
+import { namespaceOf, SKOS, type Term, type Vocabulary } from "@kiri23/ontology-client/vocabulary";
 import { DCT_REFERENCES } from "./menciones.ts";
 
 export const CABECERA =
@@ -70,7 +68,7 @@ export interface Opciones {
   titulo: string;
   intro: string[];
   // Términos de otros vocabularios: sin página, nombrados con su prefijo.
-  contexto: Concepto[];
+  contexto: Term[];
   // namespace → prefijo, para escribir "(ambiente:)" detrás de un término de contexto.
   prefijos: Map<string, string>;
   // Las secciones Ejemplos (skos:example) y Analogous (mismo skos:broader directo).
@@ -92,26 +90,24 @@ const DEL_REPO: Opciones = {
   analogos: false,
 };
 
-// El literal en `idioma`; un término de contexto sin ese idioma da el primero que tenga, o `siNo`.
-function enIdioma(literales: Literal[], idioma: string, siNo: string): string {
-  return (literales.find((l) => l.idioma === idioma) ?? literales[0])?.valor ?? siNo;
+// Por label sin mayúsculas, después por slug y por IRI: comparación por código, igual en cualquier máquina.
+function ordenar(terminos: Term[], label: (c: Term) => string): Term[] {
+  const clave = (c: Term) => `${label(c).toLowerCase()}\u0000${c.id}\u0000${c.iri}`;
+  return [...terminos].sort((a, b) => (clave(a) < clave(b) ? -1 : clave(a) > clave(b) ? 1 : 0));
 }
 
-// Por label sin mayúsculas, después por slug y por IRI: comparación por código, igual en cualquier máquina.
-function ordenar(conceptos: Concepto[], label: (c: Concepto) => string): Concepto[] {
-  const clave = (c: Concepto) => `${label(c).toLowerCase()}\u0000${c.slug}\u0000${c.iri}`;
-  return [...conceptos].sort((a, b) => (clave(a) < clave(b) ? -1 : clave(a) > clave(b) ? 1 : 0));
-}
+// Los IRIs a los que un término apunta con skos:broader o skos:related, existan o no en su vocabulario.
+const broader = (c: Term) => c.values(`${SKOS}broader`);
+const related = (c: Term) => c.values(`${SKOS}related`);
 
 function seccion(titulo: string, items: string[]): string[] {
   return items.length ? [`**${titulo}**`, "", ...items.map((i) => `- ${i}`), ""] : [];
 }
 
 // Los archivos de prosa que enlazan `c`, en orden, como links que andan desde docs/vocabulary/. Sin repetidos de
-// fábrica: el Store guarda cada triple una vez, así dos links del mismo archivo al mismo término son una mención.
-function menciones(c: Concepto, grafo: Store): string[] {
-  const { namedNode } = DataFactory;
-  const docs = grafo.getSubjects(namedNode(DCT_REFERENCES), namedNode(c.iri), null).map((s) => s.value);
+// fábrica: el grafo guarda cada triple una vez, así dos links del mismo archivo al mismo término son una mención.
+function menciones(c: Term): string[] {
+  const docs = c.referencedBy(DCT_REFERENCES).map((doc) => doc.iri);
   return docs.sort().map((ruta) => `[${texto(ruta)}](${destino(ruta)})`);
 }
 
@@ -121,35 +117,41 @@ const texto = (ruta: string) => ruta.replace(/[[\]\\]/g, (c) => `\\${c}`);
 const destino = (ruta: string) => `../../${codificar(ruta)}`;
 
 // Nombre de archivo (relativo a la carpeta de salida) → contenido, con las claves en orden.
-export function renderizar(conceptos: Concepto[], grafo: Store, opciones: Partial<Opciones> = {}): Map<string, string> {
+export function renderizar(vocabulario: Vocabulary, opciones: Partial<Opciones> = {}): Map<string, string> {
   const o = { ...DEL_REPO, ...opciones };
   const t = TEXTOS[o.idioma];
+  const conceptos = vocabulario.terms().toArray();
   const propios = new Set(conceptos.map((c) => c.iri));
   const todos = [...conceptos, ...o.contexto.filter((c) => !propios.has(c.iri))];
   const porIri = new Map(todos.map((c) => [c.iri, c]));
 
-  const label = (c: Concepto) => enIdioma(c.prefLabel, o.idioma, c.slug);
-  const definicion = (c: Concepto) => enIdioma(c.definition, o.idioma, "");
+  // El texto en el idioma del vocabulario; un término de contexto sin ese idioma da el primero que tenga.
+  const label = (c: Term) => c.label(o.idioma) ?? c.label() ?? c.id;
+  const definicion = (c: Term) => c.definition(o.idioma) ?? c.definition() ?? "";
   // Un término propio es link a su página; uno de contexto, su label con el prefijo de su vocabulario.
-  const nombre = (c: Concepto) => {
-    if (propios.has(c.iri)) return `[${label(c)}](${c.slug}.md)`;
-    const ns = c.iri.slice(0, c.iri.length - c.slug.length);
+  const nombre = (c: Term) => {
+    if (propios.has(c.iri)) return `[${label(c)}](${c.id}.md)`;
+    const ns = namespaceOf(c.iri);
     const prefijo = o.prefijos.get(ns);
     return `${label(c)} (${prefijo ? `${prefijo}:` : `<${ns}>`})`;
   };
   const lista = (iris: Iterable<string>) => ordenar([...new Set(iris)].map((i) => porIri.get(i)!), label);
 
   // Cada otro término con un broader directo en común con `c` → "nombre — mismo padre: padre[, padre]".
-  const analogos = (c: Concepto): string[] =>
-    ordenar(todos.filter((x) => x.iri !== c.iri && x.broader.some((p) => c.broader.includes(p))), label).map((x) => {
-      const padres = lista(x.broader.filter((p) => c.broader.includes(p)));
-      return `${nombre(x)} — ${t.mismoPadre}: ${padres.map(nombre).join(", ")}`;
+  const analogos = (c: Term): string[] => {
+    const padres = broader(c);
+    const hermanos = todos.filter((x) => x.iri !== c.iri && broader(x).some((p) => padres.includes(p)));
+    return ordenar(hermanos, label).map((x) => {
+      const comunes = lista(broader(x).filter((p) => padres.includes(p)));
+      return `${nombre(x)} — ${t.mismoPadre}: ${comunes.map(nombre).join(", ")}`;
     });
+  };
 
-  const pagina = (c: Concepto): string => {
-    const narrower = lista(todos.filter((x) => x.broader.includes(c.iri)).map((x) => x.iri));
-    const related = lista([...c.related, ...todos.filter((x) => x.related.includes(c.iri)).map((x) => x.iri)]);
-    const ejemplos = c.example.filter((l) => l.idioma === o.idioma || l.idioma === "").map((l) => l.valor);
+  const pagina = (c: Term): string => {
+    const narrower = lista(todos.filter((x) => broader(x).includes(c.iri)).map((x) => x.iri));
+    const relacionados = lista([...related(c), ...todos.filter((x) => related(x).includes(c.iri)).map((x) => x.iri)]);
+    const ejemplos = c.literals(`${SKOS}example`).filter((l) => l.language === o.idioma || l.language === "")
+      .map((l) => l.value);
     const lineas = [
       o.cabecera,
       "",
@@ -158,12 +160,12 @@ export function renderizar(conceptos: Concepto[], grafo: Store, opciones: Partia
       definicion(c),
       "",
       ...seccion(t.ejemplos, o.ejemplos ? [...new Set(ejemplos)].sort() : []),
-      ...seccion(t.broader, lista(c.broader).map(nombre)),
+      ...seccion(t.broader, lista(broader(c)).map(nombre)),
       ...seccion(t.narrower, narrower.map(nombre)),
       ...seccion(t.analogos, o.analogos ? analogos(c) : []),
-      ...seccion(t.related, related.map(nombre)),
-      ...seccion(t.verTambien, [...new Set(c.seeAlso.map((s) => s.valor))].sort().map((url) => `<${url}>`)),
-      ...seccion(t.menciones, menciones(c, grafo)),
+      ...seccion(t.related, relacionados.map(nombre)),
+      ...seccion(t.verTambien, [...new Set(c.seeAlso())].sort().map((url) => `<${url}>`)),
+      ...seccion(t.menciones, menciones(c)),
     ];
     return lineas.join("\n").trimEnd() + "\n";
   };
@@ -178,6 +180,6 @@ export function renderizar(conceptos: Concepto[], grafo: Store, opciones: Partia
   ].join("\n") + "\n";
 
   const archivos = new Map<string, string>([["README.md", indice]]);
-  for (const c of [...conceptos].sort((a, b) => (a.slug < b.slug ? -1 : 1))) archivos.set(`${c.slug}.md`, pagina(c));
+  for (const c of [...conceptos].sort((a, b) => (a.id < b.id ? -1 : 1))) archivos.set(`${c.id}.md`, pagina(c));
   return archivos;
 }

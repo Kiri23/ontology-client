@@ -4,9 +4,7 @@
 // lo chequea CI con `deno task vocabulario --check`.
 
 import { assert, assertEquals, assertStringIncludes } from "@std/assert";
-// @ts-types="@types/n3"
-import { Store } from "n3";
-import { leer, triples } from "../scripts/vocabulario/leer.ts";
+import { Vocabulary } from "@kiri23/ontology-client/vocabulary";
 import { validar, validarEnlaces, validarEsquema } from "../scripts/vocabulario/validar.ts";
 import { enlacesAlVocabulario, esProsa, triplesDeMenciones } from "../scripts/vocabulario/menciones.ts";
 import { renderizar } from "../scripts/vocabulario/renderizar.ts";
@@ -25,18 +23,19 @@ function concepto(slug: string, extra = ""): string {
 `;
 }
 
-const errores = (ttl: string) => validar(leer(PREFIJOS + ttl));
+const errores = (ttl: string) => validar(Vocabulary.parse(PREFIJOS + ttl));
 
 // Las páginas de un TTL completo (con prefijos) y la prosa `prosa` (ruta → contenido), como en scripts/vocabulario.ts.
 function renderizarCon(ttl: string, prosa = new Map<string, string>()): Map<string, string> {
-  const quads = triples(ttl);
-  return renderizar(leer(ttl), new Store([...quads, ...triplesDeMenciones(enlacesAlVocabulario(prosa))]));
+  const vocabulario = Vocabulary.parse(ttl);
+  vocabulario.store.addQuads(triplesDeMenciones(enlacesAlVocabulario(prosa)));
+  return renderizar(vocabulario);
 }
 
 Deno.test("validar: el vocabulario commiteado no rompe ninguna regla, ni la del esquema", async () => {
   const ttl = await Deno.readTextFile(new URL("../docs/vocabulary.ttl", import.meta.url));
-  assertEquals(validar(leer(ttl)), []);
-  assertEquals(validarEsquema(triples(ttl)), []);
+  assertEquals(validar(Vocabulary.parse(ttl)), []);
+  assertEquals(validarEsquema(Vocabulary.parse(ttl)), []);
 });
 
 const ESQUEMA = 'v:vocabulario a skos:ConceptScheme ; skos:prefLabel "V"@en .\n';
@@ -44,15 +43,15 @@ const ESQUEMA = 'v:vocabulario a skos:ConceptScheme ; skos:prefLabel "V"@en .\n'
 Deno.test("validarEsquema: un esquema y cada término skos:inScheme de ese pasa", () => {
   const ttl = PREFIJOS + ESQUEMA + concepto("rdf", "skos:inScheme v:vocabulario ;") +
     concepto("turtle", "skos:inScheme v:vocabulario ;");
-  assertEquals(validarEsquema(triples(ttl)), []);
+  assertEquals(validarEsquema(Vocabulary.parse(ttl)), []);
 });
 
 Deno.test("validarEsquema: sin skos:ConceptScheme, o con dos, es error", () => {
-  assertEquals(validarEsquema(triples(PREFIJOS + concepto("rdf", "skos:inScheme v:vocabulario ;"))), [
+  assertEquals(validarEsquema(Vocabulary.parse(PREFIJOS + concepto("rdf", "skos:inScheme v:vocabulario ;"))), [
     "el vocabulario tiene 0 skos:ConceptScheme; tiene que declarar exactamente uno, y cada término ser skos:inScheme de ese",
   ]);
   const dos = PREFIJOS + ESQUEMA + "v:otro a skos:ConceptScheme .\n" + concepto("rdf", "skos:inScheme v:vocabulario ;");
-  assertEquals(validarEsquema(triples(dos)), [
+  assertEquals(validarEsquema(Vocabulary.parse(dos)), [
     "el vocabulario tiene 2 skos:ConceptScheme (https://kiri231.com/vocabulario/ontology-client#vocabulario, " +
     "https://kiri231.com/vocabulario/ontology-client#otro); tiene que declarar exactamente uno, y cada término ser skos:inScheme de ese",
   ]);
@@ -60,7 +59,7 @@ Deno.test("validarEsquema: sin skos:ConceptScheme, o con dos, es error", () => {
 
 Deno.test("validarEsquema: un término sin skos:inScheme, o en otro esquema, es error", () => {
   const ttl = PREFIJOS + ESQUEMA + concepto("rdf") + concepto("turtle", "skos:inScheme v:otro ;");
-  assertEquals(validarEsquema(triples(ttl)), [
+  assertEquals(validarEsquema(Vocabulary.parse(ttl)), [
     "rdf: tiene 0 skos:inScheme; tiene que tener exactamente uno, <https://kiri231.com/vocabulario/ontology-client#vocabulario>",
     "turtle: skos:inScheme <https://kiri231.com/vocabulario/ontology-client#otro> no es el esquema del archivo, " +
     "<https://kiri231.com/vocabulario/ontology-client#vocabulario>",
@@ -84,7 +83,7 @@ Deno.test("validar: rechaza un término sin `a skos:Concept`", () => {
 
 Deno.test("validar: un skos:ConceptScheme no es un término ni lleva página", () => {
   const ttl = PREFIJOS + "v:esquema a skos:ConceptScheme .\n" + concepto("rdf");
-  assertEquals(validar(leer(ttl)), []);
+  assertEquals(validar(Vocabulary.parse(ttl)), []);
   assertEquals([...renderizarCon(ttl).keys()], ["README.md", "rdf.md"]);
 });
 
@@ -308,12 +307,15 @@ Deno.test("validarEnlaces: un link a una página que el TTL no genera es error c
     "docs/guia.md",
     "Intro.\n\nVer [SHACL](../docs/vocabulary/shacl.md) y [índice](vocabulary/README.md).",
   ]]);
-  assertEquals(validarEnlaces(enlacesAlVocabulario(prosa), leer(DOS)), [
+  assertEquals(validarEnlaces(enlacesAlVocabulario(prosa), Vocabulary.parse(DOS)), [
     'docs/guia.md:3: el link (../docs/vocabulary/shacl.md) apunta a docs/vocabulary/shacl.md, y "shacl" no es un ' +
     "término de docs/vocabulary.ttl",
   ]);
   assertEquals(
-    validarEnlaces(enlacesAlVocabulario(new Map([["README.md", "[r](docs/vocabulary/rdf.md)"]])), leer(DOS)),
+    validarEnlaces(
+      enlacesAlVocabulario(new Map([["README.md", "[r](docs/vocabulary/rdf.md)"]])),
+      Vocabulary.parse(DOS),
+    ),
     [],
   );
 });
@@ -353,7 +355,7 @@ Deno.test("menciones: un bloque ~~~ no cuenta; cierra solo el mismo carácter, i
 
 Deno.test("validarEnlaces: un % suelto en un link al vocabulario es link roto, con archivo y línea", () => {
   const prosa = new Map([["README.md", "Intro.\n[x](docs/vocabulary/r%df.md) y [y](docs/50%.md)"]]);
-  assertEquals(validarEnlaces(enlacesAlVocabulario(prosa), leer(DOS)), [
+  assertEquals(validarEnlaces(enlacesAlVocabulario(prosa), Vocabulary.parse(DOS)), [
     'README.md:2: el link (docs/vocabulary/r%df.md) apunta a docs/vocabulary/r%df.md, y "r%df" no es un término de ' +
     "docs/vocabulary.ttl",
   ]);

@@ -20,11 +20,10 @@
 // nombrarlas. La defensa es que la única carpeta que se escribe es la vocabulary/ al lado de cada vocabulary.ttl
 // encontrado (`correrTodos`) y el guard `ajenos` de externo.ts.
 
+import { Vocabulary } from "@kiri23/ontology-client/vocabulary";
 import { correrExterno } from "./externo.ts";
-import { esquemas, triples } from "./leer.ts";
 
 const ONTOLOGIA_COMPARTIDO = "https://kiri231.com/ontologia#VocabularioCompartido";
-const RDF_TYPE = "http://www.w3.org/1999/02/22-rdf-syntax-ns#type";
 
 // Las carpetas que core/scanner.py no recorre (PODAR y CON_PUNTO_QUE_SI). tests/vocabulario-todos.test.ts las
 // compara con las de scanner.py cuando ontologyLearning está clonado al lado.
@@ -81,9 +80,8 @@ async function ttlBajo(carpeta: string, encontrados: Set<string>, avisos: string
 // Si el texto declara un vocabulario. Un .ttl que no parsea no es vocabulario: se devuelve el error para avisarlo.
 export function esVocabulario(texto: string): boolean | string {
   try {
-    const quads = triples(texto);
-    return esquemas(quads).length > 0 ||
-      quads.some((q) => q.predicate.value === RDF_TYPE && q.object.value === ONTOLOGIA_COMPARTIDO);
+    const vocabulario = Vocabulary.parse(texto);
+    return vocabulario.schemes().length > 0 || vocabulario.instancesOf(ONTOLOGIA_COMPARTIDO).length > 0;
   } catch (e) {
     return e instanceof Error ? e.message.split("\n")[0] : String(e);
   }

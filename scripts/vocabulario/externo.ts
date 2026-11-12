@@ -8,15 +8,17 @@
 //     de broader y related, se nombran con su prefijo ("Entorno aislado (ambiente:)") y cuentan para Análogos;
 //   - no hay "Mentioned in": eso es la prosa de este repo, que un vocabulario de afuera no tiene.
 //
+// Leer y revisar es de la librería (la entrada `./vocabulary` del paquete); acá se eligen las reglas y se renderiza.
+//
 // `renderizarExterno` no toca el disco (los tests le pasan strings); `correrExterno` lee, compara y escribe. Como
 // escribir borra lo que sobra en la carpeta de salida, se niega a tocar una que tenga un archivo cuya primera línea no
 // sea exactamente la cabecera que esta corrida escribe para este TTL: un --out mal puesto (la carpeta del TTL, la
 // docs/vocabulary/ del repo, la de otro vocabulario) no se lleva puesto nada.
 
 // @ts-types="@types/n3"
-import { type Quad, Store } from "n3";
-import { conceptos as conceptosDe, esquemas, prefijos as prefijosDe, slugDe, triples } from "./leer.ts";
-import { validar, validarEsquema } from "./validar.ts";
+import { DataFactory } from "n3";
+import { namespaceOf, SKOS, Vocabulary } from "@kiri23/ontology-client/vocabulary";
+import { enEspanol } from "./validar.ts";
 import { type Idioma, renderizar, TEXTOS } from "./renderizar.ts";
 import { comparar, escribir, leerDirectorio } from "./archivos.ts";
 
@@ -30,21 +32,30 @@ export type Resultado =
   | { errores: string[] }
   | { archivos: Map<string, string>; terminos: number; idioma: Idioma; cabecera: string };
 
-function parsear(t: Turtle): Quad[] | string {
+function parsear(t: Turtle): Vocabulary | string {
   try {
-    return triples(t.texto);
+    return Vocabulary.parse(t.texto);
   } catch (e) {
     return `${t.ruta} no es Turtle válido: ${e instanceof Error ? e.message : e}`;
   }
 }
 
-// El idioma de la mayoría de los skos:prefLabel de los términos; empate → el primero en orden alfabético.
-export function idiomaDe(quads: Quad[]): string {
+// El idioma de la mayoría de los skos:prefLabel (los del esquema no cuentan); empate → el primero en orden
+// alfabético. Mira el grafo entero, no solo los términos: uno al que le falta el tipo también vota.
+export function idiomaDe(vocabulario: Vocabulary): string {
+  const esquemas = new Set(vocabulario.schemes().map((e) => e.iri));
   const cuenta = new Map<string, number>();
-  for (const c of conceptosDe(quads)) {
-    for (const l of c.prefLabel) cuenta.set(l.idioma, (cuenta.get(l.idioma) ?? 0) + 1);
+  for (const q of vocabulario.store.getQuads(null, DataFactory.namedNode(`${SKOS}prefLabel`), null, null)) {
+    if (esquemas.has(q.subject.value)) continue;
+    const idioma = q.object.termType === "Literal" ? q.object.language : "";
+    cuenta.set(idioma, (cuenta.get(idioma) ?? 0) + 1);
   }
   return [...cuenta].sort((a, b) => b[1] - a[1] || (a[0] < b[0] ? -1 : 1))[0]?.[0] ?? "";
+}
+
+// Los @prefix de un vocabulario como namespace → prefijo ("https://kiri231.com/ambiente#" → "ambiente").
+function prefijosDe(vocabulario: Vocabulary): [string, string][] {
+  return Object.entries(vocabulario.prefixes).filter(([prefijo]) => prefijo).map(([prefijo, ns]) => [ns, prefijo]);
 }
 
 // `vocabulario`: el TTL a renderizar. `fuente`: su ruta vista desde la carpeta de salida (link del índice y
@@ -53,46 +64,45 @@ export function renderizarExterno(vocabulario: Turtle, fuente: string, contexto:
   const parseados = [vocabulario, ...contexto].map(parsear);
   const malos = parseados.filter((p): p is string => typeof p === "string");
   if (malos.length) return { errores: malos };
-  const [quads, ...deContexto] = parseados as Quad[][];
+  const [propio, ...deContexto] = parseados as Vocabulary[];
 
-  const esquema = esquemas(quads);
+  const esquema = propio.schemes();
   if (esquema.length !== 1) {
     return {
       errores: [`${vocabulario.ruta} tiene ${esquema.length} skos:ConceptScheme; tiene que declarar exactamente uno`],
     };
   }
-  const idioma = idiomaDe(quads);
+  const idioma = idiomaDe(propio);
   if (!(idioma in TEXTOS)) {
     return { errores: [`${vocabulario.ruta} está en @${idioma || "(sin idioma)"}; se renderiza en @en o @es`] };
   }
   const t = TEXTOS[idioma as Idioma];
-  const { iri } = esquema[0];
-  const namespace = iri.slice(0, iri.length - slugDe(iri).length);
-  const terminos = conceptosDe(quads);
-  const otros = deContexto.flatMap((q) => conceptosDe(q).filter((c) => c.esConcepto && !c.enBlanco));
-  const errores = [...validarEsquema(quads), ...validar(terminos, { namespace, idioma, contexto: otros })];
+  const namespace = namespaceOf(esquema[0].iri);
+  const revision = propio.check().language(idioma).namespace(namespace).oneScheme().seeAlsoUrls()
+    .context(...deContexto);
+  const errores = enEspanol(revision.problems());
   if (errores.length) return { errores: errores.map((e) => `${vocabulario.ruta}: ${e}`) };
 
-  const prefijos = new Map([...contexto, vocabulario].flatMap((x) => [...prefijosDe(x.texto)]));
-  const label = esquema[0].prefLabel.find((l) => l.idioma === idioma)?.valor ?? t.vocabulario;
-  const definicion = esquema[0].definition.find((l) => l.idioma === idioma)?.valor;
-  const verTambien = [...new Set(esquema[0].seeAlso.map((s) => s.valor))].sort().map((url) => `<${url}>`);
+  const prefijos = new Map([...deContexto, propio].flatMap(prefijosDe));
+  const label = esquema[0].label(idioma) ?? t.vocabulario;
+  const definicion = esquema[0].definition(idioma);
+  const verTambien = [...new Set(esquema[0].seeAlso())].sort().map((url) => `<${url}>`);
   const intro = [
     ...(definicion ? [definicion] : []),
     t.fuente(fuente) + (verTambien.length ? ` ${t.verTambien}: ${verTambien.join(", ")}.` : ""),
   ];
   const cabecera = t.cabecera(fuente);
-  const archivos = renderizar(terminos, new Store(), {
+  const archivos = renderizar(propio, {
     idioma: idioma as Idioma,
     cabecera,
     titulo: label,
     intro,
-    contexto: otros,
+    contexto: deContexto.flatMap((v) => v.terms().toArray()),
     prefijos,
     ejemplos: true,
     analogos: true,
   });
-  return { archivos, terminos: terminos.length, idioma: idioma as Idioma, cabecera };
+  return { archivos, terminos: propio.terms().size, idioma: idioma as Idioma, cabecera };
 }
 
 // Los archivos de la carpeta de salida que no generó esta corrida para este TTL: los que no empiezan con `cabecera`
