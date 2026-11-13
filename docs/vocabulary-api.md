@@ -92,7 +92,7 @@ const problems = vocab.check()
   .namespace("https://example.com/vocabulary#")
   .oneScheme()
   .seeAlsoUrls()
-  .context(otherVocab) // broader and related may point to terms of another Vocabulary
+  .context(otherVocab) // broader, narrower and related may point to terms of another Vocabulary
   .problems();
 
 for (const p of problems) console.error(p.message);
@@ -132,6 +132,18 @@ each.
 | `in-scheme`               | `.oneScheme()`   | a term is not `skos:inScheme` of that scheme, and only of it                   |
 | `see-also-not-iri`        | `.seeAlsoUrls()` | an `rdfs:seeAlso` is a text or a blank node                                    |
 | `see-also-not-http`       | `.seeAlsoUrls()` | an `rdfs:seeAlso` is not an http(s) address                                    |
+
+A `skos:broader` may point to a vocabulary you did not give to `check()`: an IRI in a namespace that none of your terms
+use, no `.context()` vocabulary uses, and that is not the one given to `.namespace()`, is trusted and not looked up. A
+`skos:broader` to a missing IRI in one of those namespaces is still `missing-target`: that is how a typo shows up. Pass
+the other vocabulary with `.context()` and its broaders get checked too.
+
+```turtle
+v:harness skos:broader <https://kiri231.com/vocabulario/patron#test-harness> . # a vocabulary not given: fine
+v:bench   skos:broader v:benchh .                                              # our namespace, no such term: problem
+```
+
+`skos:narrower` and `skos:related` still have to point to a term of this file or of `.context()`.
 
 A rule about your own predicate is not in this table and does not go in the library. Write it on top:
 
