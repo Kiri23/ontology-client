@@ -200,7 +200,7 @@ x:jail a skos:Concept ; skos:inScheme x:vocabulario ; skos:prefLabel "Jail"@en ;
   );
 });
 
-Deno.test("externo: un broader a un vocabulario del contexto que no tiene ese término es error, con el archivo", () => {
+Deno.test("externo: un broader se confía sin el vocabulario en el contexto; con él, un término que falta es error, con el archivo", () => {
   // Sin el vocabulario de ambiente no hay contra qué mirar: el broader se confía.
   assertEquals(errores(MODAL, []), []);
   const sinPersistente = { ...AMBIENTE, texto: AMBIENTE.texto.split("ambiente:persistente")[0] };
