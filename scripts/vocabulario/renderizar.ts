@@ -1,4 +1,5 @@
-// renderizar.ts — de un vocabulario ya validado (ningún término related a sí mismo, todo broader existe) a sus
+// renderizar.ts — de un vocabulario ya validado (ningún término related a sí mismo, todo broader existe o es de un
+// vocabulario que no se pasó) a sus
 // markdown: una página por término, <slug>.md, y README.md como índice. Devuelve nombre de archivo → contenido, sin
 // tocar el disco. Los términos se leen con la librería (la entrada `./vocabulary` del paquete).
 //
@@ -135,15 +136,21 @@ export function renderizar(vocabulario: Vocabulary, opciones: Partial<Opciones> 
     const prefijo = o.prefijos.get(ns);
     return `${label(c)} (${prefijo ? `${prefijo}:` : `<${ns}>`})`;
   };
-  const lista = (iris: Iterable<string>) => ordenar([...new Set(iris)].map((i) => porIri.get(i)!), label);
+  const lista = (iris: Iterable<string>) =>
+    ordenar([...new Set(iris)].filter((i) => porIri.has(i)).map((i) => porIri.get(i)!), label);
+  // A broader to a vocabulary that was not given has no label here: it is shown as its address, after the known ones.
+  const nombres = (iris: string[]) => [
+    ...lista(iris).map(nombre),
+    ...[...new Set(iris)].filter((i) => !porIri.has(i)).sort().map((i) => `<${i}>`),
+  ];
 
   // Cada otro término con un broader directo en común con `c` → "nombre — mismo padre: padre[, padre]".
   const analogos = (c: Term): string[] => {
     const padres = broader(c);
     const hermanos = todos.filter((x) => x.iri !== c.iri && broader(x).some((p) => padres.includes(p)));
     return ordenar(hermanos, label).map((x) => {
-      const comunes = lista(broader(x).filter((p) => padres.includes(p)));
-      return `${nombre(x)} — ${t.mismoPadre}: ${comunes.map(nombre).join(", ")}`;
+      const comunes = nombres(broader(x).filter((p) => padres.includes(p)));
+      return `${nombre(x)} — ${t.mismoPadre}: ${comunes.join(", ")}`;
     });
   };
 
@@ -160,7 +167,7 @@ export function renderizar(vocabulario: Vocabulary, opciones: Partial<Opciones> 
       definicion(c),
       "",
       ...seccion(t.ejemplos, o.ejemplos ? [...new Set(ejemplos)].sort() : []),
-      ...seccion(t.broader, lista(broader(c)).map(nombre)),
+      ...seccion(t.broader, nombres(broader(c))),
       ...seccion(t.narrower, narrower.map(nombre)),
       ...seccion(t.analogos, o.analogos ? analogos(c) : []),
       ...seccion(t.related, relacionados.map(nombre)),

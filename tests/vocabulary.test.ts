@@ -279,6 +279,30 @@ Deno.test("regla missing-target: broader, narrower y related a algo que no es un
   ]);
 });
 
+Deno.test("missing-target: a broader to a vocabulary that was not given is valid; one to our own namespace is not", () => {
+  const external = "https://kiri231.com/vocabulario/patron#test-harness";
+  const ttl = termino("a", `skos:broader <${external}> ;`) + termino("b", "skos:broader v:typo ;");
+  assertEquals(problemas(ttl, (v) => v.check()).map((x) => [x.rule, localName(x.term), x.value]), [
+    ["missing-target", "b", `${NS}typo`],
+  ]);
+  // The namespace given to `.namespace()` counts as our own even when no term is in it yet.
+  const elsewhere = `@prefix w: <https://example.com/other#> .\nw:a a skos:Concept ; skos:broader v:typo .`;
+  assertEquals(reglas(elsewhere), []);
+  assertEquals(reglas(elsewhere, (v) => v.check().namespace(NS)), ["namespace", "missing-target"]);
+  // Once the other vocabulary is given as context, its namespace is checked too: a broader to a missing term fails.
+  const patron = Vocabulary.parse(
+    `@prefix skos: <http://www.w3.org/2004/02/skos/core#> .
+<https://kiri231.com/vocabulario/patron#other> a skos:Concept .`,
+  );
+  assertEquals(problemas(ttl, (v) => v.check().context(patron)).map((x) => [localName(x.term), localName(x.value!)]), [
+    ["a", "test-harness"],
+    ["b", "typo"],
+  ]);
+  // Only broader leaves the vocabulary: narrower and related to another namespace are still problems.
+  const out = termino("c", `skos:narrower <${external}> ; skos:related <${external}> ;`);
+  assertEquals(reglas(out), ["missing-target", "missing-target"]);
+});
+
 Deno.test("regla related-self: related apunta al mismo término", () => {
   assertEquals(reglas(termino("a", "skos:related v:a ;")), ["related-self"]);
 });
@@ -404,18 +428,18 @@ Deno.test("regla see-also-not-http: un seeAlso que no es una dirección http(s)"
   ]);
 });
 
-Deno.test("context: broader y related pueden apuntar a términos de otro vocabulario, que no se revisa", () => {
+Deno.test("context: narrower y related pueden apuntar a términos de otro vocabulario, que no se revisa", () => {
   const otro = Vocabulary.parse(
     `@prefix o: <https://otro.dev/x#> . @prefix skos: <http://www.w3.org/2004/02/skos/core#> .
 o:padre a skos:Concept . o:suelto skos:prefLabel "Sin tipo" .`,
   );
-  const ttl = termino("a", "skos:broader <https://otro.dev/x#padre> ; skos:related <https://otro.dev/x#suelto> ;");
+  const ttl = termino("a", "skos:narrower <https://otro.dev/x#padre> ; skos:related <https://otro.dev/x#suelto> ;");
   assertEquals(reglas(ttl), ["missing-target", "missing-target"]);
   // o:padre es un término de `otro`; o:suelto no lo es, y que le falte el tipo es problema de `otro`, no de este.
   assertEquals(problemas(ttl, (v) => v.check().context(otro)).map((x) => [x.rule, x.value]), [
     ["missing-target", "https://otro.dev/x#suelto"],
   ]);
-  assertEquals(reglas(termino("a", "skos:broader <https://otro.dev/x#padre> ;"), (v) => v.check().context(otro)), []);
+  assertEquals(reglas(termino("a", "skos:related <https://otro.dev/x#padre> ;"), (v) => v.check().context(otro)), []);
 });
 
 Deno.test("problems: primero los del archivo, después cada término en el orden del archivo, al final los ciclos", () => {

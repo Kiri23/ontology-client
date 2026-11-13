@@ -13,7 +13,7 @@
 // @ts-types="@types/n3"
 import { DataFactory, type Quad } from "n3";
 import type { Vocabulary } from "../vocabulary.ts";
-import { localName, RDF_TYPE, RDFS, SKOS } from "./names.ts";
+import { localName, namespaceOf, RDF_TYPE, RDFS, SKOS } from "./names.ts";
 import { inOrder } from "./order.ts";
 import { isTerm, type Literal, Resource, type SubjectNode } from "./terms.ts";
 
@@ -30,7 +30,10 @@ export type Rule =
   | "not-a-concept"
   /** Always: a term is a blank node, without an IRI. */
   | "blank-node"
-  /** Always: `skos:broader`, `skos:narrower` or `skos:related` points to something that is not a term. */
+  /**
+   * Always: `skos:broader`, `skos:narrower` or `skos:related` points to something that is not a term. A
+   * `skos:broader` to the namespace of a vocabulary that was not given is not checked.
+   */
   | "missing-target"
   /** Always: `skos:related` points to the term itself. */
   | "related-self"
@@ -100,6 +103,10 @@ interface Node {
  * Checked always, with no method: there is at least one `skos:Concept`; whatever has a label or a definition is one;
  * a term has an IRI; `skos:broader`, `skos:narrower` and `skos:related` point to a term that exists; `related` does
  * not point to itself nor join two terms the hierarchy already joins; `broader` has no cycles.
+ *
+ * A `skos:broader` may also point to a vocabulary that was not given: to an IRI in a namespace that no term of this
+ * vocabulary or of `.context()` uses, and that is not the one given to `.namespace()`. It is trusted, not looked up.
+ * A `skos:broader` to a missing IRI in one of those namespaces is still a problem: that is how a typo shows up.
  */
 export class Check {
   readonly #vocabulary: Vocabulary;
@@ -187,6 +194,11 @@ export class Check {
       for (const t of v.terms()) known.set(t.iri, { iri: t.iri, broader: hierarchy(t) });
     }
 
+    // The namespaces whose terms we can look up: this vocabulary's and the context's. A broader outside all of them
+    // goes to a vocabulary nobody gave us, so it is trusted.
+    const checked = new Set([...this.#context, vocabulary].flatMap((v) => v.terms().map((t) => namespaceOf(t.iri))));
+    if (this.#namespace !== undefined) checked.add(this.#namespace);
+
     for (const c of candidates) {
       if (c.blank) {
         found.push({
@@ -211,7 +223,7 @@ export class Check {
       if (this.#language !== undefined) {
         found.push(...oneText(c, "prefLabel", this.#language), ...oneText(c, "definition", this.#language));
       }
-      found.push(...relations(c, known));
+      found.push(...relations(c, known, checked));
       if (this.#seeAlsoUrls) found.push(...seeAlso(c));
     }
     // A cycle that only goes through terms of the context is the other vocabulary's problem.
@@ -318,11 +330,12 @@ function ancestors(iri: string, known: Map<string, Node>): Set<string> {
   return seen;
 }
 
-function relations(c: Resource, known: Map<string, Node>): Problem[] {
+function relations(c: Resource, known: Map<string, Node>, checked: Set<string>): Problem[] {
   const found: Problem[] = [];
   for (const name of ["broader", "narrower", "related"]) {
     for (const target of c.values(SKOS + name)) {
       if (known.has(target)) continue;
+      if (name === "broader" && !checked.has(namespaceOf(target))) continue;
       found.push({
         term: c.iri,
         rule: "missing-target",

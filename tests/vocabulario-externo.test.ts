@@ -97,6 +97,13 @@ Deno.test("externo: un vocabulario en @es sale entero en español, con Ejemplos 
   );
 });
 
+Deno.test("externo: a broader to a vocabulary that was not given shows as its address", () => {
+  const sandbox = paginas(MODAL, []).get("sandbox.md")!;
+  const iri = "https://kiri231.com/vocabulario/ambiente#entorno-aislado";
+  assertEquals(sandbox.split("**Más general**")[1].split("\n")[2], `- <${iri}>`);
+  assertEquals(sandbox.split("**Análogos**")[1].split("\n")[2], `- [Función](funcion.md) — mismo padre: <${iri}>`);
+});
+
 Deno.test("externo: el índice lleva el label y la definición del skos:ConceptScheme y el link al TTL", () => {
   const indice = paginas(MODAL, [AMBIENTE], "../vocabulary.ttl").get("README.md")!;
   assertStringIncludes(indice, "# Modal\n\nLos términos de Modal.\n\n");
@@ -193,15 +200,9 @@ x:jail a skos:Concept ; skos:inScheme x:vocabulario ; skos:prefLabel "Jail"@en ;
   );
 });
 
-Deno.test("externo: un broader a un término que no está en ningún contexto es error, con el archivo", () => {
-  assertEquals(errores(MODAL, []), [
-    "modal/vocabulary.ttl: sandbox: skos:broader apunta a https://kiri231.com/vocabulario/ambiente#entorno-aislado, que no es " +
-    "un skos:Concept del vocabulario",
-    "modal/vocabulary.ttl: funcion: skos:broader apunta a https://kiri231.com/vocabulario/ambiente#entorno-aislado, que no es " +
-    "un skos:Concept del vocabulario",
-    "modal/vocabulary.ttl: volumen: skos:broader apunta a https://kiri231.com/vocabulario/ambiente#persistente, que no es un " +
-    "skos:Concept del vocabulario",
-  ]);
+Deno.test("externo: un broader se confía sin el vocabulario en el contexto; con él, un término que falta es error, con el archivo", () => {
+  // Sin el vocabulario de ambiente no hay contra qué mirar: el broader se confía.
+  assertEquals(errores(MODAL, []), []);
   const sinPersistente = { ...AMBIENTE, texto: AMBIENTE.texto.split("ambiente:persistente")[0] };
   assertEquals(errores(MODAL, [sinPersistente]), [
     "modal/vocabulary.ttl: volumen: skos:broader apunta a https://kiri231.com/vocabulario/ambiente#persistente, que no es un " +
