@@ -10,7 +10,7 @@ the library it parses with.
 ## Read a vocabulary and walk it
 
 ```ts
-import { Vocabulary } from "jsr:@kiri23/ontology-client@0.3.0/vocabulary";
+import { Vocabulary } from "jsr:@kiri23/ontology-client@0.4.0/vocabulary";
 
 const vocab = Vocabulary.read("docs/vocabulary.ttl"); // or Vocabulary.parse(ttl), which touches no disk
 
@@ -138,8 +138,8 @@ use, no `.context()` vocabulary uses, and that is not the one given to `.namespa
 `skos:broader` to a missing IRI in one of those namespaces is still `missing-target`: that is how a typo shows up. Pass
 the other vocabulary with `.context()` and its broaders get checked too.
 
-The rule only catches a typo in the local name. A typo in the namespace itself (`http` for `https`, `/` for `#`, a
-wrong letter) makes it a namespace nobody uses, so the broader is trusted and passes. Pass the other vocabulary with
+The rule only catches a typo in the local name. A typo in the namespace itself (`http` for `https`, `/` for `#`, a wrong
+letter) makes it a namespace nobody uses, so the broader is trusted and passes. Pass the other vocabulary with
 `.context()` when you want that caught too.
 
 ```turtle
