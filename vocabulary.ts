@@ -266,6 +266,24 @@ export class Vocabulary {
     return schemes.length === 1 ? editor.inScheme(schemes[0].iri) : editor;
   }
 
+  /**
+   * Adds a resource of a type of your own and returns its editor: `vocab.instance("intro", "doc:Page")`. It is born
+   * `a <type>` and nothing else; write the rest with `value()` and `link()`. Read it back with `instancesOf(type)`.
+   *
+   * The name goes like in `iri()` (bare in the namespace, by prefix or whole IRI); the type by prefix or whole IRI.
+   * Throws when the name is taken, like `add()`.
+   */
+  instance(id: string, type: string): ResourceEditor {
+    const node = namedNode(this.iri(id));
+    const typeNode = namedNode(this.predicate(type));
+    if (this.store.countQuads(node, null, null, null) > 0) {
+      throw new Error(`"${id}" is already in this vocabulary (<${node.value}>)`);
+    }
+    remember(this.store, node.value);
+    this.store.addQuad(quad(node, namedNode(RDF_TYPE), typeNode));
+    return new ResourceEditor(this, node);
+  }
+
   /** The editor of a term that exists. Throws like `term()` when it does not. */
   edit(id: string): TermEditor {
     return new TermEditor(this, this.term(id).node);

@@ -562,6 +562,32 @@ Deno.test("value, link y unset: escribir y sacar un predicado propio", () => {
   assertEquals(v.terms().where("doc:symbol").exists().ids(), ["harness"]);
 });
 
+Deno.test("instance: crea un recurso de un tipo propio que no es término, y se vuelve a leer por instancesOf", () => {
+  const v = creado();
+  v.instance("doc:intro", "doc:Page").value("doc:path", "tutorial/intro.md").link("dct:references", "provider");
+  v.instance("guia", `${DOC}Page`).value("doc:path", "guia.md");
+  assertEquals(v.terms().ids(), ["provider", "harness"]);
+  assertEquals(v.instancesOf("doc:Page").map((p) => [p.iri, p.values("doc:path")]), [
+    [`${DOC}intro`, ["tutorial/intro.md"]],
+    [`${NS}guia`, ["guia.md"]],
+  ]);
+  assertEquals(v.term("provider").referencedBy("dct:references").map((r) => r.iri), [`${DOC}intro`]);
+  assertEquals(v.check().problems(), creado().check().problems(), "una instancia no suma problemas de SKOS");
+
+  const vuelta = Vocabulary.parse(v.toTurtle());
+  assertEquals(vuelta.instancesOf("doc:Page").map((p) => p.values("doc:path")), [["tutorial/intro.md"], ["guia.md"]]);
+  assert(/doc:intro a doc:Page/.test(v.toTurtle()), "el tipo propio va primero en su bloque");
+});
+
+Deno.test("instance: un nombre que ya está lanza, y un tipo sin prefijo también", () => {
+  assertThrows(() => creado().instance("provider", "doc:Page"), Error, '"provider" is already in this vocabulary');
+  const v = creado();
+  v.instance("doc:intro", "doc:Page");
+  assertThrows(() => v.instance("doc:intro", "doc:Page"), Error, "already in this vocabulary");
+  assertThrows(() => creado().instance("intro", "Page"), Error, '"Page" is not a predicate');
+  assertThrows(() => creado().instance("intro", "nope:Page"), Error);
+});
+
 Deno.test("add y edit sobre un vocabulario leído: el namespace sale de sus términos", () => {
   const v = demo();
   v.add("task").label("Task", "en").definition("What is asked.", "en").broader("run");

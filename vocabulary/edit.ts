@@ -15,11 +15,12 @@ import type { SubjectNode } from "./terms.ts";
 const { namedNode, literal, quad } = DataFactory;
 
 /**
- * Writes on a resource that is not a term. Today only the concept scheme hands one out (`vocab.scheme(id)`); a
- * resource of a type of your own is written on the store.
+ * Writes on a resource that is not a term: the concept scheme (`vocab.scheme(id)`) or a resource of a type of your
+ * own (`vocab.instance(id, type)`).
  *
  * ```ts
  * vocab.scheme("vocabulary").label("Demo").definition("The terms of the demo.");
+ * vocab.instance("doc:intro", "doc:Page").value("doc:path", "tutorial/intro.md").link("dct:references", "provider");
  * ```
  */
 export class ResourceEditor {

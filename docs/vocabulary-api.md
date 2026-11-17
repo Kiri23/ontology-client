@@ -10,7 +10,7 @@ the library it parses with.
 ## Read a vocabulary and walk it
 
 ```ts
-import { Vocabulary } from "jsr:@kiri23/ontology-client@0.4.0/vocabulary";
+import { Vocabulary } from "jsr:@kiri23/ontology-client@0.5.0/vocabulary";
 
 const vocab = Vocabulary.read("docs/vocabulary.ttl"); // or Vocabulary.parse(ttl), which touches no disk
 
@@ -182,6 +182,20 @@ text) and `link()` (another resource) add one more. `unset(predicate, value?)` t
 
 A term added while the vocabulary has one concept scheme goes in it. `add()` throws if the name is taken, and `edit()`
 if it is not there.
+
+A resource of a type of your own (a page, a script, anything that is not a term) is created with `instance(id, type)`.
+It is born `a <type>`, and its editor writes the rest with `value()` and `link()`:
+
+```ts
+fresh.instance("doc:intro", "doc:Page")
+  .value("doc:path", "tutorial/intro.md")
+  .link("dct:references", "provider");
+
+fresh.instancesOf("doc:Page"); // read it back, like any resource of that type
+```
+
+`instance()` throws if the name is taken, and when the type has no prefix (`"Page"`): a bare name would go in the
+namespace of the terms.
 
 > **`toTurtle()` and `write()` are for files this library creates or generates. Do not use them to rewrite a vocabulary
 > written by hand.** The text comes out of the n3 Writer. The comments, the blank lines and the layout of the original
