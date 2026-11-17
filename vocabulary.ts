@@ -274,6 +274,9 @@ export class Vocabulary {
    * Throws when the name is taken, like `add()`.
    */
   instance(id: string, type: string): ResourceEditor {
+    if (!type.includes(":")) {
+      throw new Error(`"${type}" is not a type: write it with its prefix ("doc:${type}") or as a whole IRI`);
+    }
     const node = namedNode(this.iri(id));
     const typeNode = namedNode(this.predicate(type));
     if (this.store.countQuads(node, null, null, null) > 0) {

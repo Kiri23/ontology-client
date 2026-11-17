@@ -584,7 +584,7 @@ Deno.test("instance: un nombre que ya está lanza, y un tipo sin prefijo tambié
   const v = creado();
   v.instance("doc:intro", "doc:Page");
   assertThrows(() => v.instance("doc:intro", "doc:Page"), Error, "already in this vocabulary");
-  assertThrows(() => creado().instance("intro", "Page"), Error, '"Page" is not a predicate');
+  assertThrows(() => creado().instance("intro", "Page"), Error, '"Page" is not a type');
   assertThrows(() => creado().instance("intro", "nope:Page"), Error);
 });
 
