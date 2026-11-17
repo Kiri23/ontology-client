@@ -17,5 +17,6 @@ A compact, human-readable text syntax for writing RDF. It lets you declare short
 - [README.md](../../README.md)
 - [docs/action.md](../../docs/action.md)
 - [docs/cli.md](../../docs/cli.md)
+- [docs/graph-api.md](../../docs/graph-api.md)
 - [docs/library.md](../../docs/library.md)
 - [docs/vocabulary-api.md](../../docs/vocabulary-api.md)

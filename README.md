@@ -77,6 +77,7 @@ fits.
 | Explorer        | Vite + React, with Oxigraph (SPARQL in the browser) and Cytoscape, shipped as a Docker image behind a shared Caddy edge |
 | Docs            | A [Turtle](docs/vocabulary/turtle.md) vocabulary rendered to markdown with n3, checked in CI                            |
 | Vocabularies    | A separate entry point, `./vocabulary`, that reads, queries, checks and creates SKOS vocabularies with n3               |
+| Graphs          | A separate entry point, `./graph`, that writes a Turtle file with resources of any type, vocabularies included          |
 
 ## Run it locally
 
