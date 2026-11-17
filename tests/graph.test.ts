@@ -125,6 +125,8 @@ Deno.test("graph.add(vocab): un grafo contiene un vocabulario, con sus prefijos,
   assertEquals(graph.instancesOf("skos:ConceptScheme").map((s) => s.id), ["vocabulario"]);
   assertEquals(graph.instancesOf("kiri:Script").map((s) => s.id), ["kiri-pm"]);
   assertEquals(vocab.toTurtle(), antes, "el vocabulario no recibe nada del grafo");
+  assertEquals(vocab.edit("script").vocabulary, vocab, "un término sigue diciendo de qué vocabulario es");
+  assertEquals(vocab.term("script").vocabulary, vocab);
 
   // Lo que el vocabulario gana después no viaja: add copia lo que tiene en ese momento.
   vocab.add("bin").label("Bin");
