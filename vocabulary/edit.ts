@@ -10,26 +10,26 @@
 import { DataFactory, type Quad } from "n3";
 import type { Vocabulary } from "../vocabulary.ts";
 import { localName, RDFS, SKOS } from "./names.ts";
-import type { SubjectNode } from "./terms.ts";
+import type { Source, SubjectNode } from "./terms.ts";
 
 const { namedNode, literal, quad } = DataFactory;
 
 /**
- * Writes on a resource that is not a term. Today only the concept scheme hands one out (`vocab.scheme(id)`); a
- * resource of a type of your own is written on the store.
+ * Writes on a resource that is not a term: the concept scheme (`vocab.scheme(id)`), or a resource of a type of your
+ * own, which is created as a GraphNode (graph/node.ts) and written with one of these when `graph.add()` takes it.
  *
  * ```ts
  * vocab.scheme("vocabulary").label("Demo").definition("The terms of the demo.");
  * ```
  */
-export class ResourceEditor {
-  /** The vocabulary being edited. */
-  readonly vocabulary: Vocabulary;
+export class ResourceEditor<On extends Source = Vocabulary> {
+  /** The vocabulary being edited; for a resource of a Graph, the graph. */
+  readonly vocabulary: On;
   /** The n3 node being written on. */
   readonly node: SubjectNode;
 
   /** Use `vocabulary.add()`, `vocabulary.edit()` or `vocabulary.scheme(id)` instead of building one. */
-  constructor(vocabulary: Vocabulary, node: SubjectNode) {
+  constructor(vocabulary: On, node: SubjectNode) {
     this.vocabulary = vocabulary;
     this.node = node;
   }

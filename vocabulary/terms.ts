@@ -7,12 +7,24 @@
 // nothing else. The library never translates or tidies a label or a definition.
 
 // @ts-types="@types/n3"
-import { type BlankNode, DataFactory, type NamedNode, type Quad } from "n3";
+import { type BlankNode, DataFactory, type NamedNode, type Quad, type Store } from "n3";
 import type { Vocabulary } from "../vocabulary.ts";
 import { localName, RDF_TYPE, RDFS, SKOS } from "./names.ts";
 import { inOrder } from "./order.ts";
 
 const { namedNode } = DataFactory;
+
+/** Where a resource lives: a Vocabulary, or a Graph (graph.ts). What a Resource and its editor need from it. */
+export interface Source {
+  /** The n3 `Store` with every statement. */
+  readonly store: Store;
+  /** The language new labels are written in; `""` when none was set. */
+  readonly defaultLanguage: string;
+  /** The IRI of a name: bare, by prefix or whole. */
+  iri(name: string): string;
+  /** The IRI of a predicate or a type: by prefix or whole, never bare. */
+  predicate(name: string): string;
+}
 
 /** A text as it is written in the Turtle, with its language. */
 export interface Literal {
@@ -36,14 +48,14 @@ const same = (a: string, b: string) => a.toLowerCase() === b.toLowerCase();
  * page.values("doc:path"); // ["tutorial/getting-started.md"]
  * ```
  */
-export class Resource {
-  /** The vocabulary this resource was read from. */
-  readonly vocabulary: Vocabulary;
+export class Resource<From extends Source = Vocabulary> {
+  /** Where this resource was read from: the vocabulary or, for one of a Graph, the graph. */
+  readonly vocabulary: From;
   /** The n3 node, for when you go down to `vocabulary.store`. */
   readonly node: SubjectNode;
 
   /** Use `vocabulary.term()`, `vocabulary.resource()` or `vocabulary.instancesOf()` instead of building one. */
-  constructor(vocabulary: Vocabulary, node: SubjectNode) {
+  constructor(vocabulary: From, node: SubjectNode) {
     this.vocabulary = vocabulary;
     this.node = node;
   }
@@ -117,7 +129,7 @@ export class Resource {
    * The resources that point here with a predicate: `term.referencedBy("dct:references")` are the pages that use the
    * term. It is `values()` read from the other end.
    */
-  referencedBy(predicate: string): Resource[] {
+  referencedBy(predicate: string): Resource<From>[] {
     const { store } = this.vocabulary;
     const subjects = store.getSubjects(namedNode(this.vocabulary.predicate(predicate)), this.node, null);
     return inOrder(store, subjects as SubjectNode[]).map((s) => new Resource(this.vocabulary, s));
@@ -136,6 +148,12 @@ export class Resource {
     const written = this.literals(predicate);
     return (language === undefined ? written : written.filter((l) => same(l.language, language))).map((l) => l.value);
   }
+}
+
+/** Every resource of a type, in the order they were written. Vocabulary and Graph answer `instancesOf()` with it. */
+export function instancesOf<From extends Source>(from: From, type: string): Resource<From>[] {
+  const subjects = from.store.getSubjects(namedNode(RDF_TYPE), namedNode(from.predicate(type)), null);
+  return inOrder(from.store, subjects as SubjectNode[]).map((node) => new Resource(from, node));
 }
 
 /** Whether a node is a term: an IRI that is `a skos:Concept` and is not the concept scheme itself. */

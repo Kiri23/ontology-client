@@ -1,6 +1,6 @@
 // names.ts — how a name written in code becomes an IRI, and the few IRIs the library knows by heart.
 //
-// vocabulary.ts and the files next to this one call it; nothing here touches a graph.
+// vocabulary.ts, graph.ts and the files next to this one call it; nothing here touches a graph.
 
 /** The SKOS namespace: every `skos:` name the library reads or writes hangs from it. */
 export const SKOS = "http://www.w3.org/2004/02/skos/core#";
@@ -46,7 +46,7 @@ export function expand(name: string, prefixes: Readonly<Record<string, string>>,
   if (colon < 0) {
     if (namespace === undefined) {
       throw new Error(
-        `"${name}" is a bare name and this vocabulary has no single namespace to put it in: pass the whole IRI`,
+        `"${name}" is a bare name and there is no single namespace to put it in: pass the whole IRI`,
       );
     }
     return namespace + name;
@@ -60,4 +60,15 @@ export function expand(name: string, prefixes: Readonly<Record<string, string>>,
     `Unknown prefix "${prefix}:" in "${name}": declare it with @prefix in the Turtle (or with .prefix()), ` +
       "or pass the whole IRI",
   );
+}
+
+/**
+ * The IRI of a predicate or a type: by prefix, like `expand`, or whole. Throws on a bare name (`"prefLabel"`): it
+ * would go in the namespace of the resources and silently match nothing.
+ */
+export function expandPredicate(name: string, prefixes: Readonly<Record<string, string>>): string {
+  if (!name.includes(":")) {
+    throw new Error(`"${name}" is not a predicate: write it with its prefix ("skos:${name}") or as a whole IRI`);
+  }
+  return expand(name, prefixes);
 }

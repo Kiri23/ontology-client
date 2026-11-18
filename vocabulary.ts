@@ -27,12 +27,13 @@
 // vocabulary/ export. It is not re-exported from mod.ts, so importing the client does not load n3.
 
 // @ts-types="@types/n3"
-import { DataFactory, type NamedNode, Parser, type Quad, Store, Writer } from "n3";
+import { DataFactory, type NamedNode, type Quad, Store } from "n3";
 import { Check } from "./vocabulary/check.ts";
 import { ResourceEditor, TermEditor } from "./vocabulary/edit.ts";
-import { expand, namespaceOf, RDF_TYPE, SKOS, WELL_KNOWN } from "./vocabulary/names.ts";
+import { expand, expandPredicate, namespaceOf, RDF_TYPE, SKOS } from "./vocabulary/names.ts";
 import { inOrder, remember } from "./vocabulary/order.ts";
-import { isTerm, Resource, type SubjectNode, Term, Terms } from "./vocabulary/terms.ts";
+import { instancesOf, isTerm, Resource, Term, Terms } from "./vocabulary/terms.ts";
+import { disk, parseTurtle, writeTurtle } from "./vocabulary/turtle.ts";
 
 export { Check, type Problem, type Rule } from "./vocabulary/check.ts";
 export { ResourceEditor, TermEditor } from "./vocabulary/edit.ts";
@@ -40,25 +41,6 @@ export { DCT, localName, namespaceOf, RDF, RDFS, SKOS } from "./vocabulary/names
 export { type Literal, Resource, type SubjectNode, Term, Terms, Where } from "./vocabulary/terms.ts";
 
 const { namedNode, quad } = DataFactory;
-
-/** The two functions of `node:fs` that `read` and `write` use. */
-interface Disk {
-  readFileSync(path: string, encoding: "utf8"): string;
-  writeFileSync(path: string, text: string): void;
-}
-
-/** The disk of Deno or Node, asked for only when `read` or `write` run: a browser never gets here. */
-function disk(): Disk {
-  const { process } = globalThis as { process?: { getBuiltinModule?: (name: string) => unknown } };
-  const fs = process?.getBuiltinModule?.("node:fs");
-  if (!fs) {
-    throw new Error(
-      "Vocabulary.read and .write need the disk of Deno or Node (22.3 or newer). Anywhere else, read the text " +
-        "yourself and use Vocabulary.parse(text) and .toTurtle()",
-    );
-  }
-  return fs as Disk;
-}
 
 /**
  * A SKOS vocabulary: its terms, its concept scheme and whatever else the Turtle says.
@@ -111,16 +93,13 @@ export class Vocabulary {
    * Throws the error of n3, with the line, when the text is not Turtle.
    */
   static parse(turtle: string): Vocabulary {
-    const prefixes: Record<string, string> = {};
-    const quads = new Parser().parse(turtle, null, (prefix, namespace) => {
-      prefixes[prefix] = namespace.value;
-    });
+    const { quads, prefixes } = parseTurtle(turtle);
     return new Vocabulary(quads, prefixes);
   }
 
   /** A vocabulary from a Turtle file. Runs in Deno and Node; throws like `parse`, and when the file is not there. */
   static read(path: string): Vocabulary {
-    return Vocabulary.parse(disk().readFileSync(path, "utf8"));
+    return Vocabulary.parse(disk("Vocabulary").readFileSync(path, "utf8"));
   }
 
   /**
@@ -159,10 +138,7 @@ export class Vocabulary {
    * it would go in the namespace of the terms and silently match nothing.
    */
   predicate(name: string): string {
-    if (!name.includes(":")) {
-      throw new Error(`"${name}" is not a predicate: write it with its prefix ("skos:${name}") or as a whole IRI`);
-    }
-    return this.iri(name);
+    return expandPredicate(name, this.prefixes);
   }
 
   // Read
@@ -222,8 +198,7 @@ export class Vocabulary {
    * a term.
    */
   instancesOf(type: string): Resource[] {
-    const subjects = this.store.getSubjects(namedNode(RDF_TYPE), namedNode(this.predicate(type)), null);
-    return inOrder(this.store, subjects as SubjectNode[]).map((node) => new Resource(this, node));
+    return instancesOf(this, type);
   }
 
   /** Any resource by name, whether or not the file says something about it. */
@@ -292,17 +267,7 @@ export class Vocabulary {
    * hand-written vocabulary, edit its Turtle.
    */
   toTurtle(): string {
-    const quads = this.store.getQuads(null, null, null, null);
-    const writer = new Writer({ prefixes: this.#prefixesToWrite(quads) });
-    const subjects = new Map(quads.map((q) => [q.subject.value, q.subject]));
-    for (const subject of inOrder(this.store, [...subjects.values()])) {
-      const about = quads.filter((q) => q.subject.equals(subject));
-      const isType = (q: Quad) => q.predicate.value === RDF_TYPE;
-      writer.addQuads([...about.filter(isType), ...about.filter((q) => !isType(q))]);
-    }
-    let turtle = "";
-    writer.end((_error: unknown, text: string) => (turtle = text));
-    return turtle;
+    return writeTurtle(this.store, this.prefixes, this.#namespace);
   }
 
   /**
@@ -311,7 +276,7 @@ export class Vocabulary {
    * **Same warning as `toTurtle()`: a file written by hand loses its comments and its layout.**
    */
   write(path: string): void {
-    disk().writeFileSync(path, this.toTurtle());
+    disk("Vocabulary").writeFileSync(path, this.toTurtle());
   }
 
   #find(id: string): Term[] {
@@ -319,22 +284,5 @@ export class Vocabulary {
     if (!id.includes(":")) return terms.filter((t) => t.id === id);
     const iri = this.iri(id);
     return terms.filter((t) => t.iri === iri);
-  }
-
-  /** The declared prefixes, plus one for the namespace and the well-known ones the statements use. */
-  #prefixesToWrite(quads: Quad[]): Record<string, string> {
-    const prefixes = { ...this.prefixes };
-    const bound = new Set(Object.values(prefixes));
-    const used = (namespace: string) =>
-      quads.some((q) =>
-        q.predicate.value !== RDF_TYPE && [q.subject, q.predicate, q.object].some((t) => t.value.startsWith(namespace))
-      );
-    if (this.#namespace !== undefined && !bound.has(this.#namespace) && !("" in prefixes)) {
-      prefixes[""] = this.#namespace;
-    }
-    for (const [prefix, namespace] of Object.entries(WELL_KNOWN)) {
-      if (!bound.has(namespace) && !(prefix in prefixes) && used(namespace)) prefixes[prefix] = namespace;
-    }
-    return prefixes;
   }
 }

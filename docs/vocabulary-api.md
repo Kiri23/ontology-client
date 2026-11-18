@@ -10,7 +10,7 @@ the library it parses with.
 ## Read a vocabulary and walk it
 
 ```ts
-import { Vocabulary } from "jsr:@kiri23/ontology-client@0.4.0/vocabulary";
+import { Vocabulary } from "jsr:@kiri23/ontology-client@0.5.0/vocabulary";
 
 const vocab = Vocabulary.read("docs/vocabulary.ttl"); // or Vocabulary.parse(ttl), which touches no disk
 
@@ -183,6 +183,9 @@ text) and `link()` (another resource) add one more. `unset(predicate, value?)` t
 A term added while the vocabulary has one concept scheme goes in it. `add()` throws if the name is taken, and `edit()`
 if it is not there.
 
+A resource of a type of your own (a page, a script) is not part of the vocabulary: both go in a graph. Create it with
+the [graph entry](graph-api.md) and add the vocabulary there with `graph.add(fresh)`.
+
 > **`toTurtle()` and `write()` are for files this library creates or generates. Do not use them to rewrite a vocabulary
 > written by hand.** The text comes out of the n3 Writer. The comments, the blank lines and the layout of the original
 > file are lost. To change a hand-written vocabulary, edit its Turtle.
@@ -197,14 +200,15 @@ needs them, built on `values()`, `where()`, `instancesOf()` and the store. In th
 
 The code is `vocabulary.ts` and the folder `vocabulary/`, one file per piece:
 
-| File                  | What is in it                                                  |
-| --------------------- | -------------------------------------------------------------- |
-| `vocabulary.ts`       | `Vocabulary`: read, parse, create, find, write                 |
-| `vocabulary/terms.ts` | `Resource`, `Term`, `Terms` and `Where`: everything that reads |
-| `vocabulary/edit.ts`  | `ResourceEditor` and `TermEditor`: everything that writes      |
-| `vocabulary/check.ts` | `Check`, `Problem` and each rule                               |
-| `vocabulary/names.ts` | prefixes, IRIs and local names                                 |
-| `vocabulary/order.ts` | the order in which the file wrote each resource                |
+| File                   | What is in it                                                  |
+| ---------------------- | -------------------------------------------------------------- |
+| `vocabulary.ts`        | `Vocabulary`: read, parse, create, find, write                 |
+| `vocabulary/terms.ts`  | `Resource`, `Term`, `Terms` and `Where`: everything that reads |
+| `vocabulary/edit.ts`   | `ResourceEditor` and `TermEditor`: everything that writes      |
+| `vocabulary/check.ts`  | `Check`, `Problem` and each rule                               |
+| `vocabulary/names.ts`  | prefixes, IRIs and local names                                 |
+| `vocabulary/order.ts`  | the order in which the file wrote each resource                |
+| `vocabulary/turtle.ts` | Turtle in and out, and the disk                                |
 
 Each file opens with how to add to it. A getter goes in `terms.ts`, named after the SKOS property, and returns what is
 written. A setter goes in `edit.ts` and returns the editor. A rule gets a name in `Rule`, a function next to the others
