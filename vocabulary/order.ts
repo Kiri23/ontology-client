@@ -1,8 +1,7 @@
 // order.ts — remembers the order in which each subject was written.
 //
-// The graph does not keep it, and people read a file in the order it was written: lists of resources, terms and
-// problems come out in that order. graph.ts and vocabulary.ts write it down when they parse or add; the readers and
-// check.ts read it.
+// The graph does not keep it, and people read a vocabulary in the order of its file: lists of terms and of problems
+// come out in that order. vocabulary.ts writes it down when it parses or adds; terms.ts and check.ts read it.
 
 // @ts-types="@types/n3"
 import type { Store } from "n3";

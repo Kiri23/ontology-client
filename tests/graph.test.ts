@@ -2,18 +2,18 @@
 // sueltos con `create()` y puestos con `graph.add()`; un tipo propio como subclase (Script, que en la vida real vive
 // en el repo que lo usa, no en la librería); un vocabulario adentro de un grafo; y la ida y vuelta por Turtle.
 //
-// Los tres riesgos de la forma builder tienen su test: el IRI se decide en el `add`, un `add` olvidado no pasa callado
-// y los métodos de la base devuelven el tipo de la subclase.
+// Los riesgos de la forma builder tienen su test: el IRI se decide en el `add`, un nodo que nunca se agregó no le
+// rompe nada a ningún grafo, y los métodos de la base devuelven el tipo de la subclase.
 
 import { assert, assertEquals, assertThrows } from "@std/assert";
-import { Graph, ResourceEditor } from "@kiri23/ontology-client/graph";
+import { Graph, GraphNode } from "@kiri23/ontology-client/graph";
 import { Vocabulary } from "@kiri23/ontology-client/vocabulary";
 
 const NS = "https://kiri231.com/scripts#";
 const KIRI = "https://kiri231.com/kiri#";
 
 // Un tipo propio, como lo escribiría el repo que lo usa: su create da el tipo, sus métodos nombran sus predicados.
-class Script extends ResourceEditor {
+class Script extends GraphNode {
   static override create(id: string): Script {
     return new Script(id).a("kiri:Script");
   }
@@ -26,8 +26,8 @@ const grafo = () => Graph.create(NS).prefix("kiri", KIRI).language("en");
 
 Deno.test("create, a, value y link: un recurso suelto entra al grafo con add y se vuelve a leer", () => {
   const graph = grafo();
-  graph.add(ResourceEditor.create("kiri-pm").a("kiri:Script").value("kiri:ruta", "bin/kiri-pm"));
-  graph.add(ResourceEditor.create("kiri-api").a("kiri:Script").link("kiri:usa", "kiri-pm").label("API"));
+  graph.add(GraphNode.create("kiri-pm").a("kiri:Script").value("kiri:ruta", "bin/kiri-pm"));
+  graph.add(GraphNode.create("kiri-api").a("kiri:Script").link("kiri:usa", "kiri-pm").label("API"));
 
   assertEquals(graph.instancesOf("kiri:Script").map((s) => s.iri), [`${NS}kiri-pm`, `${NS}kiri-api`]);
   const pm = graph.resource("kiri-pm");
@@ -40,7 +40,7 @@ Deno.test("create, a, value y link: un recurso suelto entra al grafo con add y s
 
 Deno.test("subclase con create: Script.create da el tipo y sus métodos, y label no le borra ruta", () => {
   const graph = grafo();
-  // Riesgo 3: si label() devolviera ResourceEditor, .ruta() después no compilaría y este test no correría.
+  // Riesgo 3: si label() devolviera GraphNode, .ruta() después no compilaría y este test no correría.
   const pm: Script = Script.create("kiri-pm").label("Project manager").ruta("bin/kiri-pm");
   graph.add(pm);
   graph.add(Script.create("kiri-api").ruta("bin/kiri-api"));
@@ -52,25 +52,23 @@ Deno.test("subclase con create: Script.create da el tipo y sus métodos, y label
   ]);
 });
 
-Deno.test("después del add, lo que se escribe va directo al grafo", () => {
+Deno.test("después del add el nodo no se escribe más: lanza en vez de perder lo escrito", () => {
   const graph = grafo();
-  const pm = Script.create("kiri-pm");
+  const pm = Script.create("kiri-pm").ruta("bin/kiri-pm");
   graph.add(pm);
-  pm.ruta("bin/kiri-pm").unset("kiri:ruta", "bin/kiri-pm").ruta("bin/pm");
-  assertEquals(graph.resource("kiri-pm").values("kiri:ruta"), ["bin/pm"]);
-  assertEquals(pm.graph, graph);
+  assertThrows(() => pm.ruta("bin/pm"), Error, '"kiri-pm" is already in a graph');
+  assertEquals(graph.resource("kiri-pm").values("kiri:ruta"), ["bin/kiri-pm"]);
+  assertEquals(graph.resource("kiri-pm").vocabulary, graph, "un recurso dice de qué grafo se leyó");
 });
 
 Deno.test("riesgo 1: el IRI y los prefijos se resuelven en el add, con el namespace del grafo que lo recibe", () => {
   const pm = Script.create("kiri-pm").ruta("bin/kiri-pm");
   assertEquals(pm.id, "kiri-pm");
-  assertThrows(() => pm.iri, Error, '"kiri-pm" is not in a graph yet');
-  assertThrows(() => pm.graph, Error, "graph.add() it first");
 
   // El prefijo kiri se declara después de crear el script: igual anda, porque nada se resolvió todavía.
   const graph = Graph.create(NS);
   graph.prefix("kiri", KIRI).add(pm);
-  assertEquals(pm.iri, `${NS}kiri-pm`);
+  assertEquals(graph.resource("kiri-pm").iri, `${NS}kiri-pm`);
   assertEquals(graph.resource("kiri-pm").values("kiri:ruta"), ["bin/kiri-pm"]);
 });
 
@@ -79,36 +77,36 @@ Deno.test("riesgo 1: un prefijo que el grafo no conoce lanza en el add y el graf
   const pm = Script.create("kiri-pm").ruta("bin/kiri-pm");
   assertThrows(() => graph.add(pm), Error, 'Unknown prefix "kiri:"');
   assertEquals(graph.store.size, 0);
-  assertThrows(() => pm.iri, Error, "not in a graph yet");
 
   // Declarado el prefijo, el mismo script entra entero.
   graph.prefix("kiri", KIRI).add(pm);
   assertEquals(graph.instancesOf("kiri:Script").map((s) => s.values("kiri:ruta")), [["bin/kiri-pm"]]);
 });
 
-Deno.test("riesgo 2: un add olvidado hace fallar toTurtle nombrando el recurso", () => {
+Deno.test("riesgo 2: un nodo que nunca se agregó, o que falló al crearse, no le rompe nada a ningún grafo", () => {
   const graph = grafo();
   graph.add(Script.create("kiri-pm"));
-  const olvidado = Script.create("kiri-api").ruta("bin/kiri-api");
-  assertThrows(() => graph.toTurtle(), Error, '"kiri-api" was created and never added to a graph');
-  assertThrows(() => graph.write("no-se-escribe.ttl"), Error, "never added");
+  // Antes, la librería anotaba cada nodo creado en una lista del proceso y estos dos dejaban a todo grafo sin escribir.
+  assertThrows(() => GraphNode.create("roto").a("Bad"), Error, '"Bad" is not a type');
+  Script.create("kiri-api").ruta("bin/kiri-api");
 
-  graph.add(olvidado);
-  assert(graph.toTurtle().includes(":kiri-api a kiri:Script"));
+  assert(graph.toTurtle().includes(":kiri-pm a kiri:Script"));
+  assert(!graph.toTurtle().includes("kiri-api"), "lo que no pasó por add no está en el archivo");
+  assertEquals(
+    grafo().toTurtle(),
+    "@prefix kiri: <https://kiri231.com/kiri#>.\n@prefix : <https://kiri231.com/scripts#>.\n\n",
+  );
 });
 
-Deno.test("add lanza con un nombre tomado, con un recurso que ya está en un grafo y con un tipo sin prefijo", () => {
+Deno.test("add lanza con un nombre tomado; el mismo nodo entra en otro grafo, con el namespace de ese", () => {
   const graph = grafo();
   const pm = Script.create("kiri-pm");
   graph.add(pm);
-  assertThrows(() => graph.add(pm), Error, '"kiri-pm" is already in a graph');
-  assertThrows(() => grafo().add(pm), Error, "already in a graph");
-  const otro = Script.create("kiri-pm");
-  assertThrows(() => graph.add(otro), Error, '"kiri-pm" is already in this graph');
-  const x = ResourceEditor.create("x");
-  assertThrows(() => x.a("Script"), Error, '"Script" is not a type');
-  // Los que no entraron se ponen en otro grafo: si no, quedan sueltos y el próximo toTurtle lo dice.
-  grafo().add(otro).add(x);
+  assertThrows(() => graph.add(pm), Error, '"kiri-pm" is already in this graph');
+  assertThrows(() => graph.add(Script.create("kiri-pm")), Error, '"kiri-pm" is already in this graph');
+
+  const otro = Graph.create("https://otra.dev/#").prefix("kiri", KIRI).add(pm);
+  assertEquals(otro.instancesOf("kiri:Script").map((s) => s.iri), ["https://otra.dev/#kiri-pm"]);
 });
 
 Deno.test("graph.add(vocab): un grafo contiene un vocabulario, con sus prefijos, sin que el vocabulario cambie", () => {

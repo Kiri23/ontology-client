@@ -1,6 +1,6 @@
 // names.ts — how a name written in code becomes an IRI, and the few IRIs the library knows by heart.
 //
-// graph.ts, vocabulary.ts and the files of graph/ and vocabulary/ call it; nothing here touches a graph.
+// vocabulary.ts, graph.ts and the files next to this one call it; nothing here touches a graph.
 
 /** The SKOS namespace: every `skos:` name the library reads or writes hangs from it. */
 export const SKOS = "http://www.w3.org/2004/02/skos/core#";

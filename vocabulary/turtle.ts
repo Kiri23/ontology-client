@@ -1,5 +1,5 @@
 // turtle.ts — the way in and out of a file: Turtle text to statements and prefixes, a store back to Turtle, and the
-// disk. Graph (graph.ts) and Vocabulary (vocabulary.ts) both read and write with these, so a file comes out the same
+// disk. Vocabulary (vocabulary.ts) and Graph (graph.ts) both read and write with these, so a file comes out the same
 // from either.
 
 // @ts-types="@types/n3"

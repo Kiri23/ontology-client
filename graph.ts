@@ -2,43 +2,43 @@
  * A graph written in Turtle: the file, with resources of any type in it, a vocabulary among them.
  *
  * ```ts
- * import { Graph, ResourceEditor } from "jsr:@kiri23/ontology-client/graph";
+ * import { Graph, GraphNode } from "jsr:@kiri23/ontology-client/graph";
  *
  * const graph = Graph.create("https://example.com/scripts#").prefix("ex", "https://example.com/terms#");
- * graph.add(ResourceEditor.create("deploy").a("ex:Script").value("ex:path", "bin/deploy"));
+ * graph.add(GraphNode.create("deploy").a("ex:Script").value("ex:path", "bin/deploy"));
  * graph.instancesOf("ex:Script").map((s) => s.values("ex:path")); // [["bin/deploy"]]
  * graph.add(vocab); // a Vocabulary of ./vocabulary goes in a graph, not the other way round
  * graph.toTurtle();
  * ```
  *
- * Three pieces: the {@link Graph} (the file), a {@link ResourceEditor} (what you write about one resource, created on
- * its own and then added) and a {@link Resource} (what you read about one). A type of your own repo is a subclass of
- * ResourceEditor, in your repo: the library knows no type of anybody's.
+ * Three pieces: the {@link Graph} (the file), a {@link GraphNode} (what you write about one resource, created on its
+ * own and then added) and a {@link Resource} (what you read about one). A type of your own repo is a subclass of
+ * GraphNode, in your repo: the library knows no type of anybody's.
  *
  * In Deno, n3 needs `--allow-env=READABLE_STREAM`; `read` and `write` need `--allow-read` and `--allow-write`.
  *
  * @module
  */
 
-// graph.ts — the entry `./graph` of the package: the Graph class, and the names the files of graph/ export.
-// vocabulary.ts is built on the files of graph/. Nothing here is re-exported from mod.ts, so the client does not
-// load n3.
+// graph.ts — the entry `./graph` of the package: the Graph class and GraphNode (graph/node.ts). It reads and writes
+// with the same files of vocabulary/ that vocabulary.ts uses (names, order, Turtle, Resource and its editor), so a
+// file comes out the same from either. Nothing here is re-exported from mod.ts, so the client does not load n3.
 
 // @ts-types="@types/n3"
 import { DataFactory, type Quad, Store } from "n3";
-import { attach, loose, ResourceEditor } from "./graph/editor.ts";
-import { expand, expandPredicate } from "./graph/names.ts";
-import { inOrder, remember } from "./graph/order.ts";
-import { instancesOf, Resource, type Source } from "./graph/resource.ts";
-import { disk, parseTurtle, writeTurtle } from "./graph/turtle.ts";
+import { GraphNode } from "./graph/node.ts";
+import { ResourceEditor } from "./vocabulary/edit.ts";
+import { expand, expandPredicate } from "./vocabulary/names.ts";
+import { inOrder, remember } from "./vocabulary/order.ts";
+import { instancesOf, Resource, type Source } from "./vocabulary/terms.ts";
+import { disk, parseTurtle, writeTurtle } from "./vocabulary/turtle.ts";
 
-export { ResourceEditor } from "./graph/editor.ts";
-export { DCT, localName, namespaceOf, RDF, RDFS, SKOS } from "./graph/names.ts";
-export { type Literal, Resource, type Source, type SubjectNode } from "./graph/resource.ts";
+export { GraphNode } from "./graph/node.ts";
+export { type Literal, Resource, type Source, type SubjectNode } from "./vocabulary/terms.ts";
 
 const { namedNode } = DataFactory;
 
-/** What `graph.add()` copies whole: another Graph, or a Vocabulary. */
+/** What `graph.add()` copies whole: a Vocabulary, or another Graph. */
 export interface Statements {
   /** Every statement it has. */
   readonly store: Store;
@@ -52,7 +52,7 @@ export interface Statements {
  * ```ts
  * // Create, add, write
  * const graph = Graph.create("https://example.com/scripts#").language("en").prefix("ex", "https://example.com/terms#");
- * graph.add(ResourceEditor.create("deploy").a("ex:Script").label("Deploy"));
+ * graph.add(GraphNode.create("deploy").a("ex:Script").label("Deploy"));
  * graph.write("scripts.ttl");
  *
  * // Read
@@ -62,7 +62,7 @@ export interface Statements {
  * To add something general, follow what is here: a reading method returns Resources or what is written; a writing
  * method returns the graph, so it chains. Nothing about one repo belongs in this class.
  */
-export class Graph implements Source {
+export class Graph implements Source, Statements {
   /**
    * The n3 `Store` with every statement, as it is. Query it or add to it directly when the methods here fall short;
    * resources read from it every time, so they see what you add.
@@ -125,12 +125,12 @@ export class Graph implements Source {
   // Read
 
   /** Every resource of a type, by prefix or IRI, in the order they were written: `graph.instancesOf("ex:Script")`. */
-  instancesOf(type: string): Resource[] {
+  instancesOf(type: string): Resource<Graph>[] {
     return instancesOf(this, type);
   }
 
   /** Any resource by name, whether or not the graph says something about it. */
-  resource(name: string): Resource {
+  resource(name: string): Resource<Graph> {
     return new Resource(this, namedNode(this.iri(name)));
   }
 
@@ -151,17 +151,13 @@ export class Graph implements Source {
   /**
    * Puts something in the graph.
    *
-   * - A resource made with `create()`: its name and predicates become IRIs here, with the namespace and prefixes of
-   *   this graph, and what you write on it afterwards goes straight in. Throws when the name is taken, when it is
-   *   already in a graph, or on a prefix this graph does not declare; then nothing of it is written.
+   * - A node made with `create()`: its name and predicates become IRIs here, with the namespace and prefixes of this
+   *   graph. Throws when the name is taken or on a prefix this graph does not declare; then nothing of it is written.
    * - A Vocabulary or another Graph: a copy of its statements as they are now, and its prefixes. What it gets later
    *   does not come along. Throws if one of its prefixes means something else here.
    */
-  add(what: ResourceEditor | Statements): this {
-    if (what instanceof ResourceEditor) {
-      attach(what, this);
-      return this;
-    }
+  add(what: GraphNode | Statements): this {
+    if (what instanceof GraphNode) return this.#addNode(what);
     for (const [name, namespace] of Object.entries(what.prefixes)) {
       if (name in this.prefixes && this.prefixes[name] !== namespace) {
         throw new Error(`The prefix "${name}:" is <${this.prefixes[name]}> here and <${namespace}> in what is added`);
@@ -178,25 +174,31 @@ export class Graph implements Source {
   /**
    * The graph as Turtle text, one block per resource in the order they were written.
    *
-   * Throws when a resource made with `create()` was never given to `add()`: it would be missing from the file and
-   * nobody would notice. Add every resource before writing any graph.
-   *
    * **It is for files this library creates or generates, not for rewriting one written by hand**: the comments and
    * the layout of the original are gone.
    */
   toTurtle(): string {
-    const forgotten = loose();
-    if (forgotten.length > 0) {
-      throw new Error(
-        `${forgotten.map((n) => `"${n}"`).join(", ")} ${forgotten.length === 1 ? "was" : "were"} created and never ` +
-          "added to a graph: graph.add() each one before writing",
-      );
-    }
     return writeTurtle(this.store, this.prefixes, this.#namespace);
   }
 
-  /** Writes `toTurtle()` to a file, replacing it. Runs in Deno and Node. Throws like `toTurtle()`. */
+  /** Writes `toTurtle()` to a file, replacing it. Runs in Deno and Node. */
   write(path: string): void {
     disk("Graph").writeFileSync(path, this.toTurtle());
+  }
+
+  /** The node writes itself here; if something it kept is wrong, what it wrote is taken back and the error goes on. */
+  #addNode(node: GraphNode): this {
+    const subject = namedNode(this.iri(node.id));
+    if (this.store.countQuads(subject, null, null, null) > 0) {
+      throw new Error(`"${node.id}" is already in this graph (<${subject.value}>)`);
+    }
+    try {
+      node.writeWith(new ResourceEditor(this, subject));
+    } catch (error) {
+      this.store.removeQuads(this.store.getQuads(subject, null, null, null));
+      throw error;
+    }
+    remember(this.store, subject.value);
+    return this;
   }
 }

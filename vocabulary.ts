@@ -18,35 +18,27 @@
  * The library knows SKOS and nothing about any repo. What a repo adds (a predicate, a type, a rule) is
  * built on top with `values()`, `where()`, `instancesOf()` and the store.
  *
- * A vocabulary is one more resource of a graph: to put it in one file with scripts, pages or anything else, use the
- * entry `./graph` and `graph.add(vocab)`.
- *
  * In Deno, n3 needs `--allow-env=READABLE_STREAM`; `read` and `write` need `--allow-read` and `--allow-write`.
  *
  * @module
  */
 
 // vocabulary.ts — the entry `./vocabulary` of the package: the Vocabulary class, and the names the files of
-// vocabulary/ export. It is built on the files of graph/ (the entry `./graph`): a resource, its editor, names, order
-// and Turtle. It is not re-exported from mod.ts, so importing the client does not load n3.
+// vocabulary/ export. It is not re-exported from mod.ts, so importing the client does not load n3.
 
 // @ts-types="@types/n3"
 import { DataFactory, type NamedNode, type Quad, Store } from "n3";
-import { ResourceEditor } from "./graph/editor.ts";
-import { expand, expandPredicate, namespaceOf, RDF_TYPE, SKOS } from "./graph/names.ts";
-import { inOrder, remember } from "./graph/order.ts";
-import { instancesOf, Resource } from "./graph/resource.ts";
-import { disk, parseTurtle, writeTurtle } from "./graph/turtle.ts";
 import { Check } from "./vocabulary/check.ts";
-import { TermEditor } from "./vocabulary/edit.ts";
-import { isTerm, Term, Terms } from "./vocabulary/terms.ts";
+import { ResourceEditor, TermEditor } from "./vocabulary/edit.ts";
+import { expand, expandPredicate, namespaceOf, RDF_TYPE, SKOS } from "./vocabulary/names.ts";
+import { inOrder, remember } from "./vocabulary/order.ts";
+import { instancesOf, isTerm, Resource, Term, Terms } from "./vocabulary/terms.ts";
+import { disk, parseTurtle, writeTurtle } from "./vocabulary/turtle.ts";
 
-export { ResourceEditor } from "./graph/editor.ts";
-export { DCT, localName, namespaceOf, RDF, RDFS, SKOS } from "./graph/names.ts";
-export { type Literal, Resource, type SubjectNode } from "./graph/resource.ts";
 export { Check, type Problem, type Rule } from "./vocabulary/check.ts";
-export { TermEditor } from "./vocabulary/edit.ts";
-export { Term, Terms, Where } from "./vocabulary/terms.ts";
+export { ResourceEditor, TermEditor } from "./vocabulary/edit.ts";
+export { DCT, localName, namespaceOf, RDF, RDFS, SKOS } from "./vocabulary/names.ts";
+export { type Literal, Resource, type SubjectNode, Term, Terms, Where } from "./vocabulary/terms.ts";
 
 const { namedNode, quad } = DataFactory;
 

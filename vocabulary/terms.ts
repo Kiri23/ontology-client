@@ -1,5 +1,5 @@
-// terms.ts — what you read from a vocabulary besides what any Resource answers (graph/resource.ts): a Term (a
-// skos:Concept) and Terms (a list of terms you keep chaining on).
+// terms.ts — what you read from a vocabulary: a Resource (anything with an IRI), a Term (a skos:Concept) and Terms
+// (a list of terms you keep chaining on).
 //
 // vocabulary.ts hands these out; they read the graph every time, so they never go stale after an edit.
 //
@@ -7,13 +7,154 @@
 // nothing else. The library never translates or tidies a label or a definition.
 
 // @ts-types="@types/n3"
-import { DataFactory, type NamedNode, type Quad } from "n3";
+import { type BlankNode, DataFactory, type NamedNode, type Quad, type Store } from "n3";
 import type { Vocabulary } from "../vocabulary.ts";
-import { RDF_TYPE, SKOS } from "../graph/names.ts";
-import { inOrder } from "../graph/order.ts";
-import { Resource } from "../graph/resource.ts";
+import { localName, RDF_TYPE, RDFS, SKOS } from "./names.ts";
+import { inOrder } from "./order.ts";
 
 const { namedNode } = DataFactory;
+
+/** Where a resource lives: a Vocabulary, or a Graph (graph.ts). What a Resource and its editor need from it. */
+export interface Source {
+  /** The n3 `Store` with every statement. */
+  readonly store: Store;
+  /** The language new labels are written in; `""` when none was set. */
+  readonly defaultLanguage: string;
+  /** The IRI of a name: bare, by prefix or whole. */
+  iri(name: string): string;
+  /** The IRI of a predicate or a type: by prefix or whole, never bare. */
+  predicate(name: string): string;
+}
+
+/** A text as it is written in the Turtle, with its language. */
+export interface Literal {
+  /** The text, untouched. */
+  value: string;
+  /** The language tag, in lowercase (`"en"`, `"es-mx"`); `""` when the text has none. */
+  language: string;
+}
+
+/** The node of a subject: an IRI or a blank node. */
+export type SubjectNode = NamedNode | BlankNode;
+
+const same = (a: string, b: string) => a.toLowerCase() === b.toLowerCase();
+
+/**
+ * Anything the vocabulary describes: a term, the concept scheme, or a resource of a type of your own (a page, a
+ * person…). It answers what is written about it, by predicate.
+ *
+ * ```ts
+ * const page = vocab.instancesOf("doc:Page")[0];
+ * page.values("doc:path"); // ["tutorial/getting-started.md"]
+ * ```
+ */
+export class Resource<From extends Source = Vocabulary> {
+  /** Where this resource was read from: the vocabulary or, for one of a Graph, the graph. */
+  readonly vocabulary: From;
+  /** The n3 node, for when you go down to `vocabulary.store`. */
+  readonly node: SubjectNode;
+
+  /** Use `vocabulary.term()`, `vocabulary.resource()` or `vocabulary.instancesOf()` instead of building one. */
+  constructor(vocabulary: From, node: SubjectNode) {
+    this.vocabulary = vocabulary;
+    this.node = node;
+  }
+
+  /** The whole IRI. For a blank node, the label n3 gave it. */
+  get iri(): string {
+    return this.node.value;
+  }
+
+  /** The local name: what follows the last `#` or `/` of the IRI. */
+  get id(): string {
+    return localName(this.node.value);
+  }
+
+  /** Whether it is a blank node: something without an IRI of its own. */
+  get blank(): boolean {
+    return this.node.termType === "BlankNode";
+  }
+
+  /** The IRIs of its types (`a …`). */
+  types(): string[] {
+    return this.values(RDF_TYPE);
+  }
+
+  /**
+   * Every value written for a predicate: the IRI of each resource and the text of each literal.
+   *
+   * The predicate goes by prefix (`"doc:symbol"`, with the prefix the Turtle declares) or as a whole IRI. This is
+   * how you read a predicate of your own repo.
+   */
+  values(predicate: string): string[] {
+    return this.#objects(predicate).map((o) => o.value);
+  }
+
+  /** The texts written for a predicate, each with its language. Leaves out what is not a literal. */
+  literals(predicate: string): Literal[] {
+    return this.#objects(predicate).flatMap((o) =>
+      o.termType === "Literal" ? [{ value: o.value, language: o.language }] : []
+    );
+  }
+
+  /**
+   * The `skos:prefLabel` as it is written. With a language, the one in that language; without, the first one
+   * written. `undefined` when there is none: the library does not make one up.
+   */
+  label(language?: string): string | undefined {
+    return this.#texts(`${SKOS}prefLabel`, language)[0];
+  }
+
+  /** The `skos:altLabel`s; with a language, only the ones in it. */
+  altLabels(language?: string): string[] {
+    return this.#texts(`${SKOS}altLabel`, language);
+  }
+
+  /** The `skos:definition` as it is written; same choice of language as `label()`. */
+  definition(language?: string): string | undefined {
+    return this.#texts(`${SKOS}definition`, language)[0];
+  }
+
+  /** The `skos:example`s; with a language, only the ones in it. */
+  examples(language?: string): string[] {
+    return this.#texts(`${SKOS}example`, language);
+  }
+
+  /** The `rdfs:seeAlso` links. */
+  seeAlso(): string[] {
+    return this.values(`${RDFS}seeAlso`);
+  }
+
+  /**
+   * The resources that point here with a predicate: `term.referencedBy("dct:references")` are the pages that use the
+   * term. It is `values()` read from the other end.
+   */
+  referencedBy(predicate: string): Resource<From>[] {
+    const { store } = this.vocabulary;
+    const subjects = store.getSubjects(namedNode(this.vocabulary.predicate(predicate)), this.node, null);
+    return inOrder(store, subjects as SubjectNode[]).map((s) => new Resource(this.vocabulary, s));
+  }
+
+  /** Every statement that has this resource as subject, as n3 quads. */
+  quads(): Quad[] {
+    return this.vocabulary.store.getQuads(this.node, null, null, null);
+  }
+
+  #objects(predicate: string): Quad["object"][] {
+    return this.vocabulary.store.getObjects(this.node, namedNode(this.vocabulary.predicate(predicate)), null);
+  }
+
+  #texts(predicate: string, language?: string): string[] {
+    const written = this.literals(predicate);
+    return (language === undefined ? written : written.filter((l) => same(l.language, language))).map((l) => l.value);
+  }
+}
+
+/** Every resource of a type, in the order they were written. Vocabulary and Graph answer `instancesOf()` with it. */
+export function instancesOf<From extends Source>(from: From, type: string): Resource<From>[] {
+  const subjects = from.store.getSubjects(namedNode(RDF_TYPE), namedNode(from.predicate(type)), null);
+  return inOrder(from.store, subjects as SubjectNode[]).map((node) => new Resource(from, node));
+}
 
 /** Whether a node is a term: an IRI that is `a skos:Concept` and is not the concept scheme itself. */
 export function isTerm(vocabulary: Vocabulary, node: { termType: string; value: string }): node is NamedNode {
@@ -35,19 +176,6 @@ export function isTerm(vocabulary: Vocabulary, node: { termType: string; value: 
  * still there as an IRI: `term.values("skos:broader")`.
  */
 export class Term extends Resource {
-  /** The vocabulary the term was read from. */
-  declare readonly graph: Vocabulary;
-
-  /** Use `vocabulary.term()` or `vocabulary.terms()` instead of building one. */
-  constructor(vocabulary: Vocabulary, node: NamedNode) {
-    super(vocabulary, node);
-  }
-
-  /** The vocabulary the term was read from: the same as `graph`. */
-  get vocabulary(): Vocabulary {
-    return this.graph;
-  }
-
   /** The terms one step more general: its `skos:broader`, and whoever names it as `skos:narrower`. */
   broader(): Terms {
     return this.#terms([...this.#written("broader"), ...this.#inverse("narrower")]);

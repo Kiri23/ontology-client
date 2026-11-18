@@ -13,10 +13,9 @@
 // @ts-types="@types/n3"
 import { DataFactory, type Quad } from "n3";
 import type { Vocabulary } from "../vocabulary.ts";
-import { localName, namespaceOf, RDF_TYPE, RDFS, SKOS } from "../graph/names.ts";
-import { inOrder } from "../graph/order.ts";
-import { type Literal, Resource, type SubjectNode } from "../graph/resource.ts";
-import { isTerm } from "./terms.ts";
+import { localName, namespaceOf, RDF_TYPE, RDFS, SKOS } from "./names.ts";
+import { inOrder } from "./order.ts";
+import { isTerm, type Literal, Resource, type SubjectNode } from "./terms.ts";
 
 const { namedNode } = DataFactory;
 
@@ -250,7 +249,7 @@ function candidatesOf(vocabulary: Vocabulary): Resource[] {
 
 /** The IRIs one step above a term: its `skos:broader`, and whoever names it as `skos:narrower`. */
 function hierarchy(term: Resource): string[] {
-  const { store } = term.graph;
+  const { store } = term.vocabulary;
   const named = store.getSubjects(namedNode(`${SKOS}narrower`), term.node, null).map((s) => s.value);
   return [...new Set([...term.values(`${SKOS}broader`), ...named])];
 }
@@ -364,7 +363,7 @@ function relations(c: Resource, known: Map<string, Node>, checked: Set<string>):
 
 function seeAlso(c: Resource): Problem[] {
   const found: Problem[] = [];
-  for (const o of c.graph.store.getObjects(c.node, namedNode(`${RDFS}seeAlso`), null)) {
+  for (const o of c.vocabulary.store.getObjects(c.node, namedNode(`${RDFS}seeAlso`), null)) {
     if (o.termType !== "NamedNode") {
       found.push({
         term: c.iri,
