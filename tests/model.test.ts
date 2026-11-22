@@ -70,6 +70,34 @@ Deno.test("writeFiles deja los archivos al lado del dominio, y generar dos veces
   assertEquals(jardin(dir).runCli(["--check"]), 1);
 });
 
+Deno.test("fileOrigins dice de dónde sale cada archivo: el modelo, la consulta a mano y las instancias", () => {
+  assertEquals([...jardin(carpeta()).fileOrigins()], [
+    ["ontologia/planta.ttl", "model Planta"],
+    ["ontologia/planta-reglas.ttl", "model Planta"],
+    ["ontologia/riego.rq", 'query "riego" (written by hand)'],
+    ["plantas/plantas.ttl", "5 instances"],
+  ]);
+});
+
+Deno.test("runCli imprime primero la carpeta y después cada archivo con su origen; la consulta no dice wrote", () => {
+  const dir = carpeta();
+  const lineas: string[] = [];
+  const original = console.log;
+  console.log = (linea: string) => lineas.push(linea);
+  try {
+    assertEquals(jardin(dir).runCli([]), 0);
+  } finally {
+    console.log = original;
+  }
+  assertEquals(lineas, [
+    `jardin: files in ${dir.pathname}`,
+    "wrote ontologia/planta.ttl         ← model Planta",
+    "wrote ontologia/planta-reglas.ttl  ← model Planta",
+    'ok    ontologia/riego.rq           ← query "riego" (written by hand)',
+    "wrote plantas/plantas.ttl          ← 5 instances",
+  ]);
+});
+
 Deno.test("runCli: un argumento que no es --check lanza y no escribe nada", () => {
   const dir = carpeta();
   assertThrows(() => jardin(dir).runCli(["--chek"]), Error, '"--chek" is not an argument');
