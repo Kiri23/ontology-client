@@ -177,3 +177,11 @@ Deno.test("la forma lanza donde se escribe mal: un nivel equivocado, un nombre t
   Object.defineProperty(Mala, "shape", { value: rota });
   assertThrows(() => dominio.model(Mala).files(), Error, "Mala.t: the SHACL in .shacl() is not Turtle");
 });
+
+Deno.test("el modelo de Planta de docs/model-api.md es el que prueba este archivo, letra por letra", () => {
+  const clase = (texto: string) => texto.match(/^class Planta extends Model \{\n[\s\S]*?\n\}$/m)?.[0];
+  const doc = Deno.readTextFileSync(new URL("../docs/model-api.md", import.meta.url));
+  const test = Deno.readTextFileSync(new URL(import.meta.url));
+  assert(clase(test), "este archivo tiene la clase Planta");
+  assertEquals(clase(doc), clase(test));
+});
