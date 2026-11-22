@@ -33,14 +33,14 @@ const STANDARD = { rdf: RDF, rdfs: RDFS, sh: SH, xsd: XSD };
 export function classGraph(shape: ShapeData, context: Context): Graph {
   const graph = empty(context);
   const name = className(shape.model);
-  const owner = GraphNode.create(name).a("rdfs:Class");
+  const owner = GraphNode.withId(name).ofType("rdfs:Class");
   if (shape.label !== undefined) owner.value("rdfs:label", shape.label);
   if (shape.comment !== undefined) owner.value("rdfs:comment", shape.comment);
   graph.add(owner);
   for (const property of shape.properties) {
-    const iri = graph.iri(property.predicate ?? property.key);
+    const iri = graph.iri(property.writtenAs ?? property.key);
     if (!iri.startsWith(context.namespace)) continue;
-    const node = GraphNode.create(iri).a("rdf:Property").link("rdfs:domain", name);
+    const node = GraphNode.withId(iri).ofType("rdf:Property").link("rdfs:domain", name);
     const range = rangeOf(property);
     if (range !== undefined) node.link("rdfs:range", typeof range === "string" ? range : className(range));
     if (property.comment !== undefined) node.value("rdfs:comment", property.comment);
@@ -58,27 +58,29 @@ export function rulesGraph(shape: ShapeData, context: Context): Graph {
   const graph = empty(context);
   const name = className(shape.model);
   const main = namedNode(graph.iri(`${name}Shape`));
-  graph.add(GraphNode.create(main.value).a("sh:NodeShape").link("sh:targetClass", name));
+  graph.add(GraphNode.withId(main.value).ofType("sh:NodeShape").link("sh:targetClass", name));
   const { store } = graph;
   const add = (subject: Quad_Subject, predicate: string, object: Quad_Object) =>
     store.addQuad(quad(subject, namedNode(predicate), object));
 
-  if (shape.closed) {
+  if (shape.noExtraProperties) {
     add(main, `${SH}closed`, literal("true", namedNode(`${XSD}boolean`)));
     add(main, `${SH}ignoredProperties`, list(store, [namedNode(`${RDF}type`)]));
-    if (shape.closed.message !== undefined) add(main, `${SH}message`, literal(shape.closed.message));
+    if (shape.noExtraProperties.errorMessage !== undefined) {
+      add(main, `${SH}message`, literal(shape.noExtraProperties.errorMessage));
+    }
   }
   for (const property of shape.properties) {
     const node = blankNode();
     add(main, `${SH}property`, node);
-    add(node, `${SH}path`, namedNode(graph.iri(property.predicate ?? property.key)));
-    add(node, `${SH}name`, literal(property.name ?? property.key));
+    add(node, `${SH}path`, namedNode(graph.iri(property.writtenAs ?? property.key)));
+    add(node, `${SH}name`, literal(property.displayName ?? property.key));
     for (const [predicate, object] of constraintsOf(property, graph)) add(node, predicate, object);
-    if (property.message !== undefined) add(node, `${SH}message`, literal(property.message));
+    if (property.errorMessage !== undefined) add(node, `${SH}message`, literal(property.errorMessage));
     for (const turtle of property.shacl) raw(store, node, turtle, context, `${name}.${property.key}`);
   }
   shape.nodeRules.forEach((turtle, i) => {
-    const rule = GraphNode.create(`${name}Shape${i + 2}`).a("sh:NodeShape").link("sh:targetClass", name);
+    const rule = GraphNode.withId(`${name}Shape${i + 2}`).ofType("sh:NodeShape").link("sh:targetClass", name);
     graph.add(rule);
     raw(store, namedNode(graph.iri(rule.id)), turtle, context, `${name} (rule ${i + 1})`);
   });
@@ -162,7 +164,7 @@ function raw(store: Graph["store"], subject: Quad_Subject, turtle: string, conte
 }
 
 function empty(context: Context): Graph {
-  const graph = Graph.create(context.namespace);
+  const graph = Graph.inNamespace(context.namespace);
   for (const [prefix, namespace] of Object.entries({ [context.prefix]: context.namespace, ...STANDARD })) {
     graph.prefix(prefix, namespace);
   }

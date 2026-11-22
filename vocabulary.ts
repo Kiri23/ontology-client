@@ -53,10 +53,10 @@ const { namedNode, quad } = DataFactory;
  * vocab.instancesOf("doc:Page").map((page) => page.values("doc:path"));
  *
  * // Create
- * const fresh = Vocabulary.create("https://example.com/vocabulary#").language("en");
+ * const fresh = Vocabulary.inNamespace("https://example.com/vocabulary#").language("en");
  * fresh.scheme("vocabulary").label("Demo");
- * fresh.add("provider").label("Provider").definition("Who serves the model.");
- * fresh.add("harness").label("Harness").definition("…").broader("provider");
+ * fresh.addTerm("provider").label("Provider").definition("Who serves the model.");
+ * fresh.addTerm("harness").label("Harness").definition("…").broader("provider");
  * fresh.toTurtle();
  * ```
  *
@@ -104,14 +104,14 @@ export class Vocabulary {
 
   /**
    * An empty vocabulary whose terms will live in `namespace` (`"https://example.com/vocabulary#"`). Fill it with
-   * `scheme(id)` and `add(id)`.
+   * `scheme(id)` and `addTerm(id)`.
    */
-  static create(namespace: string): Vocabulary {
+  static inNamespace(namespace: string): Vocabulary {
     return new Vocabulary([], { skos: SKOS }, namespace);
   }
 
   /**
-   * Where a bare name like `"provider"` lives. The one given to `create`; for a vocabulary that was read, the
+   * Where a bare name like `"provider"` lives. The one given to `inNamespace`; for a vocabulary that was read, the
    * namespace its terms share, or `undefined` if they do not share one.
    */
   get namespace(): string | undefined {
@@ -229,7 +229,7 @@ export class Vocabulary {
    * Adds a term and returns its editor. It is born `a skos:Concept`, and in the concept scheme when the vocabulary
    * has exactly one. Throws when the name is taken: use `edit()` for a term that exists.
    */
-  add(id: string): TermEditor {
+  addTerm(id: string): TermEditor {
     const node = namedNode(this.iri(id));
     if (this.store.countQuads(node, null, null, null) > 0) {
       throw new Error(`"${id}" is already in this vocabulary (<${node.value}>): use edit("${id}") to change it`);

@@ -13,10 +13,10 @@ Like it, importing `@kiri23/ontology-client` does not load it, nor n3.
 import { Graph, GraphNode } from "jsr:@kiri23/ontology-client@0.5.0/graph";
 
 const KIRI = "https://kiri231.com/kiri#";
-const graph = Graph.create("https://kiri231.com/scripts#").prefix("kiri", KIRI).language("en");
+const graph = Graph.inNamespace("https://kiri231.com/scripts#").prefix("kiri", KIRI).language("en");
 
-graph.add(GraphNode.create("kiri-pm").a("kiri:Script").value("kiri:ruta", "bin/kiri-pm"));
-graph.add(GraphNode.create("kiri-api").a("kiri:Script").link("kiri:usa", "kiri-pm").label("API"));
+graph.add(GraphNode.withId("kiri-pm").ofType("kiri:Script").value("kiri:ruta", "bin/kiri-pm"));
+graph.add(GraphNode.withId("kiri-api").ofType("kiri:Script").link("kiri:usa", "kiri-pm").label("API"));
 
 graph.instancesOf("kiri:Script").map((s) => s.id); // ["kiri-pm", "kiri-api"]
 graph.toTurtle(); // or graph.write("generado/scripts.ttl")
@@ -37,15 +37,15 @@ The library knows no type of anybody's. A type of your repo is a subclass of `Gr
 
 ```ts
 class Script extends GraphNode {
-  static override create(id: string): Script {
-    return new Script(id).a("kiri:Script");
+  static override withId(id: string): Script {
+    return new Script(id).ofType("kiri:Script");
   }
   ruta(p: string): this {
     return this.value("kiri:ruta", p);
   }
 }
 
-graph.add(Script.create("kiri-pm").ruta("bin/kiri-pm").label("Project manager"));
+graph.add(Script.withId("kiri-pm").ruta("bin/kiri-pm").label("Project manager"));
 ```
 
 Every method of the base returns `this`, so `.label()` gives back a `Script` and `.ruta()` still works after it. Deno
@@ -74,7 +74,7 @@ it. Three things follow from that:
   expands with that graph's prefixes, so a prefix declared after `create()` still works. A prefix the graph does not
   know throws in the `add`, and nothing of that node is written. The same node can go in two graphs.
 - **A forgotten `add` is silent.** A node that is never added is in no file and nothing says so, like a value you never
-  pushed to a list. Create it inside the `add()`: `graph.add(Script.create(…))`.
+  pushed to a list. Create it inside the `add()`: `graph.add(Script.withId(…))`.
 - **After the `add`, the node is closed.** Writing on it again throws, because it would not reach the graph. To change
   what is in a graph, go to `graph.store`.
 

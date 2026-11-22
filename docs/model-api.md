@@ -19,16 +19,16 @@ class Planta extends Model {
   static shape = Shape.of(Planta)
     .label("Planta")
     .comment("Una planta de la casa: cómo se llama, cada cuántos días se riega y cuánta luz quiere.")
-    .instancesIn("https://github.com/Kiri23/ontology-ejemplo/planta/")
-    .text("nombre").predicate("rdfs:label").exactly(1)
-    .message("Una planta tiene exactamente un nombre (rdfs:label).")
-    .integer("riegoCadaDias").name("riego cada días").exactly(1)
+    .instanceNamespace("https://github.com/Kiri23/ontology-ejemplo/planta/")
+    .text("nombre").writtenAs("rdfs:label").exactly(1)
+    .errorMessage("Una planta tiene exactamente un nombre (rdfs:label).")
+    .integer("riegoCadaDias").displayName("riego cada días").exactly(1)
     .comment("Cada cuántos días se riega: 7 es una vez por semana.")
     .shacl("sh:minInclusive 1")
-    .message("Una planta se riega cada 1 día o más (jardin:riegoCadaDias, un entero).")
+    .errorMessage("Una planta se riega cada 1 día o más (jardin:riegoCadaDias, un entero).")
     .text("luz").exactly(1).oneOf("sol", "media", "sombra")
     .comment('Cuánta luz quiere: "sol", "media" o "sombra".')
-    .message('La luz de una planta es "sol", "media" o "sombra".');
+    .errorMessage('La luz de una planta es "sol", "media" o "sombra".');
 }
 ```
 
@@ -42,20 +42,20 @@ The instances and the domain, in the same file or in others:
 import { Domain, Model, Shape } from "jsr:@kiri23/ontology-client@0.6.0/model";
 
 const plantas = [
-  Planta.create("pothos").nombre("pothos").riegoCadaDias(7).luz("media"),
-  Planta.create("aloe").nombre("aloe").riegoCadaDias(21).luz("sol"),
+  Planta.withId("pothos").nombre("pothos").riegoCadaDias(7).luz("media"),
+  Planta.withId("aloe").nombre("aloe").riegoCadaDias(21).luz("sol"),
 ];
 
-const jardin = Domain.create("jardin").at(import.meta)
+const jardin = Domain.named("jardin").inFolderOf(import.meta)
   .namespace("https://github.com/Kiri23/ontology-ejemplo/jardin#")
   .model(Planta)
   .query("riego")
-  .instances(plantas).in("plantas/plantas.ttl");
+  .instances(plantas).toFile("plantas/plantas.ttl");
 
-if (import.meta.main) Deno.exit(jardin.main(Deno.args));
+if (import.meta.main) Deno.exit(jardin.runCli(Deno.args));
 ```
 
-`Planta.create("pothos")` gives an instance with one setter per property, typed: `.luz("mucha")` and
+`Planta.withId("pothos")` gives an instance with one setter per property, typed: `.luz("mucha")` and
 `.riegoCadaDias("7")` do not compile. It lives in memory; files are written when the domain generates.
 
 ## Generate
@@ -69,17 +69,17 @@ deno run --allow-read=. --allow-write=. --allow-env=READABLE_STREAM dominio.ts -
 
 It writes, next to the file given to `at(import.meta)`:
 
-| File                          | What                                                        |
-| ----------------------------- | ----------------------------------------------------------- |
-| `ontologia/planta.ttl`        | the class and the properties in the domain's namespace      |
-| `ontologia/planta-reglas.ttl` | `jardin:PlantaShape`, a property shape per property         |
-| `plantas/plantas.ttl`         | the instances, where `.in()` says (`jardin.ttl` without it) |
+| File                          | What                                                            |
+| ----------------------------- | --------------------------------------------------------------- |
+| `ontologia/planta.ttl`        | the class and the properties in the domain's namespace          |
+| `ontologia/planta-reglas.ttl` | `jardin:PlantaShape`, a property shape per property             |
+| `plantas/plantas.ttl`         | the instances, where `.toFile()` says (`jardin.ttl` without it) |
 
 Generating twice changes nothing: properties come in the order they were declared, instances in the order of their list,
 and blank nodes are written inside, as `[ … ]`. The queries are not generated: `.query("riego")` only checks that
 `ontologia/riego.rq`, written by hand, is there.
 
-Without Deno's `main`, `domain.files()` gives every file as text, `domain.graphs()` as a [Graph](graph-api.md) whose
+Without Deno's `main`, `domain.toFiles()` gives every file as text, `domain.toGraphs()` as a [Graph](graph-api.md) whose
 `store` you can read, and `domain.check()` the paths that are not up to date.
 
 ## What a shape says
@@ -89,7 +89,7 @@ The chain has two levels, and the types say which one you are in. First the clas
 | Method                | Writes                                                         |
 | --------------------- | -------------------------------------------------------------- |
 | `label`, `comment`    | `rdfs:label`, `rdfs:comment` of the class                      |
-| `instancesIn(ns)`     | nothing: `Planta.create("pothos")` is `<ns>pothos`             |
+| `instancesIn(ns)`     | nothing: `Planta.withId("pothos")` is `<ns>pothos`             |
 | `shacl(turtle)`       | a NodeShape of its own (`PlantaShape2`…), with its own message |
 | `closed()`, `message` | `sh:closed true`, `sh:ignoredProperties (rdf:type)`            |
 
@@ -114,7 +114,7 @@ with its `xsd:` datatype) or `link` (another resource). What follows is about th
 ## When things throw
 
 - **A key that is a method of every node** (`label`, `value`, `link`, `a`, `id`…) throws in the shape: it would hide it.
-  Give another key and say the predicate: `.text("nombre").predicate("rdfs:label")`.
+  Give another key and say the predicate: `.text("nombre").writtenAs("rdfs:label")`.
 - **An instance of a closed class that writes something outside its shape** throws when generating, naming the instance
   and the predicate, instead of failing later in the engine's report. `label()` writes `skos:prefLabel`.
 - **A query without its `.rq`** throws in `write` and `check`, and nothing is written.

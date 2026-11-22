@@ -4,7 +4,7 @@
 //
 // The chain is flat but has levels, and the types say which one you are in: first the class (label, comment, …),
 // then one property after another (each opened by `text`, `integer`, `link`…). Once in the properties, `comment`
-// and `message` are about the property that was opened last.
+// and `errorMessage` are about the property that was opened last.
 //
 // To add a kind of property, add it to DATATYPES (a literal) or follow `link` (a resource), and a method that opens it.
 
@@ -16,12 +16,12 @@ export type ModelClass = abstract new (...args: any[]) => unknown;
 
 /** What a property declares, as data. */
 export interface PropertyData {
-  /** The name it has in code: the method that writes it on an instance, and its `sh:name` unless `name()` says one. */
+  /** The name it has in code: the method that writes it on an instance, and its `sh:name` unless `displayName()` says one. */
   readonly key: string;
   /** What kind of value it takes: a literal of DATATYPES, a link to a resource of some classes, or any IRI. */
   readonly kind: keyof typeof DATATYPES | "link";
-  predicate?: string;
-  name?: string;
+  writtenAs?: string;
+  displayName?: string;
   comment?: string;
   min?: number;
   max?: number;
@@ -29,7 +29,7 @@ export interface PropertyData {
   targets: (ModelClass | string)[];
   /** The only values it admits (`sh:in`), when it says so. */
   oneOf?: (string | number | boolean)[];
-  message?: string;
+  errorMessage?: string;
   /** SHACL written by hand, as Turtle, for what the builder does not cover. */
   shacl: string[];
 }
@@ -40,10 +40,10 @@ export interface ShapeData {
   readonly model: ModelClass;
   label?: string;
   comment?: string;
-  /** Where the IRIs of its instances go: `Planta.create("pothos")` is `<instancesIn>pothos`. */
-  instancesIn?: string;
+  /** Where the IRIs of its instances go: `Planta.withId("pothos")` is `<instanceNamespace>pothos`. */
+  instanceNamespace?: string;
   /** Present when the class admits no property it does not declare. */
-  closed?: { message?: string };
+  noExtraProperties?: { errorMessage?: string };
   /** Rules on the whole node written by hand, as Turtle: each one is a NodeShape of its own, with its own message. */
   readonly nodeRules: string[];
   readonly properties: PropertyData[];
@@ -71,7 +71,7 @@ interface ValueOf {
 /** The setters of a model's instances, as a type: one per property, named after its key. */
 export type Props = Record<string, unknown>;
 
-/** Every level of the chain carries the properties declared so far; `Model.create` reads them from here. */
+/** Every level of the chain carries the properties declared so far; `Model.withId` reads them from here. */
 export interface Declared<P extends Props> {
   /** The data of the shape. */
   readonly data: ShapeData;
@@ -97,7 +97,7 @@ export interface Opens<P extends Props> extends Declared<P> {
    * The class admits no property it does not declare (`sh:closed`). Its type is always allowed. Generating throws if
    * an instance writes something else.
    */
-  closed(): ClosedLevel<P>;
+  noExtraProperties(): ClosedLevel<P>;
 }
 
 /** The first level: the class itself. */
@@ -106,8 +106,8 @@ export interface ClassLevel<P extends Props> extends Opens<P> {
   label(text: string): ClassLevel<P>;
   /** What the class is, in a sentence (`rdfs:comment`). */
   comment(text: string): ClassLevel<P>;
-  /** Where the IRIs of its instances go: `.instancesIn("https://example.com/plant/")`. It writes no statement. */
-  instancesIn(namespace: string): ClassLevel<P>;
+  /** Where the IRIs of its instances go: `.instanceNamespace("https://example.com/plant/")`. It writes no statement. */
+  instanceNamespace(namespace: string): ClassLevel<P>;
   /**
    * A rule on the whole node that the builder does not cover, as Turtle: what goes after the subject, with the
    * prefixes of the domain and `sh:`, `xsd:`, `rdf:`, `rdfs:`. It becomes a NodeShape of its own, so its
@@ -118,10 +118,10 @@ export interface ClassLevel<P extends Props> extends Opens<P> {
 
 /** The level of one property, the one opened last. */
 export interface PropertyLevel<P extends Props, K extends string> extends Opens<P> {
-  /** The predicate it is written with, when it is not `<namespace of the domain><key>`: `.predicate("rdfs:label")`. */
-  predicate(name: string): PropertyLevel<P, K>;
+  /** The predicate it is written with, when it is not `<namespace of the domain><key>`: `.writtenAs("rdfs:label")`. */
+  writtenAs(name: string): PropertyLevel<P, K>;
   /** Its name for a person (`sh:name`), when it is not the key. */
-  name(text: string): PropertyLevel<P, K>;
+  displayName(text: string): PropertyLevel<P, K>;
   /** What it is, in a sentence (`rdfs:comment` in the class file). */
   comment(text: string): PropertyLevel<P, K>;
   /** Exactly this many values. */
@@ -135,7 +135,7 @@ export interface PropertyLevel<P extends Props, K extends string> extends Opens<
   /** The only values it admits (`sh:in`). The setter then takes only those. */
   oneOf<V extends P[K]>(...values: V[]): PropertyLevel<Omit<P, K> & Record<K, V>, K>;
   /** What the report says when a value breaks a rule of this property (`sh:message`). */
-  message(text: string): PropertyLevel<P, K>;
+  errorMessage(text: string): PropertyLevel<P, K>;
   /**
    * A rule the builder does not cover, as Turtle: what goes inside the property shape, with the prefixes of the domain
    * and `sh:`, `xsd:`, `rdf:`, `rdfs:`. `.shacl("sh:minInclusive 1")`.
@@ -143,16 +143,16 @@ export interface PropertyLevel<P extends Props, K extends string> extends Opens<
   shacl(turtle: string): PropertyLevel<P, K>;
 }
 
-/** The level right after `closed()`. */
+/** The level right after `noExtraProperties()`. */
 export interface ClosedLevel<P extends Props> extends Opens<P> {
   /** What the report says when an instance has a property the class does not declare. */
-  message(text: string): ClosedLevel<P>;
+  errorMessage(text: string): ClosedLevel<P>;
 }
 
 /** Keys that are already methods of every instance: a property named like one would hide it. */
 const TAKEN = new Set([
   "id",
-  "a",
+  "ofType",
   "label",
   "definition",
   "seeAlso",
@@ -201,8 +201,8 @@ export class Shape {
     return this;
   }
 
-  instancesIn(namespace: string): this {
-    this.#at("class", "instancesIn").instancesIn = namespace;
+  instanceNamespace(namespace: string): this {
+    this.#at("class", "instanceNamespace").instanceNamespace = namespace;
     return this;
   }
 
@@ -212,9 +212,9 @@ export class Shape {
     return this;
   }
 
-  closed(): this {
-    if (this.data.closed) throw new Error(`${this.#name}: closed() is said once`);
-    this.data.closed = {};
+  noExtraProperties(): this {
+    if (this.data.noExtraProperties) throw new Error(`${this.#name}: noExtraProperties() is said once`);
+    this.data.noExtraProperties = {};
     this.#level = "closed";
     return this;
   }
@@ -243,13 +243,13 @@ export class Shape {
     return this.#open(key, "link");
   }
 
-  predicate(name: string): this {
-    this.#property("predicate").predicate = name;
+  writtenAs(name: string): this {
+    this.#property("writtenAs").writtenAs = name;
     return this;
   }
 
-  name(text: string): this {
-    this.#property("name").name = text;
+  displayName(text: string): this {
+    this.#property("displayName").displayName = text;
     return this;
   }
 
@@ -283,9 +283,9 @@ export class Shape {
     return this;
   }
 
-  message(text: string): this {
-    if (this.#level === "closed") this.data.closed!.message = text;
-    else this.#property("message").message = text;
+  errorMessage(text: string): this {
+    if (this.#level === "closed") this.data.noExtraProperties!.errorMessage = text;
+    else this.#property("errorMessage").errorMessage = text;
     return this;
   }
 
@@ -297,11 +297,11 @@ export class Shape {
     if (TAKEN.has(key)) {
       throw new Error(
         `${this.#name}: "${key}" is already a method of every instance. Give the property another key and say its ` +
-          `predicate: .${kind}("my${key[0].toUpperCase()}${key.slice(1)}").predicate("…")`,
+          `predicate: .${kind}("my${key[0].toUpperCase()}${key.slice(1)}").writtenAs("…")`,
       );
     }
     if (!/^[\p{L}_$][\p{L}\p{N}_$]*$/u.test(key)) {
-      throw new Error(`${this.#name}: "${key}" is not a name a method can have; say its predicate with .predicate()`);
+      throw new Error(`${this.#name}: "${key}" is not a name a method can have; say its predicate with .writtenAs()`);
     }
     if (this.data.properties.some((p) => p.key === key)) throw new Error(`${this.#name}: "${key}" is declared twice`);
     this.#current = { key, kind, targets: [], shacl: [] };

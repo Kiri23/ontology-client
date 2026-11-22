@@ -158,13 +158,13 @@ const unanchored = vocab.terms().where("doc:symbol").missing().ids();
 ## Create and edit
 
 ```ts
-const fresh = Vocabulary.create("https://example.com/vocabulary#")
+const fresh = Vocabulary.inNamespace("https://example.com/vocabulary#")
   .language("en")
   .prefix("doc", "https://example.com/doc#");
 
 fresh.scheme("vocabulary").label("Demo").definition("The terms of the demo.");
-fresh.add("provider").label("Provider").definition("Who serves the model.");
-fresh.add("harness").label("Harness").definition("A provider that runs an agent.")
+fresh.addTerm("provider").label("Provider").definition("Who serves the model.");
+fresh.addTerm("harness").label("Harness").definition("A provider that runs an agent.")
   .broader("provider")
   .value("doc:symbol", "@scope/pkg#Bench.harness");
 

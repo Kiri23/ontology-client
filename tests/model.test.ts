@@ -14,32 +14,32 @@ class Planta extends Model {
   static shape = Shape.of(Planta)
     .label("Planta")
     .comment("Una planta de la casa: cómo se llama, cada cuántos días se riega y cuánta luz quiere.")
-    .instancesIn("https://github.com/Kiri23/ontology-ejemplo/planta/")
-    .text("nombre").predicate("rdfs:label").exactly(1)
-    .message("Una planta tiene exactamente un nombre (rdfs:label).")
-    .integer("riegoCadaDias").name("riego cada días").exactly(1)
+    .instanceNamespace("https://github.com/Kiri23/ontology-ejemplo/planta/")
+    .text("nombre").writtenAs("rdfs:label").exactly(1)
+    .errorMessage("Una planta tiene exactamente un nombre (rdfs:label).")
+    .integer("riegoCadaDias").displayName("riego cada días").exactly(1)
     .comment("Cada cuántos días se riega: 7 es una vez por semana.")
     .shacl("sh:minInclusive 1")
-    .message("Una planta se riega cada 1 día o más (jardin:riegoCadaDias, un entero).")
+    .errorMessage("Una planta se riega cada 1 día o más (jardin:riegoCadaDias, un entero).")
     .text("luz").exactly(1).oneOf("sol", "media", "sombra")
     .comment('Cuánta luz quiere: "sol", "media" o "sombra".')
-    .message('La luz de una planta es "sol", "media" o "sombra".');
+    .errorMessage('La luz de una planta es "sol", "media" o "sombra".');
 }
 
 const plantas = [
-  Planta.create("albahaca").nombre("albahaca").riegoCadaDias(2).luz("sol"),
-  Planta.create("helecho").nombre("helecho").riegoCadaDias(3).luz("sombra"),
-  Planta.create("pothos").nombre("pothos").riegoCadaDias(7).luz("media"),
-  Planta.create("sansevieria").nombre("sansevieria").riegoCadaDias(14).luz("sombra"),
-  Planta.create("aloe").nombre("aloe").riegoCadaDias(21).luz("sol"),
+  Planta.withId("albahaca").nombre("albahaca").riegoCadaDias(2).luz("sol"),
+  Planta.withId("helecho").nombre("helecho").riegoCadaDias(3).luz("sombra"),
+  Planta.withId("pothos").nombre("pothos").riegoCadaDias(7).luz("media"),
+  Planta.withId("sansevieria").nombre("sansevieria").riegoCadaDias(14).luz("sombra"),
+  Planta.withId("aloe").nombre("aloe").riegoCadaDias(21).luz("sol"),
 ];
 
 const jardin = (carpeta: URL) =>
-  Domain.create("jardin").at({ url: new URL("dominio.ts", carpeta).href })
+  Domain.named("jardin").inFolderOf({ url: new URL("dominio.ts", carpeta).href })
     .namespace("https://github.com/Kiri23/ontology-ejemplo/jardin#")
     .model(Planta)
     .query("riego")
-    .instances(plantas).in("plantas/plantas.ttl");
+    .instances(plantas).toFile("plantas/plantas.ttl");
 
 /** Una carpeta temporal con el .rq escrito a mano, como la tendría el repo del dominio. */
 function carpeta(): URL {
@@ -50,7 +50,7 @@ function carpeta(): URL {
 }
 
 Deno.test("Planta en TypeScript da el mismo grafo que su clase, sus reglas y sus plantas escritas a mano", () => {
-  const files = jardin(carpeta()).files();
+  const files = jardin(carpeta()).toFiles();
   assertEquals([...files.keys()], ["ontologia/planta.ttl", "ontologia/planta-reglas.ttl", "plantas/plantas.ttl"]);
   for (const [path, turtle] of files) assertMismoGrafo(turtle, leer(path));
 });
@@ -58,66 +58,66 @@ Deno.test("Planta en TypeScript da el mismo grafo que su clase, sus reglas y sus
 Deno.test("write deja los archivos al lado del dominio, y generar dos veces no cambia nada", () => {
   const dir = carpeta();
   const dominio = jardin(dir);
-  assertEquals(dominio.check(), ["ontologia/planta.ttl", "ontologia/planta-reglas.ttl", "plantas/plantas.ttl"]);
-  dominio.write();
+  assertEquals(dominio.outdatedFiles(), ["ontologia/planta.ttl", "ontologia/planta-reglas.ttl", "plantas/plantas.ttl"]);
+  dominio.writeFiles();
   const primera = Deno.readTextFileSync(new URL("ontologia/planta-reglas.ttl", dir));
-  assertEquals(jardin(dir).check(), []);
-  jardin(dir).write();
+  assertEquals(jardin(dir).outdatedFiles(), []);
+  jardin(dir).writeFiles();
   assertEquals(Deno.readTextFileSync(new URL("ontologia/planta-reglas.ttl", dir)), primera);
-  assertEquals(jardin(dir).main(["--check"]), 0);
+  assertEquals(jardin(dir).runCli(["--check"]), 0);
   Deno.writeTextFileSync(new URL("ontologia/planta.ttl", dir), "# editado a mano\n");
-  assertEquals(jardin(dir).check(), ["ontologia/planta.ttl"]);
-  assertEquals(jardin(dir).main(["--check"]), 1);
+  assertEquals(jardin(dir).outdatedFiles(), ["ontologia/planta.ttl"]);
+  assertEquals(jardin(dir).runCli(["--check"]), 1);
 });
 
 Deno.test("main: un argumento que no es --check lanza y no escribe nada", () => {
   const dir = carpeta();
-  assertThrows(() => jardin(dir).main(["--chek"]), Error, '"--chek" is not an argument');
-  assertEquals(jardin(dir).check().length, 3, "no escribió ningún archivo");
+  assertThrows(() => jardin(dir).runCli(["--chek"]), Error, '"--chek" is not an argument');
+  assertEquals(jardin(dir).outdatedFiles().length, 3, "no escribió ningún archivo");
 });
 
 Deno.test("una consulta que el dominio nombra tiene que estar escrita en ontologia/<nombre>.rq", () => {
   const dir = carpeta();
   Deno.removeSync(new URL("ontologia/riego.rq", dir));
-  assertThrows(() => jardin(dir).write(), Error, "no ontologia/riego.rq");
-  assertThrows(() => Domain.create("x").query("../afuera"), Error, "is not a query name");
+  assertThrows(() => jardin(dir).writeFiles(), Error, "no ontologia/riego.rq");
+  assertThrows(() => Domain.named("x").query("../afuera"), Error, "is not a query name");
 });
 
 Deno.test("los setters salen de la forma, con el tipo de cada propiedad", () => {
-  const pothos = Planta.create("pothos").luz("media").riegoCadaDias(7);
+  const pothos = Planta.withId("pothos").luz("media").riegoCadaDias(7);
   assert(pothos instanceof Planta);
   assertEquals(pothos.id, "https://github.com/Kiri23/ontology-ejemplo/planta/pothos");
   // @ts-expect-error: la luz es una de tres
-  Planta.create("cactus").luz("mucha");
+  Planta.withId("cactus").luz("mucha");
   // @ts-expect-error: el riego es un número
-  Planta.create("cactus").riegoCadaDias("7");
+  Planta.withId("cactus").riegoCadaDias("7");
   // @ts-expect-error: Planta no tiene altura
-  assertThrows(() => Planta.create("cactus").altura(3));
+  assertThrows(() => Planta.withId("cactus").altura(3));
 });
 
 // Lo demás que el ticket pide expresar: un enlace a una o varias clases, un IRI cualquiera, clase cerrada con su
 // mensaje y una regla sobre el nodo escrita en SHACL crudo. Son las piezas del dominio cursos (ontologyLearning#210).
 class Persona extends Model {
-  static shape = Shape.of(Persona).text("nombre").predicate("schema:name").exactly(1);
+  static shape = Shape.of(Persona).text("nombre").writtenAs("schema:name").exactly(1);
 }
 class Curso extends Model {
   static shape = Shape.of(Curso)
     .label("Curso")
     .shacl('sh:not [ sh:class ontologia:Proyecto ] ; sh:message "Un curso no es un proyecto."')
-    .text("titulo").exactly(1).message("Un curso tiene exactamente un título.")
-    .link("enseña").predicate("schema:teaches").to("skos:Concept", "ontologia:Technology").atLeast(1)
-    .link("autor").predicate("schema:author").to(Persona).exactly(1)
+    .text("titulo").exactly(1).errorMessage("Un curso tiene exactamente un título.")
+    .link("enseña").writtenAs("schema:teaches").to("skos:Concept", "ontologia:Technology").atLeast(1)
+    .link("autor").writtenAs("schema:author").to(Persona).exactly(1)
     .link("evidencia").atLeast(1)
-    .closed().message("Un curso no tiene propiedades fuera de su forma.");
+    .noExtraProperties().errorMessage("Un curso no tiene propiedades fuera de su forma.");
 }
 const cursos = (instancias: Model[]) =>
-  Domain.create("cursos").namespace("https://kiri231.com/cursos#")
+  Domain.named("cursos").namespace("https://kiri231.com/cursos#")
     .prefix("schema", "https://schema.org/").prefix("ontologia", "https://kiri231.com/ontologia#")
     .model(Persona, Curso)
-    .instances(instancias).in((i) => `fichas/${i.id.split("#").at(-1)}.ttl`);
+    .instances(instancias).toFile((i) => `fichas/${i.id.split("#").at(-1)}.ttl`);
 
 Deno.test("un enlace a una clase, a varias o a cualquier IRI; clase cerrada y una regla en SHACL crudo", () => {
-  const files = cursos([]).files();
+  const files = cursos([]).toFiles();
   assertMismoGrafo(
     files.get("ontologia/curso.ttl")!,
     `@prefix cursos: <https://kiri231.com/cursos#> . @prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
@@ -147,10 +147,10 @@ Deno.test("un enlace a una clase, a varias o a cualquier IRI; clase cerrada y un
 });
 
 Deno.test("las instancias van al archivo que dice in(), y un enlace acepta otra instancia", () => {
-  const karpathy = Persona.create("karpathy").nombre("Andrej Karpathy");
-  const curso = Curso.create("zero-to-hero").titulo("Neural Networks: Zero to Hero").autor(karpathy)
+  const karpathy = Persona.withId("karpathy").nombre("Andrej Karpathy");
+  const curso = Curso.withId("zero-to-hero").titulo("Neural Networks: Zero to Hero").autor(karpathy)
     .enseña("ontologia:redes-neuronales").evidencia("https://github.com/Kiri23/KarpathyZeroToHero");
-  const files = cursos([karpathy, curso]).files();
+  const files = cursos([karpathy, curso]).toFiles();
   assertEquals([...files.keys()].filter((p) => p.startsWith("fichas/")), [
     "fichas/karpathy.ttl",
     "fichas/zero-to-hero.ttl",
@@ -165,8 +165,8 @@ Deno.test("las instancias van al archivo que dice in(), y un enlace acepta otra 
 });
 
 Deno.test("una instancia de una clase cerrada que escribe algo fuera de su forma lanza al generar", () => {
-  const curso = Curso.create("x").titulo("X").label("X");
-  assertThrows(() => cursos([curso]).files(), Error, "Curso is closed");
+  const curso = Curso.withId("x").titulo("X").label("X");
+  assertThrows(() => cursos([curso]).toFiles(), Error, "Curso says noExtraProperties()");
 });
 
 Deno.test("la forma lanza donde se escribe mal: un nivel equivocado, un nombre tomado, SHACL que no es Turtle", () => {
@@ -180,9 +180,9 @@ Deno.test("la forma lanza donde se escribe mal: un nivel equivocado, un nombre t
   assertThrows(() => Shape.of(Mala).text("t").text("t"), Error, "declared twice");
   assertThrows(() => Shape.of(Mala).text("t").to("x:Y"), Error, "to() is for a link");
   const rota = Shape.of(Mala).text("t").shacl("sh:minCount");
-  const dominio = Domain.create("d").namespace("https://example.com/d#");
+  const dominio = Domain.named("d").namespace("https://example.com/d#");
   Object.defineProperty(Mala, "shape", { value: rota });
-  assertThrows(() => dominio.model(Mala).files(), Error, "Mala.t: the SHACL in .shacl() is not Turtle");
+  assertThrows(() => dominio.model(Mala).toFiles(), Error, "Mala.t: the SHACL in .shacl() is not Turtle");
 });
 
 Deno.test("el modelo de Planta de docs/model-api.md es el que prueba este archivo, letra por letra", () => {
@@ -199,7 +199,7 @@ Deno.test("rdfs:range de un enlace del namespace propio: con una clase sale, con
       .link("dictadoPor").to(Persona)
       .link("sobre").to(Persona, "skos:Concept");
   }
-  const files = cursos([]).model(Taller).files();
+  const files = cursos([]).model(Taller).toFiles();
   assertMismoGrafo(
     files.get("ontologia/taller.ttl")!,
     `@prefix cursos: <https://kiri231.com/cursos#> . @prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
@@ -212,11 +212,11 @@ Deno.test("rdfs:range de un enlace del namespace propio: con una clase sale, con
 
 Deno.test("dos modelos con la misma propiedad del namespace propio lanzan; una prestada se comparte", () => {
   class Charla extends Model {
-    static shape = Shape.of(Charla).text("titulo").link("autor").predicate("schema:author");
+    static shape = Shape.of(Charla).text("titulo").link("autor").writtenAs("schema:author");
   }
-  assertThrows(() => cursos([]).model(Charla).graphs(), Error, "is a property of Curso and of Charla");
+  assertThrows(() => cursos([]).model(Charla).toGraphs(), Error, "is a property of Curso and of Charla");
   class Libro extends Model {
-    static shape = Shape.of(Libro).text("nombre").predicate("schema:name").link("autor").predicate("schema:author");
+    static shape = Shape.of(Libro).text("nombre").writtenAs("schema:name").link("autor").writtenAs("schema:author");
   }
-  assert(cursos([]).model(Libro).graphs().has("ontologia/libro.ttl"));
+  assert(cursos([]).model(Libro).toGraphs().has("ontologia/libro.ttl"));
 });

@@ -1,4 +1,4 @@
-// edit.ts — what you write on a resource: the editors that `vocabulary.add()`, `vocabulary.edit()` and
+// edit.ts — what you write on a resource: the editors that `vocabulary.addTerm()`, `vocabulary.edit()` and
 // `vocabulary.scheme(id)` hand out. Every method writes one thing and returns the editor, so they chain.
 //
 // Reading lives in terms.ts and writing here, so `label()` never means two things on the same object.
@@ -28,7 +28,7 @@ export class ResourceEditor<On extends Source = Vocabulary> {
   /** The n3 node being written on. */
   readonly node: SubjectNode;
 
-  /** Use `vocabulary.add()`, `vocabulary.edit()` or `vocabulary.scheme(id)` instead of building one. */
+  /** Use `vocabulary.addTerm()`, `vocabulary.edit()` or `vocabulary.scheme(id)` instead of building one. */
   constructor(vocabulary: On, node: SubjectNode) {
     this.vocabulary = vocabulary;
     this.node = node;
@@ -129,7 +129,7 @@ export class ResourceEditor<On extends Source = Vocabulary> {
  * Writes on a term.
  *
  * ```ts
- * vocab.add("harness").label("Harness").definition("…").broader("provider");
+ * vocab.addTerm("harness").label("Harness").definition("…").broader("provider");
  * vocab.edit("harness").altLabel("Arnés", "es");
  * ```
  */
@@ -154,7 +154,7 @@ export class TermEditor extends ResourceEditor {
     return this.link(`${SKOS}related`, term);
   }
 
-  /** Puts the term in a concept scheme (`skos:inScheme`). `vocabulary.add()` already does it when there is one. */
+  /** Puts the term in a concept scheme (`skos:inScheme`). `vocabulary.addTerm()` already does it when there is one. */
   inScheme(scheme: string): this {
     return this.link(`${SKOS}inScheme`, scheme);
   }

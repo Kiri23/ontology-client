@@ -4,8 +4,8 @@
  * ```ts
  * import { Graph, GraphNode } from "jsr:@kiri23/ontology-client/graph";
  *
- * const graph = Graph.create("https://example.com/scripts#").prefix("ex", "https://example.com/terms#");
- * graph.add(GraphNode.create("deploy").a("ex:Script").value("ex:path", "bin/deploy"));
+ * const graph = Graph.inNamespace("https://example.com/scripts#").prefix("ex", "https://example.com/terms#");
+ * graph.add(GraphNode.withId("deploy").ofType("ex:Script").value("ex:path", "bin/deploy"));
  * graph.instancesOf("ex:Script").map((s) => s.values("ex:path")); // [["bin/deploy"]]
  * graph.add(vocab); // a Vocabulary of ./vocabulary goes in a graph, not the other way round
  * graph.toTurtle();
@@ -51,8 +51,8 @@ export interface Statements {
  *
  * ```ts
  * // Create, add, write
- * const graph = Graph.create("https://example.com/scripts#").language("en").prefix("ex", "https://example.com/terms#");
- * graph.add(GraphNode.create("deploy").a("ex:Script").label("Deploy"));
+ * const graph = Graph.inNamespace("https://example.com/scripts#").language("en").prefix("ex", "https://example.com/terms#");
+ * graph.add(GraphNode.withId("deploy").ofType("ex:Script").label("Deploy"));
  * graph.write("scripts.ttl");
  *
  * // Read
@@ -98,11 +98,11 @@ export class Graph implements Source, Statements {
    * An empty graph whose resources will live in `namespace` (`"https://example.com/scripts#"`): a bare name like
    * `"deploy"` goes there. Fill it with `add()`.
    */
-  static create(namespace: string): Graph {
+  static inNamespace(namespace: string): Graph {
     return new Graph([], {}, namespace);
   }
 
-  /** Where a bare name goes: the one given to `create`; for a graph that was read, its `:` prefix, if it has one. */
+  /** Where a bare name goes: the one given to `inNamespace`; for a graph that was read, its `:` prefix, if it has one. */
   get namespace(): string | undefined {
     return this.#namespace ?? this.prefixes[""];
   }
@@ -151,7 +151,7 @@ export class Graph implements Source, Statements {
   /**
    * Puts something in the graph.
    *
-   * - A node made with `create()`: its name and predicates become IRIs here, with the namespace and prefixes of this
+   * - A node made with `withId()`: its name and predicates become IRIs here, with the namespace and prefixes of this
    *   graph. Throws when the name is taken or on a prefix this graph does not declare; then nothing of it is written.
    * - A Vocabulary or another Graph: a copy of its statements as they are now, and its prefixes. What it gets later
    *   does not come along. Throws if one of its prefixes means something else here.

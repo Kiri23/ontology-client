@@ -8,17 +8,17 @@
  * class Planta extends Model {
  *   static shape = Shape.of(Planta)
  *     .label("Planta")
- *     .instancesIn("https://github.com/Kiri23/ontology-ejemplo/planta/")
+ *     .instanceNamespace("https://github.com/Kiri23/ontology-ejemplo/planta/")
  *     .integer("riegoCadaDias").exactly(1).comment("Cada cuántos días se riega.")
  *     .text("luz").exactly(1).oneOf("sol", "media", "sombra");
  * }
  *
- * const jardin = Domain.create("jardin").at(import.meta)
+ * const jardin = Domain.named("jardin").inFolderOf(import.meta)
  *   .namespace("https://github.com/Kiri23/ontology-ejemplo/jardin#")
  *   .model(Planta)
- *   .instances([Planta.create("pothos").riegoCadaDias(7).luz("media")]).in("plantas/plantas.ttl");
+ *   .instances([Planta.withId("pothos").riegoCadaDias(7).luz("media")]).toFile("plantas/plantas.ttl");
  *
- * if (import.meta.main) Deno.exit(jardin.main(Deno.args)); // writes ontologia/planta.ttl and planta-reglas.ttl
+ * if (import.meta.main) Deno.exit(jardin.runCli(Deno.args)); // writes ontologia/planta.ttl and planta-reglas.ttl
  * ```
  *
  * Three pieces: a {@link Model} (your class; its instances are GraphNodes of ./graph), its {@link Shape} (what the
