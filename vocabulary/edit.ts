@@ -76,6 +76,14 @@ export class ResourceEditor<On extends Source = Vocabulary> {
   }
 
   /**
+   * Adds a value of a datatype other than text: `.typedValue("ex:days", "7", "xsd:integer")` writes `ex:days 7`.
+   * The datatype goes by prefix or whole IRI.
+   */
+  typedValue(predicate: string, lexical: string, datatype: string): this {
+    return this.add(predicate, literal(lexical, namedNode(this.vocabulary.predicate(datatype))));
+  }
+
+  /**
    * Takes back what was written for a predicate: one value (a text, or the name of a resource), or all of them when
    * you pass none.
    */

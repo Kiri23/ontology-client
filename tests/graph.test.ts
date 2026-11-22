@@ -170,7 +170,7 @@ Deno.test("read y write: el archivo en disco", () => {
 });
 
 Deno.test("toTurtle escribe adentro un nodo en blanco que apunta un solo triple, y una lista como ( … )", () => {
-  const reglas = Deno.readTextFileSync(new URL("./modelos/planta/planta-reglas.ttl", import.meta.url));
+  const reglas = Deno.readTextFileSync(new URL("./modelos/planta/ontologia/planta-reglas.ttl", import.meta.url));
   const turtle = Graph.parse(reglas).toTurtle();
   assert(!turtle.includes("_:"), turtle);
   assert(turtle.includes('sh:in ("sol" "media" "sombra")'), turtle);

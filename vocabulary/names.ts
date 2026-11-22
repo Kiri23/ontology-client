@@ -11,6 +11,11 @@ export const RDFS = "http://www.w3.org/2000/01/rdf-schema#";
 /** The Dublin Core terms namespace. */
 export const DCT = "http://purl.org/dc/terms/";
 
+/** The XSD namespace: the datatypes of literals (`xsd:integer`). */
+export const XSD = "http://www.w3.org/2001/XMLSchema#";
+/** The SHACL namespace: the rules a model generates (model/rules.ts). */
+export const SH = "http://www.w3.org/ns/shacl#";
+
 /** `rdf:type`, what `a` means in Turtle. */
 export const RDF_TYPE: string = `${RDF}type`;
 

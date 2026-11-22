@@ -1,0 +1,10 @@
+# Las plantas de la casa. Fuera de ontologia/: esto son los datos, no la forma.
+@prefix jardin: <https://github.com/Kiri23/ontology-ejemplo/jardin#> .
+@prefix planta: <https://github.com/Kiri23/ontology-ejemplo/planta/> .
+@prefix rdfs:   <http://www.w3.org/2000/01/rdf-schema#> .
+
+planta:albahaca  a jardin:Planta ; rdfs:label "albahaca" ;  jardin:riegoCadaDias 2  ; jardin:luz "sol" .
+planta:helecho   a jardin:Planta ; rdfs:label "helecho" ;   jardin:riegoCadaDias 3  ; jardin:luz "sombra" .
+planta:pothos    a jardin:Planta ; rdfs:label "pothos" ;    jardin:riegoCadaDias 7  ; jardin:luz "media" .
+planta:sansevieria a jardin:Planta ; rdfs:label "sansevieria" ; jardin:riegoCadaDias 14 ; jardin:luz "sombra" .
+planta:aloe      a jardin:Planta ; rdfs:label "aloe" ;      jardin:riegoCadaDias 21 ; jardin:luz "sol" .
