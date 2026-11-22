@@ -2,7 +2,7 @@
 // el mismo grafo que su clase, sus reglas y sus plantas escritas a mano (tests/modelos/planta/, copia de
 // Kiri23/ontology-ejemplo); y cada cosa que el ticket #39 pide expresar tiene su test.
 
-import { assert, assertEquals, assertThrows } from "@std/assert";
+import { assert, assertEquals, assertStringIncludes, assertThrows } from "@std/assert";
 import { Domain, Model, Shape } from "@kiri23/ontology-client/model";
 import { assertMismoGrafo } from "./mismo-grafo.ts";
 
@@ -55,7 +55,7 @@ Deno.test("Planta en TypeScript da el mismo grafo que su clase, sus reglas y sus
   for (const [path, turtle] of files) assertMismoGrafo(turtle, leer(path));
 });
 
-Deno.test("write deja los archivos al lado del dominio, y generar dos veces no cambia nada", () => {
+Deno.test("writeFiles deja los archivos al lado del dominio, y generar dos veces no cambia nada", () => {
   const dir = carpeta();
   const dominio = jardin(dir);
   assertEquals(dominio.outdatedFiles(), ["ontologia/planta.ttl", "ontologia/planta-reglas.ttl", "plantas/plantas.ttl"]);
@@ -70,7 +70,7 @@ Deno.test("write deja los archivos al lado del dominio, y generar dos veces no c
   assertEquals(jardin(dir).runCli(["--check"]), 1);
 });
 
-Deno.test("main: un argumento que no es --check lanza y no escribe nada", () => {
+Deno.test("runCli: un argumento que no es --check lanza y no escribe nada", () => {
   const dir = carpeta();
   assertThrows(() => jardin(dir).runCli(["--chek"]), Error, '"--chek" is not an argument');
   assertEquals(jardin(dir).outdatedFiles().length, 3, "no escribió ningún archivo");
@@ -146,7 +146,7 @@ Deno.test("un enlace a una clase, a varias o a cualquier IRI; clase cerrada y un
   );
 });
 
-Deno.test("las instancias van al archivo que dice in(), y un enlace acepta otra instancia", () => {
+Deno.test("las instancias van al archivo que dice toFile(), y un enlace acepta otra instancia", () => {
   const karpathy = Persona.withId("karpathy").nombre("Andrej Karpathy");
   const curso = Curso.withId("zero-to-hero").titulo("Neural Networks: Zero to Hero").autor(karpathy)
     .enseña("ontologia:redes-neuronales").evidencia("https://github.com/Kiri23/KarpathyZeroToHero");
@@ -183,6 +183,20 @@ Deno.test("la forma lanza donde se escribe mal: un nivel equivocado, un nombre t
   const dominio = Domain.named("d").namespace("https://example.com/d#");
   Object.defineProperty(Mala, "shape", { value: rota });
   assertThrows(() => dominio.model(Mala).toFiles(), Error, "Mala.t: the SHACL in .shacl() is not Turtle");
+});
+
+Deno.test("ofType es un método de toda instancia y no puede ser clave; a, que era el nombre viejo, queda libre", () => {
+  class Mala extends Model {
+    static shape = Shape.of(Mala);
+  }
+  assertThrows(() => Shape.of(Mala).text("ofType"), Error, '"ofType" is already a method of every instance');
+
+  class Nota extends Model {
+    static shape = Shape.of(Nota).text("a").exactly(1);
+  }
+  const files = Domain.named("d").namespace("https://example.com/d#").model(Nota)
+    .instances([Nota.withId("n").a("primera")]).toFiles();
+  assertStringIncludes(files.get("d.ttl")!, 'd:a "primera"');
 });
 
 Deno.test("el modelo de Planta de docs/model-api.md es el que prueba este archivo, letra por letra", () => {

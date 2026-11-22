@@ -78,8 +78,8 @@ it. Three things follow from that:
 - **After the `add`, the node is closed.** Writing on it again throws, because it would not reach the graph. To change
   what is in a graph, go to `graph.store`.
 
-`add` also throws when the name is taken in the graph. `a("Script")` throws right away: a type without a prefix would go
-in the namespace of the resources.
+`add` also throws when the name is taken in the graph. `ofType("Script")` throws right away: a type without a prefix
+would go in the namespace of the resources.
 
 > **`toTurtle()` and `write()` are for files this library creates or generates**, like the ones in `generado/`. The text
 > comes out of the n3 Writer: the comments and the layout of a file written by hand are lost.

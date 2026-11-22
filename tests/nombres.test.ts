@@ -18,7 +18,8 @@ const ENTRADAS = {
   "./neo4j": neo4j,
   "./vocabulary": vocabulary,
 };
-const PROHIBIDOS = new Set(["create"]);
+// create, y los nombres viejos que no tienen homónimo vivo: así un alias no puede volver.
+const PROHIBIDOS = new Set(["create", "in", "at", "main", "instancesIn", "closed", "a", "files", "graphs"]);
 
 /** Los nombres de un objeto y de su cadena de prototipos, hasta los de JavaScript. */
 function nombres(objeto: object, hasta: object): string[] {
