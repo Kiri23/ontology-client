@@ -75,6 +75,20 @@ It writes, next to the file given to `inFolderOf(import.meta)`:
 | `ontologia/planta-reglas.ttl` | `jardin:PlantaShape`, a property shape per property             |
 | `plantas/plantas.ttl`         | the instances, where `.toFile()` says (`jardin.ttl` without it) |
 
+Running it prints the folder first and then every file with where it comes from. The folder `ontologia/` and those names
+are fixed, because the engine reads them by name, so the code does not say them: the output does. A query is not
+written, only asked for, and it says `ok` instead of `wrote`:
+
+```
+jardin: files in /…/ontology-ejemplo/
+wrote ontologia/planta.ttl         ← model Planta
+wrote ontologia/planta-reglas.ttl  ← model Planta
+ok    ontologia/riego.rq           ← query "riego" (written by hand)
+wrote plantas/plantas.ttl          ← 5 instances
+```
+
+`domain.fileOrigins()` gives the same list as a map, without writing.
+
 Generating twice changes nothing: properties come in the order they were declared, instances in the order of their list,
 and blank nodes are written inside, as `[ … ]`. The queries are not generated: `.query("riego")` only checks that
 `ontologia/riego.rq`, written by hand, is there.

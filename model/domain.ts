@@ -149,6 +149,30 @@ export class Domain {
     return new Map([...this.toGraphs()].map(([path, graph]) => [path, header + graph.toTurtle()]));
   }
 
+  /**
+   * Where each file of the domain comes from, by path: `ontologia/planta.ttl` from `model Planta`, the file of
+   * `toFile` from its instances, and each `.rq` from its query (written by hand: the domain only asks for it).
+   * The folder `ontologia/` and those names are fixed, so this is where the code shows them.
+   */
+  fileOrigins(): Map<string, string> {
+    const origins = new Map<string, string>();
+    for (const model of this.#models) {
+      const file = `ontologia/${model.name.toLowerCase()}`;
+      origins.set(`${file}.ttl`, `model ${model.name}`);
+      origins.set(`${file}-reglas.ttl`, `model ${model.name}`);
+    }
+    for (const name of this.#queries) origins.set(`ontologia/${name}.rq`, `query "${name}" (written by hand)`);
+    const counts = new Map<string, number>();
+    for (const group of this.#groups) {
+      for (const instance of group.instances) {
+        const path = this.#destination(group, instance);
+        counts.set(path, (counts.get(path) ?? 0) + 1);
+      }
+    }
+    for (const [path, count] of counts) origins.set(path, count === 1 ? "1 instance" : `${count} instances`);
+    return origins;
+  }
+
   /** Writes every file and returns their paths. Throws, writing nothing, if a query has no `.rq`. */
   writeFiles(): string[] {
     const files = this.#checked();
@@ -172,7 +196,7 @@ export class Domain {
 
   /**
    * What the file of the domain runs: with `--check`, says which files would change and returns 1 if any; with
-   * nothing, writes them and returns 0. `if (import.meta.main) Deno.exit(jardin.runCli(Deno.args))`.
+   * nothing, writes them, prints the folder and where each file comes from, and returns 0. `if (import.meta.main) Deno.exit(jardin.runCli(Deno.args))`.
    */
   runCli(args: readonly string[]): number {
     const unknown = args.find((arg) => arg !== "--check");
@@ -184,7 +208,13 @@ export class Domain {
       for (const path of stale) console.error(`${path} is not up to date: run ${this.#source ?? "the domain"}`);
       return stale.length ? 1 : 0;
     }
-    for (const path of this.writeFiles()) console.log(`wrote ${path}`);
+    const written = new Set(this.writeFiles());
+    const origins = this.fileOrigins();
+    const width = Math.max(...[...origins.keys()].map((path) => path.length));
+    if (this.#base) console.log(`${this.name}: files in ${this.#base.pathname}`);
+    for (const [path, origin] of origins) {
+      console.log(`${written.has(path) ? "wrote" : "ok   "} ${path.padEnd(width)}  ← ${origin}`);
+    }
     return 0;
   }
 
