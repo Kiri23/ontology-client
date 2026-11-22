@@ -67,7 +67,7 @@ deno run --allow-read=. --allow-write=. --allow-env=READABLE_STREAM dominio.ts  
 deno run --allow-read=. --allow-write=. --allow-env=READABLE_STREAM dominio.ts --check  # exits 1 if one would change
 ```
 
-It writes, next to the file given to `at(import.meta)`:
+It writes, next to the file given to `inFolderOf(import.meta)`:
 
 | File                          | What                                                            |
 | ----------------------------- | --------------------------------------------------------------- |
@@ -79,45 +79,46 @@ Generating twice changes nothing: properties come in the order they were declare
 and blank nodes are written inside, as `[ … ]`. The queries are not generated: `.query("riego")` only checks that
 `ontologia/riego.rq`, written by hand, is there.
 
-Without Deno's `main`, `domain.toFiles()` gives every file as text, `domain.toGraphs()` as a [Graph](graph-api.md) whose
-`store` you can read, and `domain.check()` the paths that are not up to date.
+Outside Deno or Node, `domain.toFiles()` gives every file as text, `domain.toGraphs()` as a [Graph](graph-api.md) whose
+`store` you can read. `domain.outdatedFiles()` gives the paths that are not up to date.
 
 ## What a shape says
 
 The chain has two levels, and the types say which one you are in. First the class:
 
-| Method                | Writes                                                         |
-| --------------------- | -------------------------------------------------------------- |
-| `label`, `comment`    | `rdfs:label`, `rdfs:comment` of the class                      |
-| `instancesIn(ns)`     | nothing: `Planta.withId("pothos")` is `<ns>pothos`             |
-| `shacl(turtle)`       | a NodeShape of its own (`PlantaShape2`…), with its own message |
-| `closed()`, `message` | `sh:closed true`, `sh:ignoredProperties (rdf:type)`            |
+| Method                                | Writes                                                            |
+| ------------------------------------- | ----------------------------------------------------------------- |
+| `label`, `comment`                    | `rdfs:label`, `rdfs:comment` of the class                         |
+| `instanceNamespace(ns)`               | nothing: `Planta.withId("pothos")` is `<ns>pothos`                |
+| `shacl(turtle)`                       | a NodeShape of its own (`PlantaShape2`…), with its own message    |
+| `noExtraProperties()`, `errorMessage` | `sh:closed true`, `sh:ignoredProperties (rdf:type)`, `sh:message` |
 
 Then one property after another, each opened by its kind: `text`, `integer`, `decimal`, `boolean`, `date` (a literal
 with its `xsd:` datatype) or `link` (another resource). What follows is about the property opened last:
 
 | Method                                 | Writes                                                                                                  |
 | -------------------------------------- | ------------------------------------------------------------------------------------------------------- |
-| `predicate("rdfs:label")`              | the predicate, when it is not `<namespace><key>`; outside the namespace it is not declared in the class |
-| `name`, `comment`                      | `sh:name` (the key when not said), `rdfs:comment`                                                       |
+| `writtenAs("rdfs:label")`              | the predicate, when it is not `<namespace><key>`; outside the namespace it is not declared in the class |
+| `displayName`, `comment`               | `sh:name` (the key when not said), `rdfs:comment`                                                       |
 | `exactly`, `atLeast`, `atMost`         | `sh:minCount`, `sh:maxCount`                                                                            |
 | `to(Persona)`, `to("skos:Concept", …)` | `rdfs:range` and `sh:class`; with several, only `sh:or` (two ranges would mean "both")                  |
 | `link` without `to`                    | `sh:nodeKind sh:IRI`: any IRI                                                                           |
 | `oneOf("sol", "media")`                | `sh:in`, instead of `sh:datatype`; the setter takes only those                                          |
-| `message`                              | `sh:message`                                                                                            |
+| `errorMessage`                         | `sh:message`                                                                                            |
 | `shacl("sh:minInclusive 1")`           | SHACL written by hand, inside the property shape                                                        |
 
 `.shacl()` is Turtle as it is: what goes after the subject, with the prefixes of the domain and `sh:`, `xsd:`, `rdf:`,
 `rdfs:`. It is how a rule the builder does not cover gets in without leaving the model, and the files are Graphs, so
-`graphs()` hands you the n3 `Store` too.
+`toGraphs()` hands you the n3 `Store` too.
 
 ## When things throw
 
-- **A key that is a method of every node** (`label`, `value`, `link`, `a`, `id`…) throws in the shape: it would hide it.
-  Give another key and say the predicate: `.text("nombre").writtenAs("rdfs:label")`.
-- **An instance of a closed class that writes something outside its shape** throws when generating, naming the instance
-  and the predicate, instead of failing later in the engine's report. `label()` writes `skos:prefLabel`.
-- **A query without its `.rq`** throws in `write` and `check`, and nothing is written.
+- **A key that is a method of every node** (`label`, `value`, `link`, `ofType`, `id`…) throws in the shape: it would
+  hide it. Give another key and say the predicate: `.text("nombre").writtenAs("rdfs:label")`.
+- **An instance of a class with `noExtraProperties()` that writes something outside its shape** throws when generating,
+  naming the instance and the predicate, instead of failing later in the engine's report. `label()` writes
+  `skos:prefLabel`.
+- **A query without its `.rq`** throws in `writeFiles` and `outdatedFiles`, and nothing is written.
 - **A model that points to one declared further down** has to name it, `.to("Persona")`: when the `static` runs, the
   other class does not exist yet. Declare the one pointed to first and pass the class.
 
@@ -143,7 +144,7 @@ From a checkout, the first entry is a path relative to that `deno.json`: `"../on
 | ----------------- | ------------------------------------------------------------------------ |
 | `model.ts`        | the entry: what it exports                                               |
 | `model/shape.ts`  | `Shape`: the builder, which keeps only data, and the types of its levels |
-| `model/model.ts`  | `Model`: `create` and the setters, a GraphNode underneath                |
+| `model/model.ts`  | `Model`: `withId` and the setters, a GraphNode underneath                |
 | `model/files.ts`  | the data of a shape → the graph of the class and the graph of the rules  |
 | `model/domain.ts` | `Domain`: names everything, builds the graphs, writes and checks         |
 

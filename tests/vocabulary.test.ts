@@ -472,7 +472,7 @@ const triples = (v: Vocabulary) =>
     `${q.subject.value} ${q.predicate.value} ${q.object.value} @${"language" in q.object ? q.object.language : "iri"}`
   ).sort();
 
-Deno.test("create → toTurtle → parse: vuelve el mismo vocabulario", () => {
+Deno.test("inNamespace → toTurtle → parse: vuelve el mismo vocabulario", () => {
   const original = creado();
   const leido = Vocabulary.parse(original.toTurtle());
   assertEquals(triples(leido), triples(original));
@@ -489,7 +489,7 @@ Deno.test("create → toTurtle → parse: vuelve el mismo vocabulario", () => {
   assertEquals(leido.prefixes.doc, DOC);
 });
 
-Deno.test("create: lo creado pasa las reglas, con el esquema puesto solo en cada término", () => {
+Deno.test("inNamespace y addTerm: lo creado pasa las reglas, con el esquema puesto solo en cada término", () => {
   const sinRelated = creado();
   sinRelated.edit("harness").unset("skos:related");
   assertEquals(sinRelated.check().language("es").namespace(NS).oneScheme().seeAlsoUrls().problems(), []);

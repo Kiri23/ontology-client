@@ -175,13 +175,13 @@ fresh.toTurtle(); // the Turtle as a string
 fresh.write("docs/vocabulary.ttl");
 ```
 
-`add()` and `edit()` return an editor, and each of its methods writes one thing and returns the editor. Getters live on
-the term and setters on the editor, so `label()` never means two things on the same object. `label()` and `definition()`
-replace the text in the same language; `altLabel()`, `example()`, `seeAlso()`, `broader()`, `related()`, `value()` (a
-text) and `link()` (another resource) add one more. `unset(predicate, value?)` takes them back.
+`addTerm()` and `edit()` return an editor, and each of its methods writes one thing and returns the editor. Getters live
+on the term and setters on the editor, so `label()` never means two things on the same object. `label()` and
+`definition()` replace the text in the same language; `altLabel()`, `example()`, `seeAlso()`, `broader()`, `related()`,
+`value()` (a text) and `link()` (another resource) add one more. `unset(predicate, value?)` takes them back.
 
-A term added while the vocabulary has one concept scheme goes in it. `add()` throws if the name is taken, and `edit()`
-if it is not there.
+A term added while the vocabulary has one concept scheme goes in it. `addTerm()` throws if the name is taken, and
+`edit()` if it is not there.
 
 A resource of a type of your own (a page, a script) is not part of the vocabulary: both go in a graph. Create it with
 the [graph entry](graph-api.md) and add the vocabulary there with `graph.add(fresh)`.
@@ -202,7 +202,7 @@ The code is `vocabulary.ts` and the folder `vocabulary/`, one file per piece:
 
 | File                   | What is in it                                                  |
 | ---------------------- | -------------------------------------------------------------- |
-| `vocabulary.ts`        | `Vocabulary`: read, parse, create, find, write                 |
+| `vocabulary.ts`        | `Vocabulary`: read, parse, inNamespace, find, write            |
 | `vocabulary/terms.ts`  | `Resource`, `Term`, `Terms` and `Where`: everything that reads |
 | `vocabulary/edit.ts`   | `ResourceEditor` and `TermEditor`: everything that writes      |
 | `vocabulary/check.ts`  | `Check`, `Problem` and each rule                               |

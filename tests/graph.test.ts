@@ -1,5 +1,5 @@
 // Tests de la entrada `./graph` del paquete (graph.ts y graph/): un grafo con recursos de cualquier tipo, creados
-// sueltos con `create()` y puestos con `graph.add()`; un tipo propio como subclase (Script, que en la vida real vive
+// sueltos con `withId()` y puestos con `graph.add()`; un tipo propio como subclase (Script, que en la vida real vive
 // en el repo que lo usa, no en la librería); un vocabulario adentro de un grafo; y la ida y vuelta por Turtle.
 //
 // Los riesgos de la forma builder tienen su test: el IRI se decide en el `add`, un nodo que nunca se agregó no le
@@ -13,7 +13,7 @@ import { assertMismoGrafo } from "./mismo-grafo.ts";
 const NS = "https://kiri231.com/scripts#";
 const KIRI = "https://kiri231.com/kiri#";
 
-// Un tipo propio, como lo escribiría el repo que lo usa: su create da el tipo, sus métodos nombran sus predicados.
+// Un tipo propio, como lo escribiría el repo que lo usa: su withId da el tipo, sus métodos nombran sus predicados.
 class Script extends GraphNode {
   static override withId(id: string): Script {
     return new Script(id).ofType("kiri:Script");
@@ -25,7 +25,7 @@ class Script extends GraphNode {
 
 const grafo = () => Graph.inNamespace(NS).prefix("kiri", KIRI).language("en");
 
-Deno.test("create, a, value y link: un recurso suelto entra al grafo con add y se vuelve a leer", () => {
+Deno.test("withId, ofType, value y link: un recurso suelto entra al grafo con add y se vuelve a leer", () => {
   const graph = grafo();
   graph.add(GraphNode.withId("kiri-pm").ofType("kiri:Script").value("kiri:ruta", "bin/kiri-pm"));
   graph.add(GraphNode.withId("kiri-api").ofType("kiri:Script").link("kiri:usa", "kiri-pm").label("API"));
@@ -39,7 +39,7 @@ Deno.test("create, a, value y link: un recurso suelto entra al grafo con add y s
   assertEquals(pm.referencedBy("kiri:usa").map((r) => r.id), ["kiri-api"]);
 });
 
-Deno.test("subclase con create: Script.withId da el tipo y sus métodos, y label no le borra ruta", () => {
+Deno.test("subclase con withId: Script.withId da el tipo y sus métodos, y label no le borra ruta", () => {
   const graph = grafo();
   // Riesgo 3: si label() devolviera GraphNode, .ruta() después no compilaría y este test no correría.
   const pm: Script = Script.withId("kiri-pm").label("Project manager").ruta("bin/kiri-pm");

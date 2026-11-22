@@ -22,8 +22,8 @@ graph.instancesOf("kiri:Script").map((s) => s.id); // ["kiri-pm", "kiri-api"]
 graph.toTurtle(); // or graph.write("generado/scripts.ttl")
 ```
 
-It reads like a sentence: `create` names the resource, `a` gives its type, `value` writes a text and `link` points to
-another resource. Each method is one thing and returns the same node, so they chain. `label()`, `definition()` and
+It reads like a sentence: `withId` names the resource, `ofType` gives its type, `value` writes a text and `link` points
+to another resource. Each method is one thing and returns the same node, so they chain. `label()`, `definition()` and
 `seeAlso()` are there too, the same as on a [term](vocabulary-api.md#create-and-edit).
 
 `Graph.parse(text)` and `Graph.read(path)` open one that exists. `graph.instancesOf(type)` and `graph.resource(name)`
@@ -33,7 +33,7 @@ return a `Resource`, the same reader a vocabulary hands out: `values()`, `litera
 ## A type of your own
 
 The library knows no type of anybody's. A type of your repo is a subclass of `GraphNode`, and it lives in your repo: its
-`create` gives the type, its methods name its predicates.
+`withId` gives the type, its methods name its predicates.
 
 ```ts
 class Script extends GraphNode {
@@ -49,7 +49,7 @@ graph.add(Script.withId("kiri-pm").ruta("bin/kiri-pm").label("Project manager"))
 ```
 
 Every method of the base returns `this`, so `.label()` gives back a `Script` and `.ruta()` still works after it. Deno
-asks for `override` on the `create` of the subclass.
+asks for `override` on the `withId` of the subclass.
 
 ## A vocabulary in a graph
 
@@ -67,11 +67,11 @@ another in the vocabulary throws. Another `Graph` goes in the same way.
 
 ## When names become IRIs, and what throws
 
-A node made with `create()` is a value on its own: it holds no graph, and no graph knows it until `graph.add()` takes
+A node made with `withId()` is a value on its own: it holds no graph, and no graph knows it until `graph.add()` takes
 it. Three things follow from that:
 
 - **Its IRI is decided in the `add`.** `"kiri-pm"` goes in the namespace of the graph that receives it, and `kiri:ruta`
-  expands with that graph's prefixes, so a prefix declared after `create()` still works. A prefix the graph does not
+  expands with that graph's prefixes, so a prefix declared after `withId()` still works. A prefix the graph does not
   know throws in the `add`, and nothing of that node is written. The same node can go in two graphs.
 - **A forgotten `add` is silent.** A node that is never added is in no file and nothing says so, like a value you never
   pushed to a list. Create it inside the `add()`: `graph.add(Script.withId(…))`.
@@ -91,7 +91,7 @@ in [`vocabulary/`](vocabulary-api.md#extending-it).
 
 | File                   | What is in it                                                           |
 | ---------------------- | ----------------------------------------------------------------------- |
-| `graph.ts`             | `Graph`: parse, read, create, add, find, write                          |
+| `graph.ts`             | `Graph`: parse, read, inNamespace, add, find, write                     |
 | `graph/node.ts`        | `GraphNode`: what to write about one resource, kept until `graph.add()` |
 | `vocabulary/terms.ts`  | `Resource`: everything that reads one resource                          |
 | `vocabulary/edit.ts`   | `ResourceEditor`: what a node writes itself with                        |
