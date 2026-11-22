@@ -67,6 +67,13 @@ Deno.test("write deja los archivos al lado del dominio, y generar dos veces no c
   assertEquals(jardin(dir).main(["--check"]), 0);
   Deno.writeTextFileSync(new URL("ontologia/planta.ttl", dir), "# editado a mano\n");
   assertEquals(jardin(dir).check(), ["ontologia/planta.ttl"]);
+  assertEquals(jardin(dir).main(["--check"]), 1);
+});
+
+Deno.test("main: un argumento que no es --check lanza y no escribe nada", () => {
+  const dir = carpeta();
+  assertThrows(() => jardin(dir).main(["--chek"]), Error, '"--chek" is not an argument');
+  assertEquals(jardin(dir).check().length, 3, "no escribió ningún archivo");
 });
 
 Deno.test("una consulta que el dominio nombra tiene que estar escrita en ontologia/<nombre>.rq", () => {
@@ -184,4 +191,32 @@ Deno.test("el modelo de Planta de docs/model-api.md es el que prueba este archiv
   const test = Deno.readTextFileSync(new URL(import.meta.url));
   assert(clase(test), "este archivo tiene la clase Planta");
   assertEquals(clase(doc), clase(test));
+});
+
+Deno.test("rdfs:range de un enlace del namespace propio: con una clase sale, con dos no", () => {
+  class Taller extends Model {
+    static shape = Shape.of(Taller)
+      .link("dictadoPor").to(Persona)
+      .link("sobre").to(Persona, "skos:Concept");
+  }
+  const files = cursos([]).model(Taller).files();
+  assertMismoGrafo(
+    files.get("ontologia/taller.ttl")!,
+    `@prefix cursos: <https://kiri231.com/cursos#> . @prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+     @prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+     cursos:Taller a rdfs:Class .
+     cursos:dictadoPor a rdf:Property ; rdfs:domain cursos:Taller ; rdfs:range cursos:Persona .
+     cursos:sobre a rdf:Property ; rdfs:domain cursos:Taller .`,
+  );
+});
+
+Deno.test("dos modelos con la misma propiedad del namespace propio lanzan; una prestada se comparte", () => {
+  class Charla extends Model {
+    static shape = Shape.of(Charla).text("titulo").link("autor").predicate("schema:author");
+  }
+  assertThrows(() => cursos([]).model(Charla).graphs(), Error, "is a property of Curso and of Charla");
+  class Libro extends Model {
+    static shape = Shape.of(Libro).text("nombre").predicate("schema:name").link("autor").predicate("schema:author");
+  }
+  assert(cursos([]).model(Libro).graphs().has("ontologia/libro.ttl"));
 });

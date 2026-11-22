@@ -1,5 +1,5 @@
 // shape.ts — the shape of a model: what its class is, which properties it has and what is asked of each. It is the
-// `static shape` of a Model (model/model.ts), it keeps only data, and model/class.ts and model/rules.ts turn that data
+// `static shape` of a Model (model/model.ts), it keeps only data, and model/files.ts turns that data
 // into the two files. Nothing here writes Turtle.
 //
 // The chain is flat but has levels, and the types say which one you are in: first the class (label, comment, …),

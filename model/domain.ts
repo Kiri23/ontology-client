@@ -5,7 +5,7 @@
 // It turns each model into two graphs with model/files.ts and its instances into a third with Graph.add (graph.ts).
 
 import { Graph } from "../graph.ts";
-import { RDF_TYPE } from "../vocabulary/names.ts";
+import { expand, RDF_TYPE } from "../vocabulary/names.ts";
 import { classGraph, type Context, rulesGraph } from "./files.ts";
 import type { Model, ModelWithShape } from "./model.ts";
 
@@ -120,6 +120,7 @@ export class Domain {
    */
   graphs(): Map<string, Graph> {
     const context = this.#context();
+    this.#checkOneOwner(context);
     const graphs = new Map<string, Graph>();
     for (const model of this.#models) {
       const file = `ontologia/${model.name.toLowerCase()}`;
@@ -172,6 +173,10 @@ export class Domain {
    * nothing, writes them and returns 0. `if (import.meta.main) Deno.exit(jardin.main(Deno.args))`.
    */
   main(args: readonly string[]): number {
+    const unknown = args.find((arg) => arg !== "--check");
+    if (unknown !== undefined) {
+      throw new Error(`${this.name}: "${unknown}" is not an argument; the only one is --check`);
+    }
     if (args.includes("--check")) {
       const stale = this.check();
       for (const path of stale) console.error(`${path} is not up to date: run ${this.#source ?? "the domain"}`);
@@ -207,6 +212,28 @@ export class Domain {
       throw new Error(`${this.name}: "${path}" leaves the folder of the domain; instances go inside it`);
     }
     return path;
+  }
+
+  /**
+   * A property of the domain's namespace is declared by one model only: two would give it two domains and maybe two
+   * ranges, which means "both at once". A borrowed one (`schema:name`) is not declared, so two models can share it.
+   */
+  #checkOneOwner(context: Context): void {
+    const owners = new Map<string, string>();
+    for (const model of this.#models) {
+      for (const property of model.shape.data.properties) {
+        const iri = expand(property.predicate ?? property.key, context.prefixes, context.namespace);
+        if (!iri.startsWith(context.namespace)) continue;
+        const owner = owners.get(iri);
+        if (owner !== undefined && owner !== model.name) {
+          throw new Error(
+            `${this.name}: <${iri}> is a property of ${owner} and of ${model.name}; one property, one model. ` +
+              "Give one of them another key",
+          );
+        }
+        owners.set(iri, model.name);
+      }
+    }
   }
 
   /** An instance of a closed model with a property its shape does not declare throws here, not when the engine validates. */

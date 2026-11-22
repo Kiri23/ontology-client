@@ -12,7 +12,7 @@ import { parseTurtle } from "../vocabulary/turtle.ts";
 
 /**
  * Los triples del grafo, ordenados, con cada nodo en blanco cambiado por su contenido. Un nodo en blanco que nadie de
- * afuera apunta no entra: ese caso se cuenta aparte, con el tamaño del store.
+ * afuera apunta no entra: ese caso lo cuenta assertMismoGrafo, con la cantidad de triples.
  */
 export function canonico(turtle: string): string[] {
   const { quads } = parseTurtle(turtle);
@@ -32,4 +32,6 @@ export function canonico(turtle: string): string[] {
 /** Falla, con la diferencia línea por línea, si los dos Turtle no son el mismo grafo. */
 export function assertMismoGrafo(actual: string, esperado: string): void {
   assertEquals(canonico(actual), canonico(esperado));
+  // Un nodo en blanco que nadie apunta no sale en canonico(): lo caza la cantidad de triples.
+  assertEquals(parseTurtle(actual).quads.length, parseTurtle(esperado).quads.length, "la cantidad de triples");
 }
