@@ -39,7 +39,7 @@ words. `sh:minInclusive` has no method, so it goes as SHACL written by hand with
 The instances and the domain, in the same file or in others:
 
 ```ts
-import { Domain, Model, Shape } from "jsr:@kiri23/ontology-client@0.6.0/model";
+import { Domain, Model, Shape } from "jsr:@kiri23/ontology-client@0.7.0/model";
 
 const plantas = [
   Planta.withId("pothos").nombre("pothos").riegoCadaDias(7).luz("media"),

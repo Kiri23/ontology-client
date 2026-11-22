@@ -10,7 +10,7 @@ the library it parses with.
 ## Read a vocabulary and walk it
 
 ```ts
-import { Vocabulary } from "jsr:@kiri23/ontology-client@0.5.0/vocabulary";
+import { Vocabulary } from "jsr:@kiri23/ontology-client@0.7.0/vocabulary";
 
 const vocab = Vocabulary.read("docs/vocabulary.ttl"); // or Vocabulary.parse(ttl), which touches no disk
 

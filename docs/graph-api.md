@@ -10,7 +10,7 @@ Like it, importing `@kiri23/ontology-client` does not load it, nor n3.
 ## Create a graph and add resources
 
 ```ts
-import { Graph, GraphNode } from "jsr:@kiri23/ontology-client@0.5.0/graph";
+import { Graph, GraphNode } from "jsr:@kiri23/ontology-client@0.7.0/graph";
 
 const KIRI = "https://kiri231.com/kiri#";
 const graph = Graph.inNamespace("https://kiri231.com/scripts#").prefix("kiri", KIRI).language("en");
@@ -54,7 +54,7 @@ asks for `override` on the `withId` of the subclass.
 ## A vocabulary in a graph
 
 ```ts
-import { Vocabulary } from "jsr:@kiri23/ontology-client@0.5.0/vocabulary";
+import { Vocabulary } from "jsr:@kiri23/ontology-client@0.7.0/vocabulary";
 
 const vocab = Vocabulary.read("docs/vocabulary.ttl");
 graph.add(vocab);
