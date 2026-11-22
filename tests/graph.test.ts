@@ -8,6 +8,7 @@
 import { assert, assertEquals, assertThrows } from "@std/assert";
 import { Graph, GraphNode } from "@kiri23/ontology-client/graph";
 import { Vocabulary } from "@kiri23/ontology-client/vocabulary";
+import { assertMismoGrafo } from "./mismo-grafo.ts";
 
 const NS = "https://kiri231.com/scripts#";
 const KIRI = "https://kiri231.com/kiri#";
@@ -166,4 +167,22 @@ Deno.test("read y write: el archivo en disco", () => {
   } finally {
     Deno.removeSync(dir, { recursive: true });
   }
+});
+
+Deno.test("toTurtle escribe adentro un nodo en blanco que apunta un solo triple, y una lista como ( … )", () => {
+  const reglas = Deno.readTextFileSync(new URL("./modelos/planta/planta-reglas.ttl", import.meta.url));
+  const turtle = Graph.parse(reglas).toTurtle();
+  assert(!turtle.includes("_:"), turtle);
+  assert(turtle.includes('sh:in ("sol" "media" "sombra")'), turtle);
+  assert(!turtle.includes("@prefix rdf:"), "rdf: no se usa: una lista se escribe sin rdf:first");
+  assertMismoGrafo(turtle, reglas);
+});
+
+Deno.test("toTurtle: un nodo en blanco que apuntan dos triples, o que solo se apunta a sí mismo, conserva su etiqueta", () => {
+  const turtle = `@prefix ex: <https://example.com/#> .
+    ex:a ex:p _:compartido . ex:b ex:p _:compartido . _:compartido ex:q "x" .
+    _:ciclo ex:r _:ciclo .`;
+  const salida = Graph.parse(turtle).toTurtle();
+  assertMismoGrafo(salida, turtle);
+  assertEquals(Graph.parse(salida).store.size, 4);
 });

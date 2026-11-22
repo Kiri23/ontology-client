@@ -1,0 +1,18 @@
+# Qué es una planta en este grafo: la clase y sus tres propiedades.
+# Las reglas que cumple cada planta están en planta-reglas.ttl; las plantas, en plantas/.
+@prefix jardin: <https://github.com/Kiri23/ontology-ejemplo/jardin#> .
+@prefix rdf:    <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs:   <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix xsd:    <http://www.w3.org/2001/XMLSchema#> .
+
+jardin:Planta a rdfs:Class ;
+    rdfs:label "Planta" ;
+    rdfs:comment "Una planta de la casa: cómo se llama, cada cuántos días se riega y cuánta luz quiere." .
+
+jardin:riegoCadaDias a rdf:Property ;
+    rdfs:domain jardin:Planta ; rdfs:range xsd:integer ;
+    rdfs:comment "Cada cuántos días se riega: 7 es una vez por semana." .
+
+jardin:luz a rdf:Property ;
+    rdfs:domain jardin:Planta ; rdfs:range xsd:string ;
+    rdfs:comment "Cuánta luz quiere: \"sol\", \"media\" o \"sombra\"." .
