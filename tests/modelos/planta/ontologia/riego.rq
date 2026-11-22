@@ -1,0 +1,11 @@
+# Las plantas que se riegan cada `dias` días o más seguido, de la más sedienta a la menos.
+# Por ejemplo, dias=3: las que no aguantan medio fin de semana sin agua.
+PREFIX jardin: <https://github.com/Kiri23/ontology-ejemplo/jardin#>
+PREFIX rdfs:   <http://www.w3.org/2000/01/rdf-schema#>
+PREFIX xsd:    <http://www.w3.org/2001/XMLSchema#>
+SELECT ?planta ?nombre ?riegoCadaDias ?luz
+WHERE {
+  ?planta a jardin:Planta ; rdfs:label ?nombre ; jardin:riegoCadaDias ?riegoCadaDias ; jardin:luz ?luz .
+  FILTER (?riegoCadaDias <= xsd:integer(?_dias))
+}
+ORDER BY ?riegoCadaDias ?nombre

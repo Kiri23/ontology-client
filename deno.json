@@ -1,16 +1,18 @@
 {
   "name": "@kiri23/ontology-client",
-  "version": "0.5.0",
+  "version": "0.6.0",
   "license": "MIT",
   "exports": {
     ".": "./mod.ts",
     "./cli": "./cli.ts",
     "./graph": "./graph.ts",
+    "./model": "./model.ts",
     "./neo4j": "./neo4j.ts",
     "./vocabulary": "./vocabulary.ts"
   },
   "imports": {
     "@kiri23/ontology-client/graph": "./graph.ts",
+    "@kiri23/ontology-client/model": "./model.ts",
     "@kiri23/ontology-client/vocabulary": "./vocabulary.ts",
     "@cfworker/json-schema": "npm:@cfworker/json-schema@4.1.1",
     "@std/assert": "jsr:@std/assert@^1.0.13",
@@ -74,6 +76,8 @@
       "cli.ts",
       "graph.ts",
       "graph/*.ts",
+      "model.ts",
+      "model/*.ts",
       "vocabulary.ts",
       "vocabulary/*.ts",
       "generado/api.ts",

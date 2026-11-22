@@ -19,4 +19,5 @@ A set of conditions that the targeted nodes of an RDF graph must meet, such as w
 - [docs/action.md](../../docs/action.md)
 - [docs/cli.md](../../docs/cli.md)
 - [docs/library.md](../../docs/library.md)
+- [docs/model-api.md](../../docs/model-api.md)
 - [neo4j/README.md](../../neo4j/README.md)

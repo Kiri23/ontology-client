@@ -101,6 +101,27 @@ vocab.term("sparql").label(); // "SPARQL"
 vocab.check().language("en").oneScheme().problems(); // [] when every rule holds
 ```
 
+**Declare a class in TypeScript and generate its Turtle and SHACL.** The entry `./model` writes the files the engine of
+ontologyLearning reads by their name ([docs/model-api.md](docs/model-api.md), with the whole model of `Planta`):
+
+```ts
+import { Domain, Model, Shape } from "jsr:@kiri23/ontology-client/model";
+
+class Planta extends Model {
+  static shape = Shape.of(Planta)
+    .label("Planta")
+    .integer("riegoCadaDias").exactly(1).comment("Cada cuántos días se riega.")
+    .text("luz").exactly(1).oneOf("sol", "media", "sombra");
+}
+
+const jardin = Domain.create("jardin").at(import.meta)
+  .namespace("https://github.com/Kiri23/ontology-ejemplo/jardin#")
+  .model(Planta)
+  .instances([Planta.create("pothos").riegoCadaDias(7).luz("media")]);
+
+if (import.meta.main) Deno.exit(jardin.main(Deno.args)); // ontologia/planta.ttl and ontologia/planta-reglas.ttl
+```
+
 **Work on the repo.**
 
 ```sh

@@ -8,6 +8,8 @@ Reference for ontology-client, one file per topic.
   Turtle, with predicates of your own.
 - [graph-api.md](graph-api.md) — the entry `./graph`: a Turtle file with resources of any type, a vocabulary among them,
   and types of your own as subclasses.
+- [model-api.md](model-api.md) — the entry `./model`: a class and its rules declared in TypeScript, and the Turtle and
+  SHACL the engine of ontologyLearning reads generated from it.
 - [engines.md](engines.md) — where `jobs.get()` reads from: HTTP or the Neo4j view, and `deno task neo4j:hola`.
 - [cli.md](cli.md) — the CLI that validates project files: flags, variables, exit codes.
 - [action.md](action.md) — the GitHub Action that runs the CLI on pull requests.
