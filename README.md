@@ -114,12 +114,12 @@ class Planta extends Model {
     .text("luz").exactly(1).oneOf("sol", "media", "sombra");
 }
 
-const jardin = Domain.create("jardin").at(import.meta)
+const jardin = Domain.named("jardin").inFolderOf(import.meta)
   .namespace("https://github.com/Kiri23/ontology-ejemplo/jardin#")
   .model(Planta)
-  .instances([Planta.create("pothos").riegoCadaDias(7).luz("media")]);
+  .instances([Planta.withId("pothos").riegoCadaDias(7).luz("media")]);
 
-if (import.meta.main) Deno.exit(jardin.main(Deno.args)); // ontologia/planta.ttl and ontologia/planta-reglas.ttl
+if (import.meta.main) Deno.exit(jardin.runCli(Deno.args)); // ontologia/planta.ttl and ontologia/planta-reglas.ttl
 ```
 
 **Work on the repo.**

@@ -458,10 +458,10 @@ Deno.test("problems: primero los del archivo, después cada término en el orden
 
 // El vocabulario del ejemplo de la documentación, creado desde cero.
 function creado(): Vocabulary {
-  const v = Vocabulary.create(NS).language("es").prefix("doc", DOC);
+  const v = Vocabulary.inNamespace(NS).language("es").prefix("doc", DOC);
   v.scheme("vocabulario").label("Demo").definition("Los términos de la demo.");
-  v.add("provider").label("Provider").definition("Quien sirve el modelo.");
-  v.add("harness").label("Harness").definition("Un provider que corre un agente.").broader("provider")
+  v.addTerm("provider").label("Provider").definition("Quien sirve el modelo.");
+  v.addTerm("harness").label("Harness").definition("Un provider que corre un agente.").broader("provider")
     .value("doc:symbol", "@scope/pkg#Bench.harness").example("Claude Code.").seeAlso("https://example.com/harness");
   v.edit("harness").altLabel("Arnés").related("provider");
   return v;
@@ -472,7 +472,7 @@ const triples = (v: Vocabulary) =>
     `${q.subject.value} ${q.predicate.value} ${q.object.value} @${"language" in q.object ? q.object.language : "iri"}`
   ).sort();
 
-Deno.test("create → toTurtle → parse: vuelve el mismo vocabulario", () => {
+Deno.test("inNamespace → toTurtle → parse: vuelve el mismo vocabulario", () => {
   const original = creado();
   const leido = Vocabulary.parse(original.toTurtle());
   assertEquals(triples(leido), triples(original));
@@ -489,7 +489,7 @@ Deno.test("create → toTurtle → parse: vuelve el mismo vocabulario", () => {
   assertEquals(leido.prefixes.doc, DOC);
 });
 
-Deno.test("create: lo creado pasa las reglas, con el esquema puesto solo en cada término", () => {
+Deno.test("inNamespace y addTerm: lo creado pasa las reglas, con el esquema puesto solo en cada término", () => {
   const sinRelated = creado();
   sinRelated.edit("harness").unset("skos:related");
   assertEquals(sinRelated.check().language("es").namespace(NS).oneScheme().seeAlsoUrls().problems(), []);
@@ -515,8 +515,8 @@ Deno.test("toTurtle: no preserva los comentarios de un archivo escrito a mano", 
 });
 
 Deno.test("language: sin idioma el texto va sin etiqueta; el segundo argumento elige otro", () => {
-  const v = Vocabulary.create(NS);
-  v.add("a").label("A").label("Ah", "es").definition("D.", "EN");
+  const v = Vocabulary.inNamespace(NS);
+  v.addTerm("a").label("A").label("Ah", "es").definition("D.", "EN");
   assertEquals(v.term("a").literals("skos:prefLabel"), [{ value: "A", language: "" }, { value: "Ah", language: "es" }]);
   assertEquals(v.term("a").literals("skos:definition"), [{ value: "D.", language: "en" }]);
 });
@@ -533,7 +533,7 @@ Deno.test("label y definition: reemplazan el del mismo idioma y dejan los otros"
 });
 
 Deno.test("add: un nombre que ya está lanza; edit de uno que no existe también", () => {
-  assertThrows(() => creado().add("provider"), Error, '"provider" is already in this vocabulary');
+  assertThrows(() => creado().addTerm("provider"), Error, '"provider" is already in this vocabulary');
   assertThrows(() => creado().edit("nope"), Error, 'No term "nope"');
   assertThrows(() => creado().remove("nope"), Error, 'No term "nope"');
 });
@@ -564,7 +564,7 @@ Deno.test("value, link y unset: escribir y sacar un predicado propio", () => {
 
 Deno.test("add y edit sobre un vocabulario leído: el namespace sale de sus términos", () => {
   const v = demo();
-  v.add("task").label("Task", "en").definition("What is asked.", "en").broader("run");
+  v.addTerm("task").label("Task", "en").definition("What is asked.", "en").broader("run");
   assertEquals(v.term("task").iri, `${NS}task`);
   assertEquals(v.term("task").values("skos:inScheme"), [`${NS}vocabulary`]);
   assertEquals(v.term("run").narrower().ids(), ["task"]);

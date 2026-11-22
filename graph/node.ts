@@ -17,23 +17,23 @@ type Editor = ResourceEditor<Source>;
  * A node to put in a graph: a resource of any type, created on its own and then added.
  *
  * ```ts
- * const graph = Graph.create("https://example.com/doc#").prefix("doc", "https://example.com/doc#");
- * graph.add(GraphNode.create("intro").a("doc:Page").value("doc:path", "tutorial/intro.md"));
+ * const graph = Graph.inNamespace("https://example.com/doc#").prefix("doc", "https://example.com/doc#");
+ * graph.add(GraphNode.withId("intro").ofType("doc:Page").value("doc:path", "tutorial/intro.md"));
  *
- * // A type of your own repo is a subclass: its create gives the type, its methods name its predicates.
+ * // A type of your own repo is a subclass: its withId gives the type, its methods name its predicates.
  * class Page extends GraphNode {
- *   static override create(id: string): Page {
- *     return new Page(id).a("doc:Page");
+ *   static override withId(id: string): Page {
+ *     return new Page(id).ofType("doc:Page");
  *   }
  *   path(p: string): this {
  *     return this.value("doc:path", p);
  *   }
  * }
- * graph.add(Page.create("guide").path("guide.md").label("Guide"));
+ * graph.add(Page.withId("guide").path("guide.md").label("Guide"));
  * ```
  *
  * **A node that is never given to `graph.add()` is not in any file, and nothing says so**: it is a value like any
- * other, so create it inside the `add()`.
+ * other, so make it inside the `add()`.
  */
 export class GraphNode {
   /** The name it was created with: bare (`"intro"`), by prefix or a whole IRI. The graph that takes it makes the IRI. */
@@ -41,7 +41,7 @@ export class GraphNode {
   #writes: ((editor: Editor) => void)[] = [];
   #added = false;
 
-  /** Use `create()` instead; a subclass calls it from its own `create`. */
+  /** Use `withId()` instead; a subclass calls it from its own `withId`. */
   constructor(id: string) {
     this.id = id;
   }
@@ -49,14 +49,14 @@ export class GraphNode {
   /**
    * A node on its own, to fill and then give to `graph.add()`.
    *
-   * A subclass writes its own `create` that calls `new` and gives its type: `new Page(id).a("doc:Page")`.
+   * A subclass writes its own `withId` that calls `new` and gives its type: `new Page(id).ofType("doc:Page")`.
    */
-  static create(id: string): GraphNode {
+  static withId(id: string): GraphNode {
     return new GraphNode(id);
   }
 
   /** Adds a type (`a doc:Page`), by prefix or whole IRI. Throws on a bare name: it is not a type. */
-  a(type: string): this {
+  ofType(type: string): this {
     if (!type.includes(":")) {
       throw new Error(`"${type}" is not a type: write it with its prefix ("doc:${type}") or as a whole IRI`);
     }

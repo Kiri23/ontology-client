@@ -1,6 +1,6 @@
 // domain.ts — the module: it names the models, the queries and the instances of a domain, and generates their files.
-// `create` builds it in memory; `write` and `check` touch the disk. The file that declares it is the one you run, so
-// the consumer owns the pipeline: `if (import.meta.main) Deno.exit(jardin.main(Deno.args))`.
+// `named` builds it in memory; `writeFiles` and `outdatedFiles` touch the disk. The file that declares it is the one you run, so
+// the consumer owns the pipeline: `if (import.meta.main) Deno.exit(jardin.runCli(Deno.args))`.
 //
 // It turns each model into two graphs with model/files.ts and its instances into a third with Graph.add (graph.ts).
 
@@ -31,17 +31,17 @@ interface Group {
  * run to generate the files the engine of ontologyLearning reads.
  *
  * ```ts
- * const jardin = Domain.create("jardin").at(import.meta)
+ * const jardin = Domain.named("jardin").inFolderOf(import.meta)
  *   .namespace("https://github.com/Kiri23/ontology-ejemplo/jardin#")
  *   .model(Planta)
  *   .query("riego")
- *   .instances(plantas).in("plantas/plantas.ttl");
+ *   .instances(plantas).toFile("plantas/plantas.ttl");
  *
- * if (import.meta.main) Deno.exit(jardin.main(Deno.args));
+ * if (import.meta.main) Deno.exit(jardin.runCli(Deno.args));
  * ```
  *
- * It writes, next to the file passed to `at`: `ontologia/planta.ttl` (the class), `ontologia/planta-reglas.ttl` (its
- * rules) and the instances where `in` says. The queries are not written: `ontologia/<name>.rq` has to be there.
+ * It writes, next to the file passed to `inFolderOf`: `ontologia/planta.ttl` (the class), `ontologia/planta-reglas.ttl` (its
+ * rules) and the instances where `toFile` says. The queries are not written: `ontologia/<name>.rq` has to be there.
  */
 export class Domain {
   /** Its name, and the prefix of its namespace. */
@@ -59,12 +59,12 @@ export class Domain {
   }
 
   /** A domain in memory. Its name is also the prefix of its namespace: `jardin:`. */
-  static create(name: string): Domain {
+  static named(name: string): Domain {
     return new Domain(name);
   }
 
   /** The file that declares the domain: what it generates goes next to it. Pass `import.meta`. */
-  at(meta: { url: string }): this {
+  inFolderOf(meta: { url: string }): this {
     this.#base = new URL(".", meta.url);
     this.#source = meta.url.slice(this.#base.href.length);
     return this;
@@ -97,28 +97,30 @@ export class Domain {
     return this;
   }
 
-  /** Instances of its models, made with `Model.create`. They go to `<name>.ttl` unless `in` says where. */
+  /** Instances of its models, made with `Model.withId`. They go to `<name>.ttl` unless `toFile` says where. */
   instances(instances: readonly Model[]): this {
     this.#groups.push({ instances });
     return this;
   }
 
   /**
-   * Where the instances of the last `instances()` go, relative to the file of `at`: one file
+   * Where the instances of the last `instances()` go, relative to the file of `inFolderOf`: one file
    * (`"plantas/plantas.ttl"`), or one for each, from the instance (`(c) => \`cursos/${c.id}.ttl\``).
    */
-  in(destination: Destination): this {
+  toFile(destination: Destination): this {
     const group = this.#groups.at(-1);
-    if (!group) throw new Error(`${this.name}: in() says where the instances go; name them first with .instances()`);
+    if (!group) {
+      throw new Error(`${this.name}: toFile() says where the instances go; name them first with .instances()`);
+    }
     group.destination = destination;
     return this;
   }
 
   /**
-   * Every file it generates, as graphs, by path relative to the file of `at`. Nothing is written: read them, or add
+   * Every file it generates, as graphs, by path relative to the file of `inFolderOf`. Nothing is written: read them, or add
    * to their `store` before you write them yourself.
    */
-  graphs(): Map<string, Graph> {
+  toGraphs(): Map<string, Graph> {
     const context = this.#context();
     this.#checkOneOwner(context);
     const graphs = new Map<string, Graph>();
@@ -140,15 +142,15 @@ export class Domain {
   }
 
   /** Every file it generates, as text, by path. A header says where it comes from. */
-  files(): Map<string, string> {
+  toFiles(): Map<string, string> {
     const header =
       `# Generated from ${this.#source ?? `the domain "${this.name}"`} by @kiri23/ontology-client/model. ` +
       "Edit the .ts, not this file.\n";
-    return new Map([...this.graphs()].map(([path, graph]) => [path, header + graph.toTurtle()]));
+    return new Map([...this.toGraphs()].map(([path, graph]) => [path, header + graph.toTurtle()]));
   }
 
   /** Writes every file and returns their paths. Throws, writing nothing, if a query has no `.rq`. */
-  write(): string[] {
+  writeFiles(): string[] {
     const files = this.#checked();
     const disk = this.#disk();
     for (const [path, text] of files) {
@@ -160,7 +162,7 @@ export class Domain {
   }
 
   /** The paths of the files that generating would create or change; none when they are up to date. */
-  check(): string[] {
+  outdatedFiles(): string[] {
     const disk = this.#disk();
     return [...this.#checked()].filter(([path, text]) => {
       const url = this.#url(path);
@@ -170,19 +172,19 @@ export class Domain {
 
   /**
    * What the file of the domain runs: with `--check`, says which files would change and returns 1 if any; with
-   * nothing, writes them and returns 0. `if (import.meta.main) Deno.exit(jardin.main(Deno.args))`.
+   * nothing, writes them and returns 0. `if (import.meta.main) Deno.exit(jardin.runCli(Deno.args))`.
    */
-  main(args: readonly string[]): number {
+  runCli(args: readonly string[]): number {
     const unknown = args.find((arg) => arg !== "--check");
     if (unknown !== undefined) {
       throw new Error(`${this.name}: "${unknown}" is not an argument; the only one is --check`);
     }
     if (args.includes("--check")) {
-      const stale = this.check();
+      const stale = this.outdatedFiles();
       for (const path of stale) console.error(`${path} is not up to date: run ${this.#source ?? "the domain"}`);
       return stale.length ? 1 : 0;
     }
-    for (const path of this.write()) console.log(`wrote ${path}`);
+    for (const path of this.writeFiles()) console.log(`wrote ${path}`);
     return 0;
   }
 
@@ -196,11 +198,11 @@ export class Domain {
   }
 
   #instanceGraph(context: Context): Graph {
-    const graph = Graph.create(context.namespace);
+    const graph = Graph.inNamespace(context.namespace);
     for (const [prefix, namespace] of Object.entries(context.prefixes)) graph.prefix(prefix, namespace);
     for (const model of this.#models) {
-      const { instancesIn } = model.shape.data;
-      if (instancesIn !== undefined) graph.prefix(model.name.toLowerCase(), instancesIn);
+      const { instanceNamespace } = model.shape.data;
+      if (instanceNamespace !== undefined) graph.prefix(model.name.toLowerCase(), instanceNamespace);
     }
     return graph;
   }
@@ -222,7 +224,7 @@ export class Domain {
     const owners = new Map<string, string>();
     for (const model of this.#models) {
       for (const property of model.shape.data.properties) {
-        const iri = expand(property.predicate ?? property.key, context.prefixes, context.namespace);
+        const iri = expand(property.writtenAs ?? property.key, context.prefixes, context.namespace);
         if (!iri.startsWith(context.namespace)) continue;
         const owner = owners.get(iri);
         if (owner !== undefined && owner !== model.name) {
@@ -236,19 +238,19 @@ export class Domain {
     }
   }
 
-  /** An instance of a closed model with a property its shape does not declare throws here, not when the engine validates. */
+  /** An instance of a model with noExtraProperties() and a property its shape does not declare throws here, not when the engine validates. */
   #checkClosed(graph: Graph): void {
     for (const model of this.#models) {
       const { data } = model.shape;
-      if (!data.closed) continue;
-      const allowed = new Set([RDF_TYPE, ...data.properties.map((p) => graph.iri(p.predicate ?? p.key))]);
+      if (!data.noExtraProperties) continue;
+      const allowed = new Set([RDF_TYPE, ...data.properties.map((p) => graph.iri(p.writtenAs ?? p.key))]);
       for (const instance of graph.instancesOf(graph.iri(model.name))) {
         const extra = graph.store.getQuads(instance.node, null, null, null).find((q) =>
           !allowed.has(q.predicate.value)
         );
         if (extra) {
           throw new Error(
-            `${instance.id} writes <${extra.predicate.value}>, and ${model.name} is closed: declare it in its shape, ` +
+            `${instance.id} writes <${extra.predicate.value}>, and ${model.name} says noExtraProperties(): declare it in its shape, ` +
               "or do not write it (label() writes skos:prefLabel)",
           );
         }
@@ -257,7 +259,7 @@ export class Domain {
   }
 
   #checked(): Map<string, string> {
-    const files = this.files();
+    const files = this.toFiles();
     const disk = this.#disk();
     const missing = this.#queries.filter((name) => !disk.existsSync(this.#url(`ontologia/${name}.rq`)));
     if (missing.length) {
@@ -267,14 +269,18 @@ export class Domain {
   }
 
   #url(path: string): URL {
-    if (!this.#base) throw new Error(`${this.name}: say where it lives with .at(import.meta) before writing`);
+    if (!this.#base) throw new Error(`${this.name}: say where it lives with .inFolderOf(import.meta) before writing`);
     return new URL(path, this.#base);
   }
 
   #disk(): Disk {
     const { process } = globalThis as { process?: { getBuiltinModule?: (name: string) => unknown } };
     const fs = process?.getBuiltinModule?.("node:fs");
-    if (!fs) throw new Error(`${this.name}: write and check need the disk of Deno or Node; use files() anywhere else`);
+    if (!fs) {
+      throw new Error(
+        `${this.name}: writeFiles and outdatedFiles need the disk of Deno or Node; use toFiles() anywhere else`,
+      );
+    }
     return fs as Disk;
   }
 }
